@@ -471,6 +471,8 @@ void GPENCIL_OT_bake_mesh_animation(struct wmOperatorType *ot);
 void GPENCIL_OT_image_to_grease_pencil(struct wmOperatorType *ot);
 void GPENCIL_OT_trace_image(struct wmOperatorType *ot);
 
+void GPENCIL_OT_export_svg(struct wmOperatorType *ot);
+
 enum {
   GP_STROKE_JOIN = -1,
   GP_STROKE_JOINCOPY = 1,

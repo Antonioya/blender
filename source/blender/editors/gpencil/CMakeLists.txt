@@ -65,6 +65,7 @@ set(SRC
   gpencil_vertex_ops.c
   gpencil_vertex_paint.c
   gpencil_weight_paint.c
+  gpencil_svg.c
 
   gpencil_intern.h
   gpencil_trace.h
