@@ -100,6 +100,7 @@ class DATA_PT_shader_fx(ShaderFxButtonsPanel, Panel):
         layout.prop(fx, "mask_color")
         layout.prop(fx, "mode")
         layout.prop(fx, "blur")
+        layout.prop(fx, "rotation")
         layout.prop(fx, "samples")
 
     def FX_SHADOW(self, layout, fx):

@@ -184,7 +184,8 @@ typedef struct RimShaderFxData {
   int mode;
   int blur[2];
   int samples;
-  char _pad[4];
+  /** Rotation.  */
+  float rotation;
   ShaderFxData_Runtime runtime;
 } RimShaderFxData;
 

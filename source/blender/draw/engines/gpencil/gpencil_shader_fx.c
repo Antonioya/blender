@@ -176,9 +176,12 @@ static void gpencil_vfx_flip(FlipShaderFxData *fx, Object *UNUSED(ob), gpIterVfx
 static void gpencil_vfx_rim(RimShaderFxData *fx, Object *ob, gpIterVfxData *iter)
 {
   DRWShadingGroup *grp;
+  const float s = sin(fx->rotation);
+  const float c = cos(fx->rotation);
 
   float winmat[4][4], persmat[4][4];
-  float offset[2] = {fx->offset[0], fx->offset[1]};
+  float offset[2] = {fx->offset[0] * c - fx->offset[1] * s, fx->offset[0] * s + fx->offset[1] * c};
+  //{fx->offset[0], fx->offset[1]};
   float blur_size[2] = {fx->blur[0], fx->blur[1]};
   DRW_view_winmat_get(NULL, winmat, false);
   DRW_view_persmat_get(NULL, persmat, false);
