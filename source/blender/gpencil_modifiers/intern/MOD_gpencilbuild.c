@@ -49,6 +49,7 @@
 static void initData(GpencilModifierData *md)
 {
   BuildGpencilModifierData *gpmd = (BuildGpencilModifierData *)md;
+  gpmd->object = NULL;
 
   /* We deliberately set this range to the half the default
    * frame-range to have an immediate effect to suggest use-cases
@@ -193,7 +194,7 @@ typedef struct tStrokeBuildDetails {
 } tStrokeBuildDetails;
 
 /* Sequential - Show strokes one after the other */
-static void build_sequential(BuildGpencilModifierData *mmd, bGPDframe *gpf, float fac)
+static void build_sequential(BuildGpencilModifierData *mmd, Object *ob, bGPDframe *gpf, float fac)
 {
   const size_t tot_strokes = BLI_listbase_count(&gpf->strokes);
   bGPDstroke *gps;
@@ -258,6 +259,9 @@ static void build_sequential(BuildGpencilModifierData *mmd, bGPDframe *gpf, floa
   }
 
   /* 3) Go through all strokes, deciding which to keep, and/or how much of each to keep */
+  float center[3];
+  copy_v3_v3(center, ob->obmat[3]);
+  int last = 0;
   for (i = 0; i < tot_strokes; i++) {
     tStrokeBuildDetails *cell = &table[i];
 
@@ -265,12 +269,14 @@ static void build_sequential(BuildGpencilModifierData *mmd, bGPDframe *gpf, floa
     if ((cell->end_idx < first_visible) || (cell->start_idx > last_visible)) {
       /* Not visible at all - Either ended before */
       clear_stroke(gpf, cell->gps);
+      continue;
     }
     else {
       /* Some proportion of stroke is visible */
       /* XXX: Will the transition settings still be valid now? */
       if ((first_visible <= cell->start_idx) && (last_visible >= cell->end_idx)) {
         /* Do nothing - whole stroke is visible */
+        continue;
       }
       else if (first_visible > cell->start_idx) {
         /* Starts partway through this stroke */
@@ -282,7 +288,22 @@ static void build_sequential(BuildGpencilModifierData *mmd, bGPDframe *gpf, floa
         int num_points = last_visible - cell->start_idx;
         reduce_stroke_points(cell->gps, num_points, mmd->transition);
       }
+      /* Save index of last stroke. */
+      if (last < i) {
+        last = i;
+      }
     }
+  }
+
+  /* Calc position of the last point of the current stroke. */
+  /* If there is a follow object, change the location of that object. */
+  if (mmd->object != NULL) {
+    tStrokeBuildDetails *cell = &table[last];
+    if (cell && cell->gps->totpoints > 0) {
+      bGPDspoint *pt = &cell->gps->points[cell->gps->totpoints - 1];
+      add_v3_v3(center, &pt->x);
+    }
+    copy_v3_v3(mmd->object->loc, center);
   }
 
   /* Free table */
@@ -399,10 +420,8 @@ static void build_concurrent(BuildGpencilModifierData *mmd, bGPDframe *gpf, floa
 }
 
 /* --------------------------------------------- */
-static void generate_geometry(GpencilModifierData *md,
-                              Depsgraph *depsgraph,
-                              bGPDlayer *gpl,
-                              bGPDframe *gpf)
+static void generate_geometry(
+    GpencilModifierData *md, Depsgraph *depsgraph, Object *ob, bGPDlayer *gpl, bGPDframe *gpf)
 {
   BuildGpencilModifierData *mmd = (BuildGpencilModifierData *)md;
   const bool reverse = (mmd->transition != GP_BUILD_TRANSITION_GROW);
@@ -505,7 +524,7 @@ static void generate_geometry(GpencilModifierData *md,
   /* Time management mode */
   switch (mmd->mode) {
     case GP_BUILD_MODE_SEQUENTIAL:
-      build_sequential(mmd, gpf, fac);
+      build_sequential(mmd, ob, gpf, fac);
       break;
 
     case GP_BUILD_MODE_CONCURRENT:
@@ -527,11 +546,15 @@ static void generateStrokes(GpencilModifierData *md, Depsgraph *depsgraph, Objec
   bGPdata *gpd = (bGPdata *)ob->data;
 
   LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+    if (gpl->flag & GP_LAYER_HIDE) {
+      continue;
+    }
+
     bGPDframe *gpf = BKE_gpencil_frame_retime_get(depsgraph, scene, ob, gpl);
     if (gpf == NULL) {
       continue;
     }
-    generate_geometry(md, depsgraph, gpl, gpf);
+    generate_geometry(md, depsgraph, ob, gpl, gpf);
   }
 }
 

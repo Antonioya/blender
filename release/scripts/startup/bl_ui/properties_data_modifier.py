@@ -2180,6 +2180,12 @@ class DATA_PT_gpencil_modifiers(ModifierButtonsPanel, Panel):
         sub.prop(md, "frame_start", text="Start")
         sub.prop(md, "frame_end", text="End")
 
+        col.separator()
+        col.label(text="Follow Object:")
+        subcol = col.column()
+        subcol.active = md.mode == 'SEQUENTIAL'
+        subcol.prop(md, "follow_object", text="")
+
         layout.label(text="Influence Filters:")
 
         split = layout.split(factor=0.25)

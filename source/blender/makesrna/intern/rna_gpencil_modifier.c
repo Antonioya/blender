@@ -1684,6 +1684,15 @@ static void rna_def_modifier_gpencilbuild(BlenderRNA *brna)
   RNA_def_property_range(prop, MINAFRAMEF, MAXFRAMEF);
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
+  /* Offset parameters */
+  prop = RNA_def_property(srna, "follow_object", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "object");
+  RNA_def_property_ui_text(
+      prop, "Follow Object", "Object is located in the position of the last points");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
+
   /* Filters - Layer */
   prop = RNA_def_property(srna, "layer", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, NULL, "layername");

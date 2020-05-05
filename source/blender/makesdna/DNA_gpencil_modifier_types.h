@@ -334,6 +334,8 @@ typedef enum eArrayGpencil_Flag {
 
 typedef struct BuildGpencilModifierData {
   GpencilModifierData modifier;
+  /** Follow object. */
+  struct Object *object;
 
   /** If set, restrict modifier to operating on this layer. */
   char layername[64];
