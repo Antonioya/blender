@@ -476,7 +476,8 @@ typedef struct LengthGpencilModifierData {
   float length_fac;
   /** This ignores tip jittering when extending stroke. */
   float tip_length;
-
+  int mode;
+  char _pad[4];
 } LengthGpencilModifierData;
 
 typedef enum eLengthGpencil_Flag {
@@ -485,6 +486,11 @@ typedef enum eLengthGpencil_Flag {
   GP_LENGTH_INVERT_LAYERPASS = (1 << 2),
   GP_LENGTH_INVERT_MATERIAL = (1 << 3),
 } eLengthGpencil_Flag;
+
+typedef enum eLengthGpencil_Type {
+  GP_LENGTH_RELATIVE = 0,
+  GP_LENGTH_ABSOLUTE = 1,
+} eLengthGpencil_Type;
 
 typedef struct MirrorGpencilModifierData {
   GpencilModifierData modifier;

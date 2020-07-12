@@ -188,6 +188,11 @@ static const EnumPropertyItem gpencil_tint_type_items[] = {
     {GP_TINT_GRADIENT, "GRADIENT", 0, "Gradient", ""},
     {0, NULL, 0, NULL, NULL},
 };
+static const EnumPropertyItem gpencil_length_mode_items[] = {
+    {GP_LENGTH_RELATIVE, "Relative", 0, "Relative", ""},
+    {GP_LENGTH_ABSOLUTE, "ABSOLUTE", 0, "Absolute", ""},
+    {0, NULL, 0, NULL, NULL},
+};
 #endif
 
 #ifdef RNA_RUNTIME
@@ -1836,15 +1841,21 @@ static void rna_def_modifier_gpencillength(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, NULL, "length_fac");
-  RNA_def_property_range(prop, -1.0f, 10.0f);
+  RNA_def_property_range(prop, 0.0f, 10.0f);
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_text(prop, "Factor", "Length based on the curve's original length");
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
   prop = RNA_def_property(srna, "tip_length", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_range(prop, 0.0f, 10.0f);
+  RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_float_default(prop, 0.01f);
   RNA_def_property_ui_text(prop, "Tip Length", "Ignore tip jittering when extending a stroke");
+  RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
+
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, NULL, "mode");
+  RNA_def_property_enum_items(prop, gpencil_length_mode_items);
+  RNA_def_property_ui_text(prop, "Mode", "Mode to define length");
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
   prop = RNA_def_property(srna, "layer", PROP_STRING, PROP_NONE);

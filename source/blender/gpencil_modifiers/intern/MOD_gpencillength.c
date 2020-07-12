@@ -87,18 +87,20 @@ static void stretchOrShrinkStroke(bGPDstroke *gps, float length, float tip_lengt
   }
 }
 
-static void applyLength(bGPDstroke *gps, float length, float factor, float tip_length)
+static void applyLength(
+    bGPDstroke *gps, float length, float factor, float tip_length, const int mode)
 {
-
-  stretchOrShrinkStroke(gps, length, tip_length);
-
-  float len = BKE_gpencil_stroke_length(gps, true);
-  if (len < FLT_EPSILON) {
-    return;
+  if (mode == GP_LENGTH_ABSOLUTE) {
+    stretchOrShrinkStroke(gps, length, tip_length);
   }
-  float length2 = len * (factor - 1.0f) / 2.0f; /* Srinking from two tips. */
-
-  stretchOrShrinkStroke(gps, length2, tip_length);
+  else {
+    float len = BKE_gpencil_stroke_length(gps, true);
+    if (len < FLT_EPSILON) {
+      return;
+    }
+    float length2 = len * (factor - 1.0f) / 2.0f; /* Srinking from two tips. */
+    stretchOrShrinkStroke(gps, length2, tip_length);
+  }
 }
 
 static void bakeModifier(Main *UNUSED(bmain),
@@ -125,7 +127,7 @@ static void bakeModifier(Main *UNUSED(bmain),
                                            lmd->flag & GP_LENGTH_INVERT_PASS,
                                            lmd->flag & GP_LENGTH_INVERT_LAYERPASS,
                                            lmd->flag & GP_LENGTH_INVERT_MATERIAL)) {
-          applyLength(gps, lmd->length, lmd->length_fac, lmd->tip_length);
+          applyLength(gps, lmd->length, lmd->length_fac, lmd->tip_length, lmd->mode);
         }
       }
     }
@@ -155,7 +157,7 @@ static void deformStroke(GpencilModifierData *md,
                                      lmd->flag & GP_LENGTH_INVERT_PASS,
                                      lmd->flag & GP_LENGTH_INVERT_LAYERPASS,
                                      lmd->flag & GP_LENGTH_INVERT_MATERIAL)) {
-    applyLength(gps, lmd->length, lmd->length_fac, lmd->tip_length);
+    applyLength(gps, lmd->length, lmd->length_fac, lmd->tip_length, lmd->mode);
   }
 }
 
@@ -165,12 +167,18 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   PointerRNA ptr;
   gpencil_modifier_panel_get_property_pointers(C, panel, NULL, &ptr);
+  const int mode = RNA_enum_get(&ptr, "mode");
 
   uiLayoutSetPropSep(layout, true);
+  uiItemR(layout, &ptr, "mode", 0, NULL, ICON_NONE);
 
-  uiItemR(layout, &ptr, "factor", 0, NULL, ICON_NONE);
-  uiItemR(layout, &ptr, "length", 0, NULL, ICON_NONE);
-  uiItemR(layout, &ptr, "tip_length", 0, NULL, ICON_NONE);
+  if (mode == GP_LENGTH_RELATIVE) {
+    uiItemR(layout, &ptr, "factor", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+  }
+  else {
+    uiItemR(layout, &ptr, "length", 0, NULL, ICON_NONE);
+  }
+  uiItemR(layout, &ptr, "tip_length", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 
   gpencil_modifier_panel_end(layout, &ptr);
 }
