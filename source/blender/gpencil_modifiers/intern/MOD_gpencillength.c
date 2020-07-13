@@ -78,45 +78,41 @@ static void copyData(const GpencilModifierData *md, GpencilModifierData *target)
   BKE_gpencil_modifier_copydata_generic(md, target);
 }
 
+static bool gpencil_modify_stroke(bGPDstroke *gps,
+                                  float length,
+                                  const float overshoot_fac,
+                                  const short len_mode)
+{
+  bool changed = false;
+  if (length == 0.0f) {
+    return changed;
+  }
+
+  if (length > 0.0f) {
+    BKE_gpencil_stroke_stretch(gps, length, overshoot_fac, len_mode);
+  }
+  else {
+    changed |= BKE_gpencil_stroke_shrink(gps, fabs(length), len_mode);
+  }
+
+  return changed;
+}
+
 static void applyLength(LengthGpencilModifierData *lmd, bGPDstroke *gps)
 {
   bool changed = false;
-  float len = BKE_gpencil_stroke_length(gps, true);
+  const float len = BKE_gpencil_stroke_length(gps, true);
   if (len < FLT_EPSILON) {
     return;
   }
 
   if (lmd->mode == GP_LENGTH_ABSOLUTE) {
-    if (lmd->start_length > 0.0f) {
-      BKE_gpencil_stroke_stretch(gps, lmd->start_length, lmd->overshoot_fac, 1);
-    }
-    else if (lmd->start_length < 0.0f) {
-      changed |= BKE_gpencil_stroke_shrink(gps, fabs(lmd->start_length), 1);
-    }
-
-    if (lmd->end_length > 0.0f) {
-      BKE_gpencil_stroke_stretch(gps, lmd->end_length, lmd->overshoot_fac, 2);
-    }
-    else if (lmd->end_length < 0.0f) {
-      changed |= BKE_gpencil_stroke_shrink(gps, fabs(lmd->end_length), 2);
-    }
+    changed |= gpencil_modify_stroke(gps, lmd->start_length, lmd->overshoot_fac, 1);
+    changed |= gpencil_modify_stroke(gps, lmd->end_length, lmd->overshoot_fac, 2);
   }
   else {
-    float relative = len * lmd->start_fac;
-    if (relative > 0.0f) {
-      BKE_gpencil_stroke_stretch(gps, relative, lmd->overshoot_fac, 1);
-    }
-    else if (lmd->start_fac < 0.0f) {
-      changed |= BKE_gpencil_stroke_shrink(gps, fabs(relative), 1);
-    }
-
-    relative = len * lmd->end_fac;
-    if (lmd->end_fac > 0.0f) {
-      BKE_gpencil_stroke_stretch(gps, relative, lmd->overshoot_fac, 2);
-    }
-    else if (lmd->end_fac < 0.0f) {
-      changed |= BKE_gpencil_stroke_shrink(gps, fabs(relative), 2);
-    }
+    changed |= gpencil_modify_stroke(gps, len * lmd->start_fac, lmd->overshoot_fac, 1);
+    changed |= gpencil_modify_stroke(gps, len * lmd->end_fac, lmd->overshoot_fac, 2);
   }
 
   if (changed) {
