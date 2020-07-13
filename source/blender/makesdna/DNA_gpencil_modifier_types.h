@@ -472,10 +472,13 @@ typedef struct LengthGpencilModifierData {
   int flag;
   /** Custom index for passes. */
   int layer_pass;
-  float length;
-  float length_fac;
-  /** This ignores tip jittering when extending stroke. */
-  float tip_length;
+  /** Absolute length. */
+  float start_length, end_length;
+  /** Relative length */
+  float start_fac, end_fac;
+  /** Overshoot trajectory factor. */
+  float overshoot_fac;
+  /** Modifier mode. */
   int mode;
   char _pad[4];
 } LengthGpencilModifierData;

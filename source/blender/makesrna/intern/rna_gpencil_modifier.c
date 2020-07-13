@@ -1833,23 +1833,44 @@ static void rna_def_modifier_gpencillength(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "LengthGpencilModifierData");
   RNA_def_struct_ui_icon(srna, ICON_MOD_EDGESPLIT);
 
-  prop = RNA_def_property(srna, "length", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "start_length", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "start_length");
   RNA_def_property_range(prop, -10.0f, 10.0f);
   RNA_def_property_float_default(prop, 0.0f);
-  RNA_def_property_ui_text(prop, "Length", "Length of each segment");
+  RNA_def_property_ui_text(prop, "Start Length", "Length of each segment");
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
-  prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_sdna(prop, NULL, "length_fac");
-  RNA_def_property_range(prop, 0.0f, 10.0f);
-  RNA_def_property_float_default(prop, 1.0f);
-  RNA_def_property_ui_text(prop, "Factor", "Length based on the curve's original length");
+  prop = RNA_def_property(srna, "end_length", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "end_length");
+  RNA_def_property_range(prop, -10.0f, 10.0f);
+  RNA_def_property_float_default(prop, 0.0f);
+  RNA_def_property_ui_text(prop, "End Length", "Length of each segment");
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
-  prop = RNA_def_property(srna, "tip_length", PROP_FLOAT, PROP_NONE);
+  prop = RNA_def_property(srna, "start_factor", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "start_fac");
+  RNA_def_property_range(prop, -1.0f, 10.0f);
+  RNA_def_property_float_default(prop, 0.0f);
+  RNA_def_property_ui_text(
+      prop, "Start Factor", "Length of the start extreme based on the curve's original length");
+  RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
+
+  prop = RNA_def_property(srna, "end_factor", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "end_fac");
+  RNA_def_property_range(prop, -1.0f, 10.0f);
+  RNA_def_property_float_default(prop, 0.0f);
+  RNA_def_property_ui_text(
+      prop, "End Factor", "Length of the end extreme based on the curve's original length");
+  RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
+
+  prop = RNA_def_property(srna, "overshoot_factor", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, NULL, "overshoot_fac");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_float_default(prop, 0.01f);
-  RNA_def_property_ui_text(prop, "Tip Length", "Ignore tip jittering when extending a stroke");
+  RNA_def_property_ui_text(
+      prop,
+      "Overshoot Factor",
+      "Defines how precise must follow the stroke trajectory for the overshoot extremes");
   RNA_def_property_update(prop, 0, "rna_GpencilModifier_update");
 
   prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);

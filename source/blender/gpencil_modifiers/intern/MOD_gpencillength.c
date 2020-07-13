@@ -64,9 +64,11 @@
 static void initData(GpencilModifierData *md)
 {
   LengthGpencilModifierData *gpmd = (LengthGpencilModifierData *)md;
-  gpmd->length_fac = 1.1f;
-  gpmd->length = 0.0f;
-  gpmd->tip_length = 0.01f;
+  gpmd->start_fac = 0.1f;
+  gpmd->end_fac = 0.1f;
+  gpmd->start_length = 0.1f;
+  gpmd->end_length = 0.1f;
+  gpmd->overshoot_fac = 0.01f;
   gpmd->pass_index = 0;
   gpmd->material = NULL;
 }
@@ -76,30 +78,49 @@ static void copyData(const GpencilModifierData *md, GpencilModifierData *target)
   BKE_gpencil_modifier_copydata_generic(md, target);
 }
 
-static void stretchOrShrinkStroke(bGPDstroke *gps, float length, float tip_length)
+static void applyLength(LengthGpencilModifierData *lmd, bGPDstroke *gps)
 {
-  if (length > 0.0f) {
-    BKE_gpencil_stroke_stretch(gps, length, tip_length);
+  bool changed = false;
+  float len = BKE_gpencil_stroke_length(gps, true);
+  if (len < FLT_EPSILON) {
+    return;
   }
-  else {
-    BKE_gpencil_stroke_shrink(gps, -length);
-    BKE_gpencil_stroke_geometry_update(gps);
-  }
-}
 
-static void applyLength(
-    bGPDstroke *gps, float length, float factor, float tip_length, const int mode)
-{
-  if (mode == GP_LENGTH_ABSOLUTE) {
-    stretchOrShrinkStroke(gps, length, tip_length);
+  if (lmd->mode == GP_LENGTH_ABSOLUTE) {
+    if (lmd->start_length > 0.0f) {
+      BKE_gpencil_stroke_stretch(gps, lmd->start_length, lmd->overshoot_fac, 1);
+    }
+    else if (lmd->start_length < 0.0f) {
+      changed |= BKE_gpencil_stroke_shrink(gps, fabs(lmd->start_length), 1);
+    }
+
+    if (lmd->end_length > 0.0f) {
+      BKE_gpencil_stroke_stretch(gps, lmd->end_length, lmd->overshoot_fac, 2);
+    }
+    else if (lmd->end_length < 0.0f) {
+      changed |= BKE_gpencil_stroke_shrink(gps, fabs(lmd->end_length), 2);
+    }
   }
   else {
-    float len = BKE_gpencil_stroke_length(gps, true);
-    if (len < FLT_EPSILON) {
-      return;
+    float relative = len * lmd->start_fac;
+    if (relative > 0.0f) {
+      BKE_gpencil_stroke_stretch(gps, relative, lmd->overshoot_fac, 1);
     }
-    float length2 = len * (factor - 1.0f) / 2.0f; /* Srinking from two tips. */
-    stretchOrShrinkStroke(gps, length2, tip_length);
+    else if (lmd->start_fac < 0.0f) {
+      changed |= BKE_gpencil_stroke_shrink(gps, fabs(relative), 1);
+    }
+
+    relative = len * lmd->end_fac;
+    if (lmd->end_fac > 0.0f) {
+      BKE_gpencil_stroke_stretch(gps, relative, lmd->overshoot_fac, 2);
+    }
+    else if (lmd->end_fac < 0.0f) {
+      changed |= BKE_gpencil_stroke_shrink(gps, fabs(relative), 2);
+    }
+  }
+
+  if (changed) {
+    BKE_gpencil_stroke_geometry_update(gps);
   }
 }
 
@@ -127,7 +148,7 @@ static void bakeModifier(Main *UNUSED(bmain),
                                            lmd->flag & GP_LENGTH_INVERT_PASS,
                                            lmd->flag & GP_LENGTH_INVERT_LAYERPASS,
                                            lmd->flag & GP_LENGTH_INVERT_MATERIAL)) {
-          applyLength(gps, lmd->length, lmd->length_fac, lmd->tip_length, lmd->mode);
+          applyLength(lmd, gps);
         }
       }
     }
@@ -157,7 +178,7 @@ static void deformStroke(GpencilModifierData *md,
                                      lmd->flag & GP_LENGTH_INVERT_PASS,
                                      lmd->flag & GP_LENGTH_INVERT_LAYERPASS,
                                      lmd->flag & GP_LENGTH_INVERT_MATERIAL)) {
-    applyLength(gps, lmd->length, lmd->length_fac, lmd->tip_length, lmd->mode);
+    applyLength(lmd, gps);
   }
 }
 
@@ -173,12 +194,14 @@ static void panel_draw(const bContext *C, Panel *panel)
   uiItemR(layout, &ptr, "mode", 0, NULL, ICON_NONE);
 
   if (mode == GP_LENGTH_RELATIVE) {
-    uiItemR(layout, &ptr, "factor", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+    uiItemR(layout, &ptr, "start_factor", 0, NULL, ICON_NONE);
+    uiItemR(layout, &ptr, "end_factor", 0, NULL, ICON_NONE);
   }
   else {
-    uiItemR(layout, &ptr, "length", 0, NULL, ICON_NONE);
+    uiItemR(layout, &ptr, "start_length", 0, NULL, ICON_NONE);
+    uiItemR(layout, &ptr, "end_length", 0, NULL, ICON_NONE);
   }
-  uiItemR(layout, &ptr, "tip_length", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
+  uiItemR(layout, &ptr, "overshoot_factor", UI_ITEM_R_SLIDER, NULL, ICON_NONE);
 
   gpencil_modifier_panel_end(layout, &ptr);
 }
