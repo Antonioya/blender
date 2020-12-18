@@ -356,7 +356,7 @@ static void gpencil_interpolate_set_points(bContext *C, tGPDinterpolate *tgpi)
 
     BLI_addtail(&tgpi->ilayers, tgpil);
 
-    /* create a new temporary frame */
+    /* Create a new temporary frame. */
     tgpil->interFrame = MEM_callocN(sizeof(bGPDframe), "bGPDframe");
     tgpil->interFrame->framenum = tgpi->cframe;
 
@@ -638,8 +638,7 @@ static int gpencil_interpolate_modal(bContext *C, wmOperator *op, const wmEvent 
         gpf_dst = BKE_gpencil_layer_frame_get(tgpil->gpl, tgpi->cframe, GP_GETFRAME_ADD_NEW);
         gpf_dst->key_type = BEZT_KEYTYPE_BREAKDOWN;
 
-        /* copy strokes */
-        BLI_listbase_clear(&gpf_dst->strokes);
+        /* Copy strokes. */
         LISTBASE_FOREACH (bGPDstroke *, gps_src, &tgpil->interFrame->strokes) {
           if (gps_src->totpoints == 0) {
             continue;
