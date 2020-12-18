@@ -276,58 +276,6 @@ static void gpencil_interpolate_update_strokes(bContext *C, tGPDinterpolate *tgp
   WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
 }
 
-/* Helper: Verify valid strokes for interpolation */
-static bool gpencil_interpolate_check_todo(bContext *C, bGPdata *gpd)
-{
-  Object *ob = CTX_data_active_object(C);
-  ToolSettings *ts = CTX_data_tool_settings(C);
-  eGP_Interpolate_SettingsFlag flag = ts->gp_interpolate.flag;
-
-  /* get layers */
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    /* all layers or only active */
-    if (!(flag & GP_TOOLFLAG_INTERPOLATE_ALL_LAYERS) && !(gpl->flag & GP_LAYER_ACTIVE)) {
-      continue;
-    }
-    /* only editable and visible layers are considered */
-    if (!BKE_gpencil_layer_is_editable(gpl) || (gpl->actframe == NULL)) {
-      continue;
-    }
-
-    /* read strokes */
-    LISTBASE_FOREACH (bGPDstroke *, gps_from, &gpl->actframe->strokes) {
-      bGPDstroke *gps_to;
-      int fFrame;
-
-      /* only selected */
-      if ((GPENCIL_EDIT_MODE(gpd)) && (flag & GP_TOOLFLAG_INTERPOLATE_ONLY_SELECTED) &&
-          ((gps_from->flag & GP_STROKE_SELECT) == 0)) {
-        continue;
-      }
-      /* skip strokes that are invalid for current view */
-      if (ED_gpencil_stroke_can_use(C, gps_from) == false) {
-        continue;
-      }
-      /* check if the color is editable */
-      if (ED_gpencil_stroke_color_use(ob, gpl, gps_from) == false) {
-        continue;
-      }
-
-      /* get final stroke to interpolate */
-      fFrame = BLI_findindex(&gpl->actframe->strokes, gps_from);
-      gps_to = (gpl->actframe->next != NULL) ?
-                   BLI_findlink(&gpl->actframe->next->strokes, fFrame) :
-                   NULL;
-      if (gps_to == NULL) {
-        continue;
-      }
-
-      return true;
-    }
-  }
-  return false;
-}
-
 /* Helper: Get previous keyframe. */
 bGPDframe *gpencil_get_previous_keyframe(bGPDlayer *gpl, int cfra)
 {
@@ -643,14 +591,6 @@ static int gpencil_interpolate_invoke(bContext *C, wmOperator *op, const wmEvent
         "Cannot find a pair of grease pencil frames to interpolate between in active layer");
     return OPERATOR_CANCELLED;
   }
-
-  /* need editable strokes */
-#if 0
-  if (!gpencil_interpolate_check_todo(C, gpd)) {
-    BKE_report(op->reports, RPT_ERROR, "Interpolation requires some editable strokes");
-    return OPERATOR_CANCELLED;
-  }
-#endif
 
   /* try to initialize context data needed */
   if (!gpencil_interpolate_init(C, op)) {
