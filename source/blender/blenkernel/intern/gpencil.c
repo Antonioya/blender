@@ -1091,7 +1091,7 @@ bGPdata *BKE_gpencil_data_duplicate(Main *bmain, const bGPdata *gpd_src, bool in
  * Ensure selection status of stroke is in sync with its points.
  * \param gps: Grease pencil stroke
  */
-void BKE_gpencil_stroke_sync_selection(bGPDstroke *gps)
+void BKE_gpencil_stroke_sync_selection(bGPdata *gpd, bGPDstroke *gps)
 {
   bGPDspoint *pt;
   int i;
@@ -1105,6 +1105,7 @@ void BKE_gpencil_stroke_sync_selection(bGPDstroke *gps)
    * so initially, we must deselect
    */
   gps->flag &= ~GP_STROKE_SELECT;
+  BKE_gpencil_stroke_select_index_set(NULL, gps, true);
 
   for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
     if (pt->flag & GP_SPOINT_SELECT) {
@@ -1112,9 +1113,13 @@ void BKE_gpencil_stroke_sync_selection(bGPDstroke *gps)
       break;
     }
   }
+
+  if (gps->flag & GP_STROKE_SELECT) {
+    BKE_gpencil_stroke_select_index_set(gpd, gps, false);
+  }
 }
 
-void BKE_gpencil_curve_sync_selection(bGPDstroke *gps)
+void BKE_gpencil_curve_sync_selection(bGPdata *gpd, bGPDstroke *gps)
 {
   bGPDcurve *gpc = gps->editcurve;
   if (gpc == NULL) {
@@ -1122,6 +1127,7 @@ void BKE_gpencil_curve_sync_selection(bGPDstroke *gps)
   }
 
   gps->flag &= ~GP_STROKE_SELECT;
+  BKE_gpencil_stroke_select_index_set(NULL, gps, true);
   gpc->flag &= ~GP_CURVE_SELECT;
 
   bool is_selected = false;
@@ -1144,6 +1150,19 @@ void BKE_gpencil_curve_sync_selection(bGPDstroke *gps)
   if (is_selected) {
     gpc->flag |= GP_CURVE_SELECT;
     gps->flag |= GP_STROKE_SELECT;
+    BKE_gpencil_stroke_select_index_set(gpd, gps, false);
+  }
+}
+
+/* Assign unique stroke ID for selection. */
+void BKE_gpencil_stroke_select_index_set(bGPdata *gpd, bGPDstroke *gps, const bool reset)
+{
+  if (!reset) {
+    gpd->select_last_index++;
+    gps->select_index = gpd->select_last_index;
+  }
+  else {
+    gps->select_index = 0;
   }
 }
 
@@ -2469,6 +2488,11 @@ bool BKE_gpencil_from_image(
           pt->flag |= GP_SPOINT_SELECT;
         }
       }
+
+      if (gps->flag & GP_STROKE_SELECT) {
+        BKE_gpencil_stroke_select_index_set(gpd, gps, false);
+      }
+
       BKE_gpencil_stroke_geometry_update(gpd, gps);
     }
   }

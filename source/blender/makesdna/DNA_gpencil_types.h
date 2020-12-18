@@ -303,6 +303,10 @@ typedef struct bGPDstroke {
   float uv_translation[2];
   float uv_scale;
 
+  /** Stroke selection index.*/
+  int select_index;
+  char _pad4[4];
+
   /** Vertex weight data. */
   struct MDeformVert *dvert;
   void *_pad3;
@@ -690,6 +694,10 @@ typedef struct bGPdata {
   short draw_mode;
   /** Keyframe type for onion filter  (eBezTriple_KeyframeType plus All option) */
   short onion_keytype;
+
+  /** Stroke selection last index. Used to generate a unique selection index. */
+  int select_last_index;
+  char _pad3[4];
 
   bGPgrid grid;
 

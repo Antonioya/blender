@@ -1148,6 +1148,7 @@ void ED_gpencil_stroke_reproject(Depsgraph *depsgraph,
   if (keep_original) {
     gps_active = BKE_gpencil_stroke_duplicate(gps, true, true);
     gps_active->flag &= ~GP_STROKE_SELECT;
+    BKE_gpencil_stroke_select_index_set(NULL, gps_active, true);
     for (i = 0, pt = gps_active->points; i < gps_active->totpoints; i++, pt++) {
       pt->flag &= ~GP_SPOINT_SELECT;
     }
@@ -1659,6 +1660,10 @@ void ED_gpencil_vgroup_select(bContext *C, Object *ob)
               pt->flag |= GP_SPOINT_SELECT;
               gps->flag |= GP_STROKE_SELECT;
             }
+          }
+
+          if (gps->flag & GP_STROKE_SELECT) {
+            BKE_gpencil_stroke_select_index_set(gpd, gps, false);
           }
         }
       }
@@ -2535,6 +2540,9 @@ int ED_gpencil_select_stroke_segment(bGPdata *gpd,
 
 void ED_gpencil_select_toggle_all(bContext *C, int action)
 {
+  Object *ob = CTX_data_active_object(C);
+  bGPdata *gpd = ob->data;
+
   /* for "toggle", test for existing selected strokes */
   if (action == SEL_TOGGLE) {
     action = SEL_SELECT;
@@ -2559,6 +2567,9 @@ void ED_gpencil_select_toggle_all(bContext *C, int action)
      * NOTE: we limit ourselves to editable layers, since once a layer is "locked/hidden
      *       nothing should be able to touch it
      */
+    /* Set selection index to 0. */
+    gpd->select_last_index = 0;
+
     CTX_DATA_BEGIN (C, bGPDlayer *, gpl, editable_gpencil_layers) {
 
       /* deselect all strokes on all frames */
@@ -2576,6 +2587,7 @@ void ED_gpencil_select_toggle_all(bContext *C, int action)
             }
 
             gps->flag &= ~GP_STROKE_SELECT;
+            BKE_gpencil_stroke_select_index_set(NULL, gps, true);
           }
         }
       }
@@ -2613,9 +2625,11 @@ void ED_gpencil_select_toggle_all(bContext *C, int action)
       /* Change status of stroke */
       if (selected) {
         gps->flag |= GP_STROKE_SELECT;
+        BKE_gpencil_stroke_select_index_set(gpd, gps, false);
       }
       else {
         gps->flag &= ~GP_STROKE_SELECT;
+        BKE_gpencil_stroke_select_index_set(NULL, gps, true);
       }
     }
     CTX_DATA_END;
@@ -2637,6 +2651,11 @@ void ED_gpencil_select_curve_toggle_all(bContext *C, int action)
   }
 
   if (action == SEL_DESELECT) {
+    /* Set selection index to 0. */
+    Object *ob = CTX_data_active_object(C);
+    bGPdata *gpd = ob->data;
+    gpd->select_last_index = 0;
+
     GP_EDITABLE_CURVES_BEGIN(gps_iter, C, gpl, gps, gpc)
     {
       for (int i = 0; i < gpc->tot_curve_points; i++) {
@@ -2647,6 +2666,7 @@ void ED_gpencil_select_curve_toggle_all(bContext *C, int action)
       }
       gpc->flag &= ~GP_CURVE_SELECT;
       gps->flag &= ~GP_STROKE_SELECT;
+      BKE_gpencil_stroke_select_index_set(NULL, gps, true);
     }
     GP_EDITABLE_CURVES_END(gps_iter);
   }
@@ -2688,10 +2708,12 @@ void ED_gpencil_select_curve_toggle_all(bContext *C, int action)
       if (selected) {
         gpc->flag |= GP_CURVE_SELECT;
         gps->flag |= GP_STROKE_SELECT;
+        BKE_gpencil_stroke_select_index_set(gpd, gps, false);
       }
       else {
         gpc->flag &= ~GP_CURVE_SELECT;
         gps->flag &= ~GP_STROKE_SELECT;
+        BKE_gpencil_stroke_select_index_set(NULL, gps, true);
       }
     }
     GP_EDITABLE_STROKES_END(gps_iter);
