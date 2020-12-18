@@ -118,6 +118,10 @@ typedef struct tGPDinterpolate_layer {
   /** interpolate factor */
   float factor;
 
+  /* Hash tablets to create temp relationship between strokes. */
+  struct GHash *used_strokes;
+  struct GHash *pair_strokes;
+
 } tGPDinterpolate_layer;
 
 typedef struct tGPDinterpolate {
@@ -129,6 +133,8 @@ typedef struct tGPDinterpolate {
   struct ScrArea *area;
   /** region where painting originated */
   struct ARegion *region;
+  /** current object */
+  struct Object *ob;
   /** current GP datablock */
   struct bGPdata *gpd;
   /** current material */

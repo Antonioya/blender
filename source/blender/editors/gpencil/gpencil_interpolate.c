@@ -32,6 +32,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_easing.h"
+#include "BLI_ghash.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
@@ -97,6 +98,80 @@ static bool gpencil_view3d_poll(bContext *C)
   }
 
   return 1;
+}
+
+/* Return the stroke related to the selection index, returning the stroke with
+ * the smallest selection index greater that reference index. */
+static bGPDstroke *gpencil_stroke_get_related(GHash *used_strokes,
+                                              bGPDframe *gpf,
+                                              const int reference_index)
+{
+  bGPDstroke *gps_found = NULL;
+  int lower_index = INT_MAX;
+  LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
+    if (gps->select_index > reference_index) {
+      if (!BLI_ghash_haskey(used_strokes, gps)) {
+        BLI_ghash_insert(used_strokes, gps, gps);
+        if (gps->select_index < lower_index) {
+          gps_found = gps;
+        }
+      }
+    }
+  }
+
+  return gps_found;
+}
+
+/* Load a Hash with the relationship between strokes. */
+static void gpencil_stroke_pair_table(bContext *C,
+                                      tGPDinterpolate *tgpi,
+                                      tGPDinterpolate_layer *tgpil)
+{
+  bGPdata *gpd = tgpi->gpd;
+  const bool only_selected = ((tgpi->flag & GP_TOOLFLAG_INTERPOLATE_ONLY_SELECTED) != 0);
+  const const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
+
+  /* Create hash tablets with relationship between strokes. */
+  tgpil->used_strokes = BLI_ghash_ptr_new(__func__);
+  tgpil->pair_strokes = BLI_ghash_ptr_new(__func__);
+
+  /* Create a table with source and target pair of strokes. */
+  LISTBASE_FOREACH (bGPDstroke *, gps_from, &tgpil->prevFrame->strokes) {
+    bGPDstroke *gps_to;
+
+    /* only selected */
+    if ((GPENCIL_EDIT_MODE(gpd)) && (only_selected) &&
+        ((gps_from->flag & GP_STROKE_SELECT) == 0)) {
+      continue;
+    }
+    /* skip strokes that are invalid for current view */
+    if (ED_gpencil_stroke_can_use(C, gps_from) == false) {
+      continue;
+    }
+
+    /* check if the color is editable */
+    if (ED_gpencil_stroke_color_use(tgpi->ob, tgpil->gpl, gps_from) == false) {
+      continue;
+    }
+    gps_to = NULL;
+
+    /* Try to get the related stroke. */
+    if ((is_multiedit) && (gps_from->select_index > 0)) {
+      gps_to = gpencil_stroke_get_related(
+          tgpil->used_strokes, tgpil->nextFrame, gps_from->select_index);
+    }
+
+    /* If not found, get final stroke to interpolate using position in the array. */
+    if (gps_to == NULL) {
+      int fFrame = BLI_findindex(&tgpil->prevFrame->strokes, gps_from);
+      gps_to = BLI_findlink(&tgpil->nextFrame->strokes, fFrame);
+    }
+
+    /* Insert the pair entry in the hash table. */
+    if (gps_to != NULL) {
+      BLI_ghash_insert(tgpil->pair_strokes, gps_from, gps_to);
+    }
+  }
 }
 
 /* Perform interpolation */
@@ -286,6 +361,10 @@ static void gpencil_interpolate_set_points(bContext *C, tGPDinterpolate *tgpi)
     tgpil->prevFrame = BKE_gpencil_frame_duplicate(gpl->actframe);
     tgpil->nextFrame = BKE_gpencil_frame_duplicate(gpl->actframe->next);
 
+    /* Load the relationship between frames. */
+    gpencil_stroke_pair_table(C, tgpi, tgpil);
+    printf("Create Hash...");
+
     BLI_addtail(&tgpi->ilayers, tgpil);
 
     /* create a new temporary frame */
@@ -450,9 +529,18 @@ static void gpencil_interpolate_exit(bContext *C, wmOperator *op)
       MEM_SAFE_FREE(tgpil->prevFrame);
       MEM_SAFE_FREE(tgpil->nextFrame);
       MEM_SAFE_FREE(tgpil->interFrame);
+
+      /* Free Hash tablets. */
+      if (tgpil->used_strokes != NULL) {
+        BLI_ghash_free(tgpil->used_strokes, NULL, NULL);
+      }
+      if (tgpil->pair_strokes != NULL) {
+        BLI_ghash_free(tgpil->pair_strokes, NULL, NULL);
+      }
     }
 
     BLI_freelistN(&tgpi->ilayers);
+
     MEM_SAFE_FREE(tgpi);
   }
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
@@ -466,20 +554,20 @@ static void gpencil_interpolate_exit(bContext *C, wmOperator *op)
 static bool gpencil_interpolate_set_init_values(bContext *C, wmOperator *op, tGPDinterpolate *tgpi)
 {
   ToolSettings *ts = CTX_data_tool_settings(C);
-  bGPdata *gpd = CTX_data_gpencil_data(C);
 
   /* set current scene and window */
   tgpi->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   tgpi->scene = CTX_data_scene(C);
   tgpi->area = CTX_wm_area(C);
   tgpi->region = CTX_wm_region(C);
+  tgpi->ob = CTX_data_active_object(C);
   tgpi->flag = ts->gp_interpolate.flag;
 
   /* set current frame number */
   tgpi->cframe = tgpi->scene->r.cfra;
 
   /* set GP datablock */
-  tgpi->gpd = gpd;
+  tgpi->gpd = tgpi->ob->data;
 
   /* set interpolation weight */
   tgpi->shift = RNA_float_get(op->ptr, "shift");
