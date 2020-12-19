@@ -1693,6 +1693,8 @@ class VIEW3D_PT_tools_grease_pencil_interpolate(Panel):
 
         col = layout.column(align=True)
         col.label(text="Interpolate Strokes")
+        col.operator("gpencil.interpolate_set", text="Set")
+        col.separator()
         col.operator("gpencil.interpolate", text="Interpolate")
         col.operator("gpencil.interpolate_sequence", text="Sequence")
         col.operator("gpencil.interpolate_reverse", text="Remove Breakdowns")

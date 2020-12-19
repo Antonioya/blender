@@ -89,15 +89,15 @@ static bool gpencil_view3d_poll(bContext *C)
   /* only 3D view */
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype != SPACE_VIEW3D) {
-    return 0;
+    return false;
   }
 
   /* need data to interpolate */
   if (ELEM(NULL, gpd, gpl)) {
-    return 0;
+    return false;
   }
 
-  return 1;
+  return true;
 }
 
 /* Return the stroke related to the selection index, returning the stroke with
@@ -1257,4 +1257,80 @@ void GPENCIL_OT_interpolate_reverse(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+/* ******************** Set Interpolate range ************************ */
+static bool gpencil_interpolate_set_poll(bContext *C)
+{
+  if (!gpencil_view3d_poll(C)) {
+    return false;
+  }
+
+  bGPdata *gpd = CTX_data_gpencil_data(C);
+  if (!GPENCIL_EDIT_MODE(gpd)) {
+    return false;
+  }
+
+  return true;
+}
+
+static int gpencil_interpolate_set_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  bGPdata *gpd = ED_gpencil_data_get_active(C);
+  bGPDlayer *gpl = CTX_data_active_gpencil_layer(C);
+  bGPDframe *gpf_prv = gpencil_get_previous_keyframe(gpl, CFRA);
+  bGPDframe *gpf_next = gpencil_get_next_keyframe(gpl, CFRA);
+
+  if (ELEM(NULL, gpf_prv, gpf_next)) {
+    BKE_report(
+        op->reports,
+        RPT_ERROR,
+        "Cannot find a pair of grease pencil frames to interpolate between in active layer");
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Enable Multiframe mode. */
+  gpd->flag |= GP_DATA_STROKE_MULTIEDIT;
+
+  /* Go through each layer, and Unselect all frames.*/
+  CTX_DATA_BEGIN (C, bGPDlayer *, gpl, editable_gpencil_layers) {
+    LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
+      gpf->flag &= ~GP_FRAME_SELECT;
+    }
+  }
+  CTX_DATA_END;
+
+  /* Go through each layer, and select extreme range frames.*/
+  CTX_DATA_BEGIN (C, bGPDlayer *, gpl, editable_gpencil_layers) {
+    bGPDframe *gpf = BKE_gpencil_layer_frame_find(gpl, gpf_prv->framenum);
+    if (gpf) {
+      gpf->flag |= GP_FRAME_SELECT;
+    }
+    gpf = BKE_gpencil_layer_frame_find(gpl, gpf_next->framenum);
+    if (gpf) {
+      gpf->flag |= GP_FRAME_SELECT;
+    }
+  }
+  CTX_DATA_END;
+
+  /* notifiers */
+  DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+
+  return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_interpolate_set(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Interpolate Set";
+  ot->idname = "GPENCIL_OT_interpolate_set";
+  ot->description = "Set interpolate range and prepare environment";
+
+  /* callbacks */
+  ot->exec = gpencil_interpolate_set_exec;
+  ot->poll = gpencil_interpolate_set_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
 /* *************************************************************** */

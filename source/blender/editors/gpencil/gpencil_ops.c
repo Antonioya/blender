@@ -688,6 +688,7 @@ void ED_operatortypes_gpencil(void)
   WM_operatortype_append(GPENCIL_OT_interpolate);
   WM_operatortype_append(GPENCIL_OT_interpolate_sequence);
   WM_operatortype_append(GPENCIL_OT_interpolate_reverse);
+  WM_operatortype_append(GPENCIL_OT_interpolate_set);
 
   /* Primitives */
   WM_operatortype_append(GPENCIL_OT_primitive_box);

@@ -562,6 +562,7 @@ void gpencil_undo_finish(void);
 void GPENCIL_OT_interpolate(struct wmOperatorType *ot);
 void GPENCIL_OT_interpolate_sequence(struct wmOperatorType *ot);
 void GPENCIL_OT_interpolate_reverse(struct wmOperatorType *ot);
+void GPENCIL_OT_interpolate_set(struct wmOperatorType *ot);
 
 /* primitives ---------- */
 

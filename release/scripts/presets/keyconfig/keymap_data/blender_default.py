@@ -3169,6 +3169,7 @@ def km_grease_pencil_stroke_edit_mode(params):
         # Interpolation
         ("gpencil.interpolate", {"type": 'E', "value": 'PRESS', "ctrl": True}, None),
         ("gpencil.interpolate_sequence", {"type": 'E', "value": 'PRESS', "shift": True, "ctrl": True}, None),
+        ("gpencil.interpolate_set", {"type": 'P', "value": 'PRESS', "shift": True}, None),
         # Normal select
         ("gpencil.select", {"type": params.select_mouse, "value": params.select_mouse_value},
          {"properties": [("deselect_all", not params.legacy)]}),
