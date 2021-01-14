@@ -171,6 +171,9 @@ typedef struct tGPDfill {
   int bwiny;
   rcti brect;
 
+  /* Space Conversion Data */
+  GP_SpaceConversion gsc;
+
   /** Zoom factor. */
   float zoom;
 } tGPDfill;
@@ -182,7 +185,8 @@ static void gpencil_draw_basic_stroke(tGPDfill *tgpf,
                                       const bool cyclic,
                                       const float ink[4],
                                       const int flag,
-                                      const float thershold)
+                                      const float thershold,
+                                      const float thickness)
 {
   bGPDspoint *points = gps->points;
 
@@ -205,7 +209,7 @@ static void gpencil_draw_basic_stroke(tGPDfill *tgpf,
   immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
   /* draw stroke curve */
-  GPU_line_width(1.0f);
+  GPU_line_width(thickness);
   immBeginAtMost(GPU_PRIM_LINE_STRIP, totpoints + cyclic_add);
   const bGPDspoint *pt = points;
 
@@ -257,10 +261,54 @@ static void draw_mouse_position(tGPDfill *tgpf)
 
   /* Draw mouse click position in Blue. */
   const float mouse_color[4] = {0.0f, 0.0f, 1.0f, 1.0f};
-  gpencil_draw_basic_stroke(tgpf, tgpf->gps_mouse, tgpw.diff_mat, 0, mouse_color, 0, 1.0f);
+  gpencil_draw_basic_stroke(tgpf, tgpf->gps_mouse, tgpw.diff_mat, 0, mouse_color, 0, 1.0f, 5.0f);
 }
 
-/* loop all layers */
+/* Helper: Check if must skip the layer */
+bool skip_layer_check(short fill_layer_mode, int gpl_active_index, int gpl_index)
+{
+  bool skip = false;
+
+  switch (fill_layer_mode) {
+    case GP_FILL_GPLMODE_ACTIVE: {
+      if (gpl_index != gpl_active_index) {
+        skip = true;
+      }
+      break;
+    }
+    case GP_FILL_GPLMODE_ABOVE: {
+      if (gpl_index != gpl_active_index + 1) {
+        skip = true;
+      }
+      break;
+    }
+    case GP_FILL_GPLMODE_BELOW: {
+      if (gpl_index != gpl_active_index - 1) {
+        skip = true;
+      }
+      break;
+    }
+    case GP_FILL_GPLMODE_ALL_ABOVE: {
+      if (gpl_index <= gpl_active_index) {
+        skip = true;
+      }
+      break;
+    }
+    case GP_FILL_GPLMODE_ALL_BELOW: {
+      if (gpl_index >= gpl_active_index) {
+        skip = true;
+      }
+      break;
+    }
+    case GP_FILL_GPLMODE_VISIBLE:
+    default:
+      break;
+  }
+
+  return skip;
+}
+
+/* Loop all layers to draw strokes. */
 static void gpencil_draw_datablock(tGPDfill *tgpf, const float ink[4])
 {
   Object *ob = tgpf->ob;
@@ -301,43 +349,8 @@ static void gpencil_draw_datablock(tGPDfill *tgpf, const float ink[4])
 
     /* Decide if the strokes of layers are included or not depending on the layer mode.
      * Cannot skip the layer because it can use boundary strokes and must be used. */
-    bool skip = false;
     const int gpl_index = BLI_findindex(&gpd->layers, gpl);
-    switch (brush_settings->fill_layer_mode) {
-      case GP_FILL_GPLMODE_ACTIVE: {
-        if (gpl_index != gpl_active_index) {
-          skip = true;
-        }
-        break;
-      }
-      case GP_FILL_GPLMODE_ABOVE: {
-        if (gpl_index != gpl_active_index + 1) {
-          skip = true;
-        }
-        break;
-      }
-      case GP_FILL_GPLMODE_BELOW: {
-        if (gpl_index != gpl_active_index - 1) {
-          skip = true;
-        }
-        break;
-      }
-      case GP_FILL_GPLMODE_ALL_ABOVE: {
-        if (gpl_index <= gpl_active_index) {
-          skip = true;
-        }
-        break;
-      }
-      case GP_FILL_GPLMODE_ALL_BELOW: {
-        if (gpl_index >= gpl_active_index) {
-          skip = true;
-        }
-        break;
-      }
-      case GP_FILL_GPLMODE_VISIBLE:
-      default:
-        break;
-    }
+    bool skip = skip_layer_check(brush_settings->fill_layer_mode, gpl_active_index, gpl_index);
 
     /* if active layer and no keyframe, create a new one */
     if (gpl == tgpf->gpl) {
@@ -401,7 +414,8 @@ static void gpencil_draw_datablock(tGPDfill *tgpf, const float ink[4])
                                   gps->flag & GP_STROKE_CYCLIC,
                                   ink,
                                   tgpf->flag,
-                                  tgpf->fill_threshold);
+                                  tgpf->fill_threshold,
+                                  1.0f);
       }
     }
   }
@@ -1418,8 +1432,9 @@ static tGPDfill *gpencil_session_init_fill(bContext *C, wmOperator *UNUSED(op))
   tgpf->win = CTX_wm_window(C);
   tgpf->active_cfra = CFRA;
 
-  /* TODO: Zoom GPXX(need calculation). */
-  tgpf->zoom = 3.0f;
+  /* Setup space conversions. */
+  gpencil_point_conversion_init(C, &tgpf->gsc);
+  tgpf->zoom = 1.0f;
 
   /* set GP datablock */
   tgpf->gpd = gpd;
@@ -1599,6 +1614,103 @@ static int gpencil_fill_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
   return OPERATOR_RUNNING_MODAL;
 }
 
+/* Helper: Calc the maximum bounding box size of strokes to get the zoom level of the viewport.
+ * For each stroke, the 2D projected bounding box is calculated and using this data, the total
+ * object bounding box (all strokes) is calculated. To select an stroke, the stroke bounding box
+ * is checked with the mouse position to verify if the stroke is used or not.
+ */
+static void gpencil_zoom_level_set(tGPDfill *tgpf)
+{
+  Object *ob = tgpf->ob;
+  bGPdata *gpd = tgpf->gpd;
+  BrushGpencilSettings *brush_settings = tgpf->brush->gpencil_settings;
+  bGPDlayer *gpl_active = BKE_gpencil_layer_active_get(gpd);
+  BLI_assert(gpl_active != NULL);
+
+  const int gpl_active_index = BLI_findindex(&gpd->layers, gpl_active);
+  BLI_assert(gpl_active_index >= 0);
+
+  float objectbox_min[2], objectbox_max[2];
+  INIT_MINMAX2(objectbox_min, objectbox_max);
+
+  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+    if (gpl->flag & GP_LAYER_HIDE) {
+      continue;
+    }
+    float diff_mat[4][4];
+    /* calculate parent matrix */
+    BKE_gpencil_parent_matrix_get(tgpf->depsgraph, ob, gpl, diff_mat);
+
+    /* Decide if the strokes of layers are included or not depending on the layer mode.
+     * Cannot skip the layer because it can use boundary strokes and must be used. */
+    const int gpl_index = BLI_findindex(&gpd->layers, gpl);
+    bool skip = skip_layer_check(brush_settings->fill_layer_mode, gpl_active_index, gpl_index);
+
+    /* Get frame to check. */
+    bGPDframe *gpf = BKE_gpencil_layer_frame_get(gpl, tgpf->active_cfra, GP_GETFRAME_USE_PREV);
+    if (gpf == NULL) {
+      continue;
+    }
+
+    /* Read all strokes. */
+    LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
+      /* check if stroke can be drawn */
+      if ((gps->points == NULL) || (gps->totpoints < 2)) {
+        continue;
+      }
+      /* check if the color is visible */
+      MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(ob, gps->mat_nr + 1);
+      if ((gp_style == NULL) || (gp_style->flag & GP_MATERIAL_HIDE)) {
+        continue;
+      }
+
+      /* If the layer must be skipped, but the stroke is not boundary, skip stroke. */
+      if ((skip) && ((gps->flag & GP_STROKE_NOFILL) == 0)) {
+        continue;
+      }
+
+      /* Check if the stroke collide with mouse. */
+      float mouse[2];
+      copy_v2fl_v2i(mouse, tgpf->mouse);
+      if (!ED_gpencil_stroke_check_collision(&tgpf->gsc, gps, mouse, 100.0f, diff_mat)) {
+        continue;
+      }
+
+      float boundbox_min[2];
+      float boundbox_max[2];
+      ED_gpencil_projected_2d_bound_box(&tgpf->gsc, gps, diff_mat, boundbox_min, boundbox_max);
+      minmax_v2v2_v2(objectbox_min, objectbox_max, boundbox_min);
+      minmax_v2v2_v2(objectbox_min, objectbox_max, boundbox_max);
+    }
+  }
+
+  /* Calculate total width used. */
+  float width = tgpf->region->winx;
+  if (objectbox_min[0] < 0.0f) {
+    width -= objectbox_min[0];
+  }
+  if (objectbox_max[0] > tgpf->region->winx) {
+    width += objectbox_max[0] - tgpf->region->winx;
+  }
+  /* Calculate total height used. */
+  float height = tgpf->region->winy;
+  if (objectbox_min[1] < 0.0f) {
+    height -= objectbox_min[1];
+  }
+  if (objectbox_max[1] > tgpf->region->winy) {
+    height += objectbox_max[1] - tgpf->region->winy;
+  }
+
+  width = ceilf(width);
+  height = ceilf(height);
+
+  float zoomx = (width > tgpf->region->winx) ? width / (float)tgpf->region->winx : 1.0f;
+  float zoomy = (height > tgpf->region->winy) ? height / (float)tgpf->region->winy : 1.0f;
+  if ((zoomx != 1.0f) || (zoomy != 1.0f)) {
+    tgpf->zoom = ceil(max_ff(zoomx, zoomy) + 1.5f);
+  }
+}
+
 /* events handling during interactive part of operator */
 static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -1631,7 +1743,8 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
           if ((in_bounds) && (region->regiontype == RGN_TYPE_WINDOW)) {
             tgpf->mouse[0] = event->mval[0];
             tgpf->mouse[1] = event->mval[1];
-
+            /* Define Zoom level. */
+            gpencil_zoom_level_set(tgpf);
             /* Create Temp stroke. */
             tgpf->gps_mouse = BKE_gpencil_stroke_new(0, 2, 10.0f);
             /* Add two points to have a line. */
@@ -1642,7 +1755,7 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
                 tgpf->scene, tgpf->region, tgpf->ob, &point2D, NULL, &pt->x);
 
             pt = &tgpf->gps_mouse->points[1];
-            point2D.x += 2.0f;
+            point2D.x += 3.0f * tgpf->zoom;
             gpencil_stroke_convertcoords_tpoint(
                 tgpf->scene, tgpf->region, tgpf->ob, &point2D, NULL, &pt->x);
 
