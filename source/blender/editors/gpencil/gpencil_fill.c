@@ -83,6 +83,12 @@
 #define LEAK_VERT 1
 #define MIN_WINDOW_SIZE 128
 
+/* Duplicated: etempFlags */
+const enum {
+  GP_DRAWFILLS_NOSTATUS = (1 << 0), /* don't draw status info */
+  GP_DRAWFILLS_ONLY3D = (1 << 1),   /* only draw 3d-strokes */
+};
+
 /* Temporary fill operation data (op->customdata) */
 typedef struct tGPDfill {
   bContext *C;
@@ -112,6 +118,8 @@ typedef struct tGPDfill {
   struct bGPDlayer *gpl;
   /** frame */
   struct bGPDframe *gpf;
+  /** Temp mouse position stroke. */
+  struct bGPDstroke *gps_mouse;
 
   /** flags */
   short flag;
@@ -121,7 +129,7 @@ typedef struct tGPDfill {
   bool on_back;
 
   /** mouse fill center position */
-  int center[2];
+  int mouse[2];
   /** windows width */
   int sizex;
   /** window height */
@@ -163,6 +171,8 @@ typedef struct tGPDfill {
   int bwiny;
   rcti brect;
 
+  /** Zoom factor. */
+  float zoom;
 } tGPDfill;
 
 /* draw a given stroke using same thickness and color for all points */
@@ -226,15 +236,33 @@ static void gpencil_draw_basic_stroke(tGPDfill *tgpf,
   immUnbindProgram();
 }
 
+static void draw_mouse_position(tGPDfill *tgpf)
+{
+  if (tgpf->gps_mouse == NULL) {
+    return;
+  }
+  tGPDdraw tgpw;
+  tgpw.rv3d = tgpf->rv3d;
+  tgpw.depsgraph = tgpf->depsgraph;
+  tgpw.ob = tgpf->ob;
+  tgpw.gpd = tgpf->gpd;
+  tgpw.offsx = 0;
+  tgpw.offsy = 0;
+  tgpw.winx = tgpf->region->winx;
+  tgpw.winy = tgpf->region->winy;
+  tgpw.dflag = 0;
+  tgpw.disable_fill = 1;
+  tgpw.dflag |= (GP_DRAWFILLS_ONLY3D | GP_DRAWFILLS_NOSTATUS);
+  unit_m4(tgpw.diff_mat);
+
+  /* Draw mouse click position in Blue. */
+  const float mouse_color[4] = {0.0f, 0.0f, 1.0f, 1.0f};
+  gpencil_draw_basic_stroke(tgpf, tgpf->gps_mouse, tgpw.diff_mat, 0, mouse_color, 0, 1.0f);
+}
+
 /* loop all layers */
 static void gpencil_draw_datablock(tGPDfill *tgpf, const float ink[4])
 {
-  /* duplicated: etempFlags */
-  enum {
-    GP_DRAWFILLS_NOSTATUS = (1 << 0), /* don't draw status info */
-    GP_DRAWFILLS_ONLY3D = (1 << 1),   /* only draw 3d-strokes */
-  };
-
   Object *ob = tgpf->ob;
   bGPdata *gpd = tgpf->gpd;
   Brush *brush = tgpf->brush;
@@ -378,6 +406,9 @@ static void gpencil_draw_datablock(tGPDfill *tgpf, const float ink[4])
     }
   }
 
+  /* Draw blue point where click with mouse. */
+  draw_mouse_position(tgpf);
+
   GPU_blend(GPU_BLEND_NONE);
 }
 
@@ -408,12 +439,6 @@ static bool gpencil_render_offscreen(tGPDfill *tgpf)
   tgpf->sizex = (int)tgpf->region->winx;
   tgpf->sizey = (int)tgpf->region->winy;
 
-  /* adjust center */
-  float center[2];
-  center[0] = (float)tgpf->center[0] * ((float)tgpf->region->winx / (float)tgpf->bwinx);
-  center[1] = (float)tgpf->center[1] * ((float)tgpf->region->winy / (float)tgpf->bwiny);
-  round_v2i_v2fl(tgpf->center, center);
-
   char err_out[256] = "unknown";
   GPUOffScreen *offscreen = GPU_offscreen_create(tgpf->sizex, tgpf->sizey, true, false, err_out);
   if (offscreen == NULL) {
@@ -437,6 +462,13 @@ static bool gpencil_render_offscreen(tGPDfill *tgpf)
                                      &clip_start,
                                      &clip_end,
                                      NULL);
+
+  /* Rescale viewplane to fit all strokes. */
+  viewplane.xmin *= tgpf->zoom;
+  viewplane.xmax *= tgpf->zoom;
+  viewplane.ymin *= tgpf->zoom;
+  viewplane.ymax *= tgpf->zoom;
+
   if (is_ortho) {
     orthographic_m4(winmat,
                     viewplane.xmin,
@@ -660,8 +692,17 @@ static void gpencil_boundaryfill_area(tGPDfill *tgpf)
 
   BLI_Stack *stack = BLI_stack_new(sizeof(int), __func__);
 
-  /* calculate index of the seed point using the position of the mouse */
-  int index = (tgpf->sizex * tgpf->center[1]) + tgpf->center[0];
+  /* Calculate index of the seed point using the position of the mouse looking
+   * for a blue pixel. */
+  int index = -1;
+  for (int i = 0; i < maxpixel; i++) {
+    get_pixel(ibuf, i, rgba);
+    if (rgba[2] == 1.0f) {
+      index = i;
+      break;
+    }
+  }
+
   if ((index >= 0) && (index <= maxpixel)) {
     BLI_stack_push(stack, &index);
   }
@@ -1377,6 +1418,9 @@ static tGPDfill *gpencil_session_init_fill(bContext *C, wmOperator *UNUSED(op))
   tgpf->win = CTX_wm_window(C);
   tgpf->active_cfra = CFRA;
 
+  /* TODO: Zoom GPXX(need calculation). */
+  tgpf->zoom = 3.0f;
+
   /* set GP datablock */
   tgpf->gpd = gpd;
   tgpf->gpl = BKE_gpencil_layer_active_get(gpd);
@@ -1585,8 +1629,22 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
           in_bounds = BLI_rcti_isect_pt(&region->winrct, event->x, event->y);
 
           if ((in_bounds) && (region->regiontype == RGN_TYPE_WINDOW)) {
-            tgpf->center[0] = event->mval[0];
-            tgpf->center[1] = event->mval[1];
+            tgpf->mouse[0] = event->mval[0];
+            tgpf->mouse[1] = event->mval[1];
+
+            /* Create Temp stroke. */
+            tgpf->gps_mouse = BKE_gpencil_stroke_new(0, 2, 10.0f);
+            /* Add two points to have a line. */
+            tGPspoint point2D;
+            bGPDspoint *pt = &tgpf->gps_mouse->points[0];
+            copy_v2fl_v2i(&point2D.x, tgpf->mouse);
+            gpencil_stroke_convertcoords_tpoint(
+                tgpf->scene, tgpf->region, tgpf->ob, &point2D, NULL, &pt->x);
+
+            pt = &tgpf->gps_mouse->points[1];
+            point2D.x += 2.0f;
+            gpencil_stroke_convertcoords_tpoint(
+                tgpf->scene, tgpf->region, tgpf->ob, &point2D, NULL, &pt->x);
 
             /* Set active frame as current for filling. */
             tgpf->active_cfra = CFRA;
@@ -1640,6 +1698,9 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
                 MEM_SAFE_FREE(tgpf->depth_arr);
               }
             }
+
+            /* Free temp stroke. */
+            BKE_gpencil_free_stroke(tgpf->gps_mouse);
 
             /* restore size */
             tgpf->region->winx = (short)tgpf->bwinx;
