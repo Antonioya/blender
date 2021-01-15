@@ -1619,7 +1619,7 @@ static int gpencil_fill_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
  * object bounding box (all strokes) is calculated. To select an stroke, the stroke bounding box
  * is checked with the mouse position to verify if the stroke is used or not.
  */
-static void gpencil_zoom_level_set(tGPDfill *tgpf)
+static void gpencil_zoom_level_set(tGPDfill *tgpf, const bool is_inverted)
 {
   Object *ob = tgpf->ob;
   bGPdata *gpd = tgpf->gpd;
@@ -1672,7 +1672,8 @@ static void gpencil_zoom_level_set(tGPDfill *tgpf)
       /* Check if the stroke collide with mouse. */
       float mouse[2];
       copy_v2fl_v2i(mouse, tgpf->mouse);
-      if (!ED_gpencil_stroke_check_collision(&tgpf->gsc, gps, mouse, 100.0f, diff_mat)) {
+      if ((!is_inverted) &&
+          (!ED_gpencil_stroke_check_collision(&tgpf->gsc, gps, mouse, 100.0f, diff_mat))) {
         continue;
       }
 
@@ -1744,7 +1745,7 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
             tgpf->mouse[0] = event->mval[0];
             tgpf->mouse[1] = event->mval[1];
             /* Define Zoom level. */
-            gpencil_zoom_level_set(tgpf);
+            gpencil_zoom_level_set(tgpf, is_inverted);
             /* Create Temp stroke. */
             tgpf->gps_mouse = BKE_gpencil_stroke_new(0, 2, 10.0f);
             /* Add two points to have a line. */
