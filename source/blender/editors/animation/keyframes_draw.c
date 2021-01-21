@@ -260,6 +260,7 @@ static DLRBT_Node *nalloc_ak_gpframe(void *data)
   ak->totkey = 1;
   /* Set as visible block. */
   ak->totblock = 1;
+  ak->block.sel = ak->sel;
   ak->block.flag |= ACTKEYBLOCK_FLAG_GPENCIL;
 
   return (DLRBT_Node *)ak;
@@ -692,6 +693,7 @@ static void draw_keylist(View2D *v2d,
 {
   const float icon_sz = U.widget_unit * 0.5f * yscale_fac;
   const float half_icon_sz = 0.5f * icon_sz;
+  const float quarter_icon_sz = 0.25f * icon_sz;
   const float smaller_sz = 0.35f * icon_sz;
   const float ipo_sz = 0.1f * icon_sz;
 
@@ -718,13 +720,6 @@ static void draw_keylist(View2D *v2d,
     sel_color[3] *= alpha;
     unsel_color[3] *= alpha;
     ipo_color[3] *= alpha;
-
-    /* Grease pencil alternative colors. */
-    float gpencil_colors[2][4];
-    UI_GetThemeColor4fv(TH_KEYTYPE_BREAKDOWN, gpencil_colors[0]);
-    UI_GetThemeColor4fv(TH_KEYTYPE_EXTREME, gpencil_colors[1]);
-    gpencil_colors[0][3] = alpha * 0.8f;
-    gpencil_colors[1][3] = alpha * 0.8f;
 
     copy_v4_v4(sel_mhcol, sel_color);
     sel_mhcol[3] *= 0.8f;
@@ -809,10 +804,10 @@ static void draw_keylist(View2D *v2d,
         immRectf_fast_with_color(pos_id,
                                  color_id,
                                  ab->cfra,
-                                 ypos - half_icon_sz,
+                                 ypos - quarter_icon_sz,
                                  ab->next->cfra,
-                                 ypos + half_icon_sz,
-                                 gpencil_colors[i % 2]);
+                                 ypos + quarter_icon_sz,
+                                 (ab->block.sel) ? sel_mhcol : unsel_mhcol);
         i++;
       }
       immEnd();
