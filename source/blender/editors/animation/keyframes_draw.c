@@ -258,6 +258,9 @@ static DLRBT_Node *nalloc_ak_gpframe(void *data)
 
   /* count keyframes in this column */
   ak->totkey = 1;
+  /* Set as visible block. */
+  ak->totblock = 1;
+  ak->block.flag |= ACTKEYBLOCK_FLAG_GPENCIL;
 
   return (DLRBT_Node *)ak;
 }
@@ -716,6 +719,13 @@ static void draw_keylist(View2D *v2d,
     unsel_color[3] *= alpha;
     ipo_color[3] *= alpha;
 
+    /* Grease pencil alternative colors. */
+    float gpencil_colors[2][4];
+    UI_GetThemeColor4fv(TH_KEYTYPE_BREAKDOWN, gpencil_colors[0]);
+    UI_GetThemeColor4fv(TH_KEYTYPE_EXTREME, gpencil_colors[1]);
+    gpencil_colors[0][3] = alpha * 0.8f;
+    gpencil_colors[1][3] = alpha * 0.8f;
+
     copy_v4_v4(sel_mhcol, sel_color);
     sel_mhcol[3] *= 0.8f;
     copy_v4_v4(unsel_mhcol, unsel_color);
@@ -724,12 +734,16 @@ static void draw_keylist(View2D *v2d,
     ipo_color_mix[3] *= 0.5f;
 
     uint block_len = 0;
+    uint gpencil_len = 0;
     LISTBASE_FOREACH (ActKeyColumn *, ab, keys) {
       if (actkeyblock_get_valid_hold(ab)) {
         block_len++;
       }
       if (show_ipo && actkeyblock_is_valid(ab) && (ab->block.flag & ACTKEYBLOCK_FLAG_NON_BEZIER)) {
         block_len++;
+      }
+      if ((ab->next != NULL) && (ab->block.flag & ACTKEYBLOCK_FLAG_GPENCIL)) {
+        gpencil_len++;
       }
     }
 
@@ -776,6 +790,30 @@ static void draw_keylist(View2D *v2d,
               ypos + ipo_sz,
               (ab->block.conflict & ACTKEYBLOCK_FLAG_NON_BEZIER) ? ipo_color_mix : ipo_color);
         }
+      }
+      immEnd();
+      immUnbindProgram();
+    }
+    else if (gpencil_len > 0) {
+      GPUVertFormat *format = immVertexFormat();
+      uint pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      uint color_id = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      immBindBuiltinProgram(GPU_SHADER_2D_FLAT_COLOR);
+
+      immBegin(GPU_PRIM_TRIS, 6 * gpencil_len);
+      int i = 0;
+      LISTBASE_FOREACH (ActKeyColumn *, ab, keys) {
+        if (ab->next == NULL) {
+          continue;
+        }
+        immRectf_fast_with_color(pos_id,
+                                 color_id,
+                                 ab->cfra,
+                                 ypos - half_icon_sz,
+                                 ab->next->cfra,
+                                 ypos + half_icon_sz,
+                                 gpencil_colors[i % 2]);
+        i++;
       }
       immEnd();
       immUnbindProgram();
