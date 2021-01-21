@@ -540,6 +540,14 @@ bool Session::acquire_tile(RenderTile &rtile, Device *tile_device, uint tile_typ
     tile->buffers = new RenderBuffers(tile_device);
     tile->buffers->reset(buffer_params);
   }
+  else if (tile->buffers->buffer.device != tile_device) {
+    /* Move buffer to current tile device again in case it was stolen before.
+     * Not needed for denoising since that already handles mapping of tiles and
+     * neighbors to its own device. */
+    if (rtile.task != RenderTile::DENOISE) {
+      tile->buffers->buffer.move_device(tile_device);
+    }
+  }
 
   tile->buffers->map_neighbor_copied = false;
 
