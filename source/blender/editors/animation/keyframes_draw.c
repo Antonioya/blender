@@ -742,73 +742,68 @@ static void draw_keylist(View2D *v2d,
       }
     }
 
-    if (block_len > 0) {
+    if ((block_len > 0) || (gpencil_len > 0)) {
       GPUVertFormat *format = immVertexFormat();
       uint pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
       uint color_id = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
       immBindBuiltinProgram(GPU_SHADER_2D_FLAT_COLOR);
 
-      immBegin(GPU_PRIM_TRIS, 6 * block_len);
-      LISTBASE_FOREACH (ActKeyColumn *, ab, keys) {
-        int valid_hold = actkeyblock_get_valid_hold(ab);
-        if (valid_hold != 0) {
-          if ((valid_hold & ACTKEYBLOCK_FLAG_STATIC_HOLD) == 0) {
-            /* draw "moving hold" long-keyframe block - slightly smaller */
-            immRectf_fast_with_color(pos_id,
-                                     color_id,
-                                     ab->cfra,
-                                     ypos - smaller_sz,
-                                     ab->next->cfra,
-                                     ypos + smaller_sz,
-                                     (ab->block.sel) ? sel_mhcol : unsel_mhcol);
+      /* Normal Dopesheet. */
+      if (block_len > 0) {
+        immBegin(GPU_PRIM_TRIS, 6 * block_len);
+        LISTBASE_FOREACH (ActKeyColumn *, ab, keys) {
+          int valid_hold = actkeyblock_get_valid_hold(ab);
+          if (valid_hold != 0) {
+            if ((valid_hold & ACTKEYBLOCK_FLAG_STATIC_HOLD) == 0) {
+              /* draw "moving hold" long-keyframe block - slightly smaller */
+              immRectf_fast_with_color(pos_id,
+                                       color_id,
+                                       ab->cfra,
+                                       ypos - smaller_sz,
+                                       ab->next->cfra,
+                                       ypos + smaller_sz,
+                                       (ab->block.sel) ? sel_mhcol : unsel_mhcol);
+            }
+            else {
+              /* draw standard long-keyframe block */
+              immRectf_fast_with_color(pos_id,
+                                       color_id,
+                                       ab->cfra,
+                                       ypos - half_icon_sz,
+                                       ab->next->cfra,
+                                       ypos + half_icon_sz,
+                                       (ab->block.sel) ? sel_color : unsel_color);
+            }
           }
-          else {
-            /* draw standard long-keyframe block */
-            immRectf_fast_with_color(pos_id,
-                                     color_id,
-                                     ab->cfra,
-                                     ypos - half_icon_sz,
-                                     ab->next->cfra,
-                                     ypos + half_icon_sz,
-                                     (ab->block.sel) ? sel_color : unsel_color);
+          if (show_ipo && actkeyblock_is_valid(ab) &&
+              (ab->block.flag & ACTKEYBLOCK_FLAG_NON_BEZIER)) {
+            /* draw an interpolation line */
+            immRectf_fast_with_color(
+                pos_id,
+                color_id,
+                ab->cfra,
+                ypos - ipo_sz,
+                ab->next->cfra,
+                ypos + ipo_sz,
+                (ab->block.conflict & ACTKEYBLOCK_FLAG_NON_BEZIER) ? ipo_color_mix : ipo_color);
           }
-        }
-        if (show_ipo && actkeyblock_is_valid(ab) &&
-            (ab->block.flag & ACTKEYBLOCK_FLAG_NON_BEZIER)) {
-          /* draw an interpolation line */
-          immRectf_fast_with_color(
-              pos_id,
-              color_id,
-              ab->cfra,
-              ypos - ipo_sz,
-              ab->next->cfra,
-              ypos + ipo_sz,
-              (ab->block.conflict & ACTKEYBLOCK_FLAG_NON_BEZIER) ? ipo_color_mix : ipo_color);
         }
       }
-      immEnd();
-      immUnbindProgram();
-    }
-    else if (gpencil_len > 0) {
-      GPUVertFormat *format = immVertexFormat();
-      uint pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-      uint color_id = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-      immBindBuiltinProgram(GPU_SHADER_2D_FLAT_COLOR);
-
-      immBegin(GPU_PRIM_TRIS, 6 * gpencil_len);
-      int i = 0;
-      LISTBASE_FOREACH (ActKeyColumn *, ab, keys) {
-        if (ab->next == NULL) {
-          continue;
+      /* Grease Pencil Dopesheet. */
+      else {
+        immBegin(GPU_PRIM_TRIS, 6 * gpencil_len);
+        LISTBASE_FOREACH (ActKeyColumn *, ab, keys) {
+          if (ab->next == NULL) {
+            continue;
+          }
+          immRectf_fast_with_color(pos_id,
+                                   color_id,
+                                   ab->cfra,
+                                   ypos - quarter_icon_sz,
+                                   ab->next->cfra,
+                                   ypos + quarter_icon_sz,
+                                   (ab->block.sel) ? sel_mhcol : unsel_mhcol);
         }
-        immRectf_fast_with_color(pos_id,
-                                 color_id,
-                                 ab->cfra,
-                                 ypos - quarter_icon_sz,
-                                 ab->next->cfra,
-                                 ypos + quarter_icon_sz,
-                                 (ab->block.sel) ? sel_mhcol : unsel_mhcol);
-        i++;
       }
       immEnd();
       immUnbindProgram();
