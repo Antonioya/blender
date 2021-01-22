@@ -855,7 +855,7 @@ static void rna_GPencil_stroke_point_weight_set(
   MDeformVert *dvert = stroke->dvert;
   if (dvert == NULL) {
     BKE_report(reports, RPT_ERROR, "Groups: No groups for this stroke");
-    return -1.0f;
+    return;
   }
 
   if (stroke->totpoints <= point_index || point_index < 0) {
