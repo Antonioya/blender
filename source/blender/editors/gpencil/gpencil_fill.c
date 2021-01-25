@@ -1639,7 +1639,7 @@ static void gpencil_zoom_level_set(tGPDfill *tgpf, const bool is_inverted)
     }
     float diff_mat[4][4];
     /* calculate parent matrix */
-    BKE_gpencil_parent_matrix_get(tgpf->depsgraph, ob, gpl, diff_mat);
+    BKE_gpencil_layer_transform_matrix_get(tgpf->depsgraph, ob, gpl, diff_mat);
 
     /* Decide if the strokes of layers are included or not depending on the layer mode.
      * Cannot skip the layer because it can use boundary strokes and must be used. */
