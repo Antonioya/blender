@@ -1533,25 +1533,22 @@ static void ui_text_clip_right_ex(const uiFontStyle *fstyle,
 {
   BLI_assert(str[0]);
 
-  /* If the trailing ellipsis takes more than 20% of all available width, just cut the string
-   * (as using the ellipsis would remove even more useful chars, and we cannot show much
-   * already!).
-   */
-  if (sep_strwidth / okwidth > 0.2f) {
-    float tmp;
-    const int l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, okwidth, &tmp);
-    str[l_end] = '\0';
-    if (r_final_len) {
-      *r_final_len = (size_t)l_end;
-    }
-  }
-  else {
-    float tmp;
-    const int l_end = BLF_width_to_strlen(
-        fstyle->uifont_id, str, max_len, okwidth - sep_strwidth, &tmp);
+  /* How many BYTES (not characters) of this utf-8 string can fit, along with appended ellipsis. */
+  int l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, okwidth - sep_strwidth, NULL);
+
+  if (l_end > 0) {
+    /* At least one character, so clip and add the ellipsis.  */
     memcpy(str + l_end, sep, sep_len + 1); /* +1 for trailing '\0'. */
     if (r_final_len) {
       *r_final_len = (size_t)(l_end) + sep_len;
+    }
+  }
+  else {
+    /* Otherwise fit as much as we can without adding an ellipsis.  */
+    l_end = BLF_width_to_strlen(fstyle->uifont_id, str, max_len, okwidth, NULL);
+    str[l_end] = '\0';
+    if (r_final_len) {
+      *r_final_len = (size_t)l_end;
     }
   }
 }
@@ -2257,20 +2254,33 @@ static void widget_draw_extra_icons(const uiWidgetColors *wcol,
                                     rcti *rect,
                                     float alpha)
 {
-  /* inverse order, from right to left. */
+  const float icon_size = ICON_SIZE_FROM_BUTRECT(rect);
+
+  /* Offset of icons from the right edge. Keep in sync
+     with 'ui_but_extra_operator_icon_mouse_over_get'. */
+  if (!BLI_listbase_is_empty(&but->extra_op_icons)) {
+    /* Eyeballed. */
+    rect->xmax -= 0.2 * icon_size;
+  }
+
+  /* Inverse order, from right to left. */
   LISTBASE_FOREACH_BACKWARD (uiButExtraOpIcon *, op_icon, &but->extra_op_icons) {
     rcti temp = *rect;
     float alpha_this = alpha;
 
-    temp.xmin = temp.xmax - (BLI_rcti_size_y(rect) * 1.08f);
+    temp.xmin = temp.xmax - icon_size;
 
     if (!op_icon->highlighted) {
       alpha_this *= 0.75f;
     }
 
+    /* Draw the icon at the center, and restore the flags after. */
+    const int old_drawflags = but->drawflag;
+    UI_but_drawflag_disable(but, UI_BUT_ICON_LEFT);
     widget_draw_icon(but, op_icon->icon, alpha_this, &temp, wcol->text);
+    but->drawflag = old_drawflags;
 
-    rect->xmax -= ICON_SIZE_FROM_BUTRECT(rect);
+    rect->xmax -= icon_size;
   }
 }
 
