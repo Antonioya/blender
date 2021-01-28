@@ -809,8 +809,9 @@ typedef enum eGP_DrawMode {
 /* Check if 'multiedit sessions' is enabled */
 #define GPENCIL_MULTIEDIT_SESSIONS_ON(gpd) \
   ((gpd) && \
-   ((gpd)->flag & (GP_DATA_STROKE_EDITMODE | GP_DATA_STROKE_SCULPTMODE | \
-                   GP_DATA_STROKE_WEIGHTMODE | GP_DATA_STROKE_VERTEXMODE)) && \
+   ((gpd)->flag & \
+    (GP_DATA_STROKE_PAINTMODE | GP_DATA_STROKE_EDITMODE | GP_DATA_STROKE_SCULPTMODE | \
+     GP_DATA_STROKE_WEIGHTMODE | GP_DATA_STROKE_VERTEXMODE)) && \
    ((gpd)->flag & GP_DATA_STROKE_MULTIEDIT))
 
 #define GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd) \
