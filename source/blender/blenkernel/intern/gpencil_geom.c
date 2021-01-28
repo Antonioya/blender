@@ -3234,7 +3234,7 @@ void BKE_gpencil_stroke_copy_to_keyframes(bGPDlayer *gpl,
                                           const bool tail)
 {
   LISTBASE_FOREACH (bGPDframe *, gpf_key, &gpl->frames) {
-    if (gpf_key != gpf || (gpf_key->flag & GP_FRAME_SELECT)) {
+    if ((gpf_key != gpf) && (gpf_key->flag & GP_FRAME_SELECT)) {
       bGPDstroke *gps_new = BKE_gpencil_stroke_duplicate(gps, true, true);
       if (gps_new == NULL) {
         continue;
