@@ -3227,6 +3227,28 @@ void BKE_gpencil_stroke_join(bGPDstroke *gps_a,
   }
 }
 
+/* Copy the stroke of the frame to all frames selected (except current). */
+void BKE_gpencil_stroke_copy_to_keyframes(bGPDlayer *gpl,
+                                          bGPDframe *gpf,
+                                          bGPDstroke *gps,
+                                          const bool tail)
+{
+  LISTBASE_FOREACH (bGPDframe *, gpf_key, &gpl->frames) {
+    if (gpf_key != gpf || (gpf_key->flag & GP_FRAME_SELECT)) {
+      bGPDstroke *gps_new = BKE_gpencil_stroke_duplicate(gps, true, true);
+      if (gps_new == NULL) {
+        continue;
+      }
+      if (tail) {
+        BLI_addhead(&gpf_key->strokes, gps_new);
+      }
+      else {
+        BLI_addtail(&gpf_key->strokes, gps_new);
+      }
+    }
+  }
+}
+
 /* Stroke Uniform Subdivide  ------------------------------------- */
 
 typedef struct tSamplePoint {
