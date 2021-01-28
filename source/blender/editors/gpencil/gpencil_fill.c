@@ -1706,6 +1706,68 @@ static void gpencil_zoom_level_set(tGPDfill *tgpf, const bool is_inverted)
   }
 }
 
+static bool gpencil_do_frame_fill(tGPDfill *tgpf, const bool is_inverted)
+{
+  /* render screen to temp image */
+  int totpoints = 1;
+  if (gpencil_render_offscreen(tgpf)) {
+
+    /* Set red borders to create a external limit. */
+    gpencil_set_borders(tgpf, true);
+
+    /* apply boundary fill */
+    gpencil_boundaryfill_area(tgpf);
+
+    /* Invert direction if press Ctrl. */
+    if (is_inverted) {
+      gpencil_invert_image(tgpf);
+    }
+
+    /* Clean borders to avoid infinite loops. */
+    gpencil_set_borders(tgpf, false);
+
+    while (totpoints > 0) {
+      /* analyze outline */
+      gpencil_get_outline_points(tgpf, (totpoints == 1) ? true : false);
+
+      /* create array of points from stack */
+      totpoints = gpencil_points_from_stack(tgpf);
+
+      /* create z-depth array for reproject */
+      gpencil_get_depth_array(tgpf);
+
+      /* create stroke and reproject */
+      gpencil_stroke_from_buffer(tgpf);
+
+      if (is_inverted) {
+        gpencil_erase_processed_area(tgpf);
+      }
+      else {
+        /* Exit of the loop. */
+        totpoints = 0;
+      }
+
+      /* free temp stack data */
+      if (tgpf->stack) {
+        BLI_stack_free(tgpf->stack);
+      }
+
+      /* Free memory. */
+      MEM_SAFE_FREE(tgpf->sbuffer);
+      MEM_SAFE_FREE(tgpf->depth_arr);
+    }
+
+    /* Delete temp image. */
+    if (tgpf->ima) {
+      BKE_id_free(tgpf->bmain, tgpf->ima);
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
 /* events handling during interactive part of operator */
 static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -1715,6 +1777,7 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
   BrushGpencilSettings *brush_settings = brush->gpencil_settings;
   const bool is_brush_inv = brush_settings->fill_direction == BRUSH_DIR_IN;
   const bool is_inverted = (is_brush_inv && !event->ctrl) || (!is_brush_inv && event->ctrl);
+  const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(tgpf->gpd);
 
   int estate = OPERATOR_PASS_THROUGH; /* default exit state - pass through */
 
@@ -1755,70 +1818,35 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
                 tgpf->scene, tgpf->region, tgpf->ob, &point2D, NULL, &pt->x);
 
             /* Set active frame as current for filling. */
-            tgpf->active_cfra = CFRA;
+            int cfra_prv = CFRA;
+            bGPDframe *init_gpf = (is_multiedit) ? tgpf->gpl->frames.first : tgpf->gpl->actframe;
+            for (bGPDframe *gpf = init_gpf; gpf; gpf = gpf->next) {
+              if ((gpf == tgpf->gpl->actframe) ||
+                  ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {
 
-            /* render screen to temp image */
-            int totpoints = 1;
-            if (gpencil_render_offscreen(tgpf)) {
+                CFRA = gpf->framenum;
+                tgpf->active_cfra = CFRA;
 
-              /* Set red borders to create a external limit. */
-              gpencil_set_borders(tgpf, true);
+                /* Render screen to temp image and do fill. */
+                gpencil_do_frame_fill(tgpf, is_inverted);
 
-              /* apply boundary fill */
-              gpencil_boundaryfill_area(tgpf);
+                /* restore size */
+                tgpf->region->winx = (short)tgpf->bwinx;
+                tgpf->region->winy = (short)tgpf->bwiny;
+                tgpf->region->winrct = tgpf->brect;
 
-              /* Invert direction if press Ctrl. */
-              if (is_inverted) {
-                gpencil_invert_image(tgpf);
-              }
-
-              /* Clean borders to avoid infinite loops. */
-              gpencil_set_borders(tgpf, false);
-
-              while (totpoints > 0) {
-                /* analyze outline */
-                gpencil_get_outline_points(tgpf, (totpoints == 1) ? true : false);
-
-                /* create array of points from stack */
-                totpoints = gpencil_points_from_stack(tgpf);
-
-                /* create z-depth array for reproject */
-                gpencil_get_depth_array(tgpf);
-
-                /* create stroke and reproject */
-                gpencil_stroke_from_buffer(tgpf);
-
-                if (is_inverted) {
-                  gpencil_erase_processed_area(tgpf);
+                /* if not multiedit, exit loop*/
+                if (!is_multiedit) {
+                  break;
                 }
-                else {
-                  /* Exit of the loop. */
-                  totpoints = 0;
-                }
-
-                /* free temp stack data */
-                if (tgpf->stack) {
-                  BLI_stack_free(tgpf->stack);
-                }
-
-                /* Free memory. */
-                MEM_SAFE_FREE(tgpf->sbuffer);
-                MEM_SAFE_FREE(tgpf->depth_arr);
-              }
-
-              /* Delete temp image. */
-              if (tgpf->ima) {
-                BKE_id_free(tgpf->bmain, tgpf->ima);
               }
             }
 
+            /* Back to previous frame. */
+            CFRA = cfra_prv;
+
             /* Free temp stroke. */
             BKE_gpencil_free_stroke(tgpf->gps_mouse);
-
-            /* restore size */
-            tgpf->region->winx = (short)tgpf->bwinx;
-            tgpf->region->winy = (short)tgpf->bwiny;
-            tgpf->region->winrct = tgpf->brect;
 
             /* push undo data */
             gpencil_undo_push(tgpf->gpd);
