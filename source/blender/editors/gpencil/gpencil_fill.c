@@ -1484,7 +1484,6 @@ static tGPDfill *gpencil_session_init_fill(bContext *C, wmOperator *UNUSED(op))
 /* end operator */
 static void gpencil_fill_exit(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
   Object *ob = CTX_data_active_object(C);
 
   /* clear undo stack */
@@ -1506,11 +1505,6 @@ static void gpencil_fill_exit(bContext *C, wmOperator *op)
     /* remove drawing handler */
     if (tgpf->draw_handle_3d) {
       ED_region_draw_cb_exit(tgpf->region->type, tgpf->draw_handle_3d);
-    }
-
-    /* Delete temp image. */
-    if (tgpf->ima) {
-      BKE_id_free(bmain, tgpf->ima);
     }
 
     /* finally, free memory used by temp data */
@@ -1810,6 +1804,11 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
                 /* Free memory. */
                 MEM_SAFE_FREE(tgpf->sbuffer);
                 MEM_SAFE_FREE(tgpf->depth_arr);
+              }
+
+              /* Delete temp image. */
+              if (tgpf->ima) {
+                BKE_id_free(tgpf->bmain, tgpf->ima);
               }
             }
 
