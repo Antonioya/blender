@@ -26,6 +26,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_ghash.h"
 #include "BLI_math.h"
 #include "BLI_stack.h"
 #include "BLI_utildefines.h"
@@ -1817,30 +1818,31 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
             gpencil_stroke_convertcoords_tpoint(
                 tgpf->scene, tgpf->region, tgpf->ob, &point2D, NULL, &pt->x);
 
+            /* Hash of selected frames.*/
+            GHash *frame_list = BLI_ghash_int_new_ex(__func__, 64);
+            BKE_gpencil_frame_selected_hash(tgpf->gpd, frame_list);
+
             /* Set active frame as current for filling. */
             int cfra_prv = CFRA;
-            bGPDframe *init_gpf = (is_multiedit) ? tgpf->gpl->frames.first : tgpf->gpl->actframe;
-            for (bGPDframe *gpf = init_gpf; gpf; gpf = gpf->next) {
-              if ((gpf == tgpf->gpl->actframe) ||
-                  ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {
 
-                CFRA = gpf->framenum;
-                tgpf->active_cfra = CFRA;
+            /* Loop all frames. */
+            GHashIterator gh_iter;
+            GHASH_ITER (gh_iter, frame_list) {
+              int *cfra = BLI_ghashIterator_getKey(&gh_iter);
+              tgpf->active_cfra = POINTER_AS_INT(cfra);
+              CFRA = tgpf->active_cfra;
 
-                /* Render screen to temp image and do fill. */
-                gpencil_do_frame_fill(tgpf, is_inverted);
+              /* Render screen to temp image and do fill. */
+              gpencil_do_frame_fill(tgpf, is_inverted);
 
-                /* restore size */
-                tgpf->region->winx = (short)tgpf->bwinx;
-                tgpf->region->winy = (short)tgpf->bwiny;
-                tgpf->region->winrct = tgpf->brect;
-
-                /* if not multiedit, exit loop*/
-                if (!is_multiedit) {
-                  break;
-                }
-              }
+              /* restore size */
+              tgpf->region->winx = (short)tgpf->bwinx;
+              tgpf->region->winy = (short)tgpf->bwiny;
+              tgpf->region->winrct = tgpf->brect;
             }
+
+            /* Free hash table. */
+            BLI_ghash_free(frame_list, NULL, NULL);
 
             /* Back to previous frame. */
             CFRA = cfra_prv;

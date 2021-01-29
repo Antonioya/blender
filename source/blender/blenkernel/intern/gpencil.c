@@ -2939,4 +2939,20 @@ int BKE_gpencil_material_find_index_by_name_prefix(Object *ob, const char *name_
   return -1;
 }
 
+/* Create a hash with the list of selected frame number. */
+void BKE_gpencil_frame_selected_hash(const struct bGPdata *gpd, struct GHash *r_list)
+{
+  const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(gpd);
+
+  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+    LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
+      if ((gpf == gpl->actframe) || ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {
+        if (!BLI_ghash_lookup(r_list, POINTER_FROM_INT(gpf->framenum))) {
+          BLI_ghash_insert(r_list, POINTER_FROM_INT(gpf->framenum), gpf);
+        }
+      }
+    }
+  }
+}
+
 /** \} */
