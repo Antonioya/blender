@@ -1309,7 +1309,7 @@ static void gpencil_stroke_newfrombuffer(tGPsdata *p)
   /* In Multiframe mode, duplicate the stroke in other frames. */
   if (GPENCIL_MULTIEDIT_SESSIONS_ON(p->gpd)) {
     const bool tail = (ts->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK);
-    BKE_gpencil_stroke_copy_to_keyframes(gpl, p->gpf, gps, tail);
+    BKE_gpencil_stroke_copy_to_keyframes(gpd, gpl, p->gpf, gps, tail);
   }
 
   gpencil_stroke_added_enable(p);

@@ -1778,7 +1778,6 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
   BrushGpencilSettings *brush_settings = brush->gpencil_settings;
   const bool is_brush_inv = brush_settings->fill_direction == BRUSH_DIR_IN;
   const bool is_inverted = (is_brush_inv && !event->ctrl) || (!is_brush_inv && event->ctrl);
-  const bool is_multiedit = (bool)GPENCIL_MULTIEDIT_SESSIONS_ON(tgpf->gpd);
 
   int estate = OPERATOR_PASS_THROUGH; /* default exit state - pass through */
 
