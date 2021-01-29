@@ -1821,14 +1821,13 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
             GHash *frame_list = BLI_ghash_int_new_ex(__func__, 64);
             BKE_gpencil_frame_selected_hash(tgpf->gpd, frame_list);
 
-            /* Set active frame as current for filling. */
+            /* Loop all frames. */
             int cfra_prv = CFRA;
 
-            /* Loop all frames. */
             GHashIterator gh_iter;
             GHASH_ITER (gh_iter, frame_list) {
-              int *cfra = BLI_ghashIterator_getKey(&gh_iter);
-              tgpf->active_cfra = POINTER_AS_INT(cfra);
+              /* Set active frame as current for filling. */
+              tgpf->active_cfra = POINTER_AS_INT(BLI_ghashIterator_getKey(&gh_iter));
               CFRA = tgpf->active_cfra;
 
               /* Render screen to temp image and do fill. */
