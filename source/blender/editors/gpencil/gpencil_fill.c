@@ -44,6 +44,7 @@
 #include "BKE_brush.h"
 #include "BKE_context.h"
 #include "BKE_deform.h"
+#include "BKE_global.h"
 #include "BKE_gpencil.h"
 #include "BKE_gpencil_geom.h"
 #include "BKE_image.h"
@@ -121,6 +122,8 @@ typedef struct tGPDfill {
   struct bGPDframe *gpf;
   /** Temp mouse position stroke. */
   struct bGPDstroke *gps_mouse;
+  /** List of selected frames. */
+  GHash *frame_list;
 
   /** flags */
   short flag;
@@ -128,6 +131,8 @@ typedef struct tGPDfill {
   short oldkey;
   /** send to back stroke */
   bool on_back;
+  /** brush is inverted */
+  bool is_inverted;
 
   /** mouse fill center position */
   int mouse[2];
@@ -178,6 +183,119 @@ typedef struct tGPDfill {
   /** Zoom factor. */
   float zoom;
 } tGPDfill;
+
+typedef struct FillJob {
+  /* from wmJob */
+  struct Object *owner;
+  bContext *C;
+  wmWindowManager *wm;
+  Scene *scene;
+
+  short *stop, *do_update;
+  float *progress;
+
+  tGPDfill *tgpf;
+
+  bool success;
+  bool was_canceled;
+} FillJob;
+
+static void gpencil_fill_exit(struct bContext *C, struct wmOperator *op, struct tGPDfill *tgpf_i);
+static void gpencil_zoom_level_set(struct tGPDfill *tgpf);
+static bool gpencil_do_frame_fill(struct tGPDfill *tgpf);
+
+static void fill_initialize_job_data(FillJob *fill_job)
+{
+  tGPDfill *tgpf = fill_job->tgpf;
+
+  /* Define Zoom level. */
+  gpencil_zoom_level_set(tgpf);
+  /* Create Temp stroke. */
+  tgpf->gps_mouse = BKE_gpencil_stroke_new(0, 2, 10.0f);
+  /* Add two points to have a line. */
+  tGPspoint point2D;
+  bGPDspoint *pt = &tgpf->gps_mouse->points[0];
+  copy_v2fl_v2i(&point2D.x, tgpf->mouse);
+  gpencil_stroke_convertcoords_tpoint(tgpf->scene, tgpf->region, tgpf->ob, &point2D, NULL, &pt->x);
+
+  pt = &tgpf->gps_mouse->points[1];
+  point2D.x += 3.0f * tgpf->zoom;
+  gpencil_stroke_convertcoords_tpoint(tgpf->scene, tgpf->region, tgpf->ob, &point2D, NULL, &pt->x);
+
+  /* Hash of selected frames.*/
+  tgpf->frame_list = BLI_ghash_int_new_ex(__func__, 64);
+  BKE_gpencil_frame_selected_hash(tgpf->gpd, tgpf->frame_list);
+}
+
+static void fill_start_job(void *customdata, short *stop, short *do_update, float *progress)
+{
+  FillJob *fill_job = customdata;
+  tGPDfill *tgpf = fill_job->tgpf;
+
+  fill_job->stop = stop;
+  fill_job->do_update = do_update;
+  fill_job->progress = progress;
+  fill_job->was_canceled = false;
+
+  G.is_break = false;
+
+  /* Loop all frames. */
+  GHashIterator gh_iter;
+  int i = 0;
+  int total = BLI_ghash_len(tgpf->frame_list);
+  GHASH_ITER (gh_iter, tgpf->frame_list) {
+    if (G.is_break) {
+      fill_job->was_canceled = true;
+      break;
+    }
+    /* Set active frame as current for filling. */
+    tgpf->active_cfra = POINTER_AS_INT(BLI_ghashIterator_getKey(&gh_iter));
+
+    /* Update progress. */
+    *(fill_job->progress) = (float)i / (float)total;
+    *do_update = true;
+    /* Render screen to temp image and do fill. */
+    gpencil_do_frame_fill(tgpf);
+
+    /* restore size */
+    tgpf->region->winx = (short)tgpf->bwinx;
+    tgpf->region->winy = (short)tgpf->bwiny;
+    tgpf->region->winrct = tgpf->brect;
+    i++;
+  }
+
+  fill_job->success = !fill_job->was_canceled;
+  *do_update = true;
+  *stop = 0;
+}
+
+static void fill_end_job(void *customdata)
+{
+  FillJob *fill_job = customdata;
+
+  if (fill_job->success) {
+    // Aqui
+  }
+}
+
+static void fill_free_job(void *customdata)
+{
+  FillJob *fill_job = customdata;
+  tGPDfill *tgpf = fill_job->tgpf;
+
+  /* Free hash table. */
+  BLI_ghash_free(tgpf->frame_list, NULL, NULL);
+
+  /* Free temp stroke. */
+  BKE_gpencil_free_stroke(tgpf->gps_mouse);
+
+  /* push undo data */
+  gpencil_undo_push(tgpf->gpd);
+
+  gpencil_fill_exit(tgpf->C, NULL, tgpf);
+
+  MEM_freeN(fill_job);
+}
 
 /* draw a given stroke using same thickness and color for all points */
 static void gpencil_draw_basic_stroke(tGPDfill *tgpf,
@@ -1483,7 +1601,7 @@ static tGPDfill *gpencil_session_init_fill(bContext *C, wmOperator *UNUSED(op))
 }
 
 /* end operator */
-static void gpencil_fill_exit(bContext *C, wmOperator *op)
+static void gpencil_fill_exit(bContext *C, wmOperator *op, tGPDfill *tgpf_i)
 {
   Object *ob = CTX_data_active_object(C);
 
@@ -1493,7 +1611,7 @@ static void gpencil_fill_exit(bContext *C, wmOperator *op)
   /* restore cursor to indicate end of fill */
   WM_cursor_modal_restore(CTX_wm_window(C));
 
-  tGPDfill *tgpf = op->customdata;
+  tGPDfill *tgpf = (tgpf_i == NULL) ? op->customdata : tgpf_i;
 
   /* don't assume that operator data exists at all */
   if (tgpf) {
@@ -1528,7 +1646,7 @@ static void gpencil_fill_exit(bContext *C, wmOperator *op)
 static void gpencil_fill_cancel(bContext *C, wmOperator *op)
 {
   /* this is just a wrapper around exit() */
-  gpencil_fill_exit(C, op);
+  gpencil_fill_exit(C, op, NULL);
 }
 
 /* Init: Allocate memory and set init values */
@@ -1546,7 +1664,7 @@ static int gpencil_fill_init(bContext *C, wmOperator *op)
   tgpf = op->customdata = gpencil_session_init_fill(C, op);
   if (tgpf == NULL) {
     /* something wasn't set correctly in context */
-    gpencil_fill_exit(C, op);
+    gpencil_fill_exit(C, op, NULL);
     return 0;
   }
 
@@ -1581,7 +1699,7 @@ static int gpencil_fill_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
 
   /* try to initialize context data needed */
   if (!gpencil_fill_init(C, op)) {
-    gpencil_fill_exit(C, op);
+    gpencil_fill_exit(C, op, NULL);
     if (op->customdata) {
       MEM_freeN(op->customdata);
     }
@@ -1614,7 +1732,7 @@ static int gpencil_fill_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
  * object bounding box (all strokes) is calculated. To select an stroke, the stroke bounding box
  * is checked with the mouse position to verify if the stroke is used or not.
  */
-static void gpencil_zoom_level_set(tGPDfill *tgpf, const bool is_inverted)
+static void gpencil_zoom_level_set(tGPDfill *tgpf)
 {
   Object *ob = tgpf->ob;
   bGPdata *gpd = tgpf->gpd;
@@ -1667,7 +1785,7 @@ static void gpencil_zoom_level_set(tGPDfill *tgpf, const bool is_inverted)
       /* Check if the stroke collide with mouse. */
       float mouse[2];
       copy_v2fl_v2i(mouse, tgpf->mouse);
-      if ((!is_inverted) &&
+      if ((!tgpf->is_inverted) &&
           (!ED_gpencil_stroke_check_collision(&tgpf->gsc, gps, mouse, 100.0f, diff_mat))) {
         continue;
       }
@@ -1707,7 +1825,7 @@ static void gpencil_zoom_level_set(tGPDfill *tgpf, const bool is_inverted)
   }
 }
 
-static bool gpencil_do_frame_fill(tGPDfill *tgpf, const bool is_inverted)
+static bool gpencil_do_frame_fill(tGPDfill *tgpf)
 {
   /* render screen to temp image */
   int totpoints = 1;
@@ -1720,7 +1838,7 @@ static bool gpencil_do_frame_fill(tGPDfill *tgpf, const bool is_inverted)
     gpencil_boundaryfill_area(tgpf);
 
     /* Invert direction if press Ctrl. */
-    if (is_inverted) {
+    if (tgpf->is_inverted) {
       gpencil_invert_image(tgpf);
     }
 
@@ -1740,7 +1858,7 @@ static bool gpencil_do_frame_fill(tGPDfill *tgpf, const bool is_inverted)
       /* create stroke and reproject */
       gpencil_stroke_from_buffer(tgpf);
 
-      if (is_inverted) {
+      if (tgpf->is_inverted) {
         gpencil_erase_processed_area(tgpf);
       }
       else {
@@ -1773,11 +1891,10 @@ static bool gpencil_do_frame_fill(tGPDfill *tgpf, const bool is_inverted)
 static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   tGPDfill *tgpf = op->customdata;
-  Scene *scene = tgpf->scene;
   Brush *brush = tgpf->brush;
   BrushGpencilSettings *brush_settings = brush->gpencil_settings;
   const bool is_brush_inv = brush_settings->fill_direction == BRUSH_DIR_IN;
-  const bool is_inverted = (is_brush_inv && !event->ctrl) || (!is_brush_inv && event->ctrl);
+  tgpf->is_inverted = (is_brush_inv && !event->ctrl) || (!is_brush_inv && event->ctrl);
 
   int estate = OPERATOR_PASS_THROUGH; /* default exit state - pass through */
 
@@ -1801,8 +1918,31 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
           if ((in_bounds) && (region->regiontype == RGN_TYPE_WINDOW)) {
             tgpf->mouse[0] = event->mval[0];
             tgpf->mouse[1] = event->mval[1];
+
+            FillJob *job = MEM_mallocN(sizeof(FillJob), "FillJob");
+            job->owner = CTX_data_active_object(C);
+            job->C = C;
+            job->wm = CTX_wm_manager(C);
+            job->scene = CTX_data_scene(C);
+            job->tgpf = tgpf;
+
+            fill_initialize_job_data(job);
+
+            wmJob *wm_job = WM_jobs_get(job->wm,
+                                        CTX_wm_window(C),
+                                        job->scene,
+                                        "Fill Strokes",
+                                        WM_JOB_PROGRESS,
+                                        WM_JOB_TYPE_GPENCIL_FILL);
+
+            WM_jobs_customdata_set(wm_job, job, fill_free_job);
+            WM_jobs_timer(wm_job, 0.1, NC_GEOM | ND_DATA, NC_GEOM | ND_DATA);
+            WM_jobs_callbacks(wm_job, fill_start_job, NULL, NULL, fill_end_job);
+
+            WM_jobs_start(CTX_wm_manager(C), wm_job);
+#if 0  // Job INIT
             /* Define Zoom level. */
-            gpencil_zoom_level_set(tgpf, is_inverted);
+            gpencil_zoom_level_set(tgpf);
             /* Create Temp stroke. */
             tgpf->gps_mouse = BKE_gpencil_stroke_new(0, 2, 10.0f);
             /* Add two points to have a line. */
@@ -1820,37 +1960,36 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
             /* Hash of selected frames.*/
             GHash *frame_list = BLI_ghash_int_new_ex(__func__, 64);
             BKE_gpencil_frame_selected_hash(tgpf->gpd, frame_list);
+#endif
 
+#if 0  // Job Start job
             /* Loop all frames. */
-            int cfra_prv = CFRA;
-
             GHashIterator gh_iter;
-            GHASH_ITER (gh_iter, frame_list) {
+            GHASH_ITER (gh_iter, tgpf->frame_list) {
               /* Set active frame as current for filling. */
               tgpf->active_cfra = POINTER_AS_INT(BLI_ghashIterator_getKey(&gh_iter));
               CFRA = tgpf->active_cfra;
 
               /* Render screen to temp image and do fill. */
-              gpencil_do_frame_fill(tgpf, is_inverted);
+              gpencil_do_frame_fill(tgpf);
 
               /* restore size */
               tgpf->region->winx = (short)tgpf->bwinx;
               tgpf->region->winy = (short)tgpf->bwiny;
               tgpf->region->winrct = tgpf->brect;
             }
+#endif
 
+#if 0  // Job Free
             /* Free hash table. */
-            BLI_ghash_free(frame_list, NULL, NULL);
-
-            /* Back to previous frame. */
-            CFRA = cfra_prv;
+            BLI_ghash_free(tgpf->frame_list, NULL, NULL);
 
             /* Free temp stroke. */
             BKE_gpencil_free_stroke(tgpf->gps_mouse);
 
             /* push undo data */
             gpencil_undo_push(tgpf->gpd);
-
+#endif
             estate = OPERATOR_FINISHED;
           }
           else {
@@ -1867,12 +2006,11 @@ static int gpencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
   /* process last operations before exiting */
   switch (estate) {
     case OPERATOR_FINISHED:
-      gpencil_fill_exit(C, op);
       WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
       break;
 
     case OPERATOR_CANCELLED:
-      gpencil_fill_exit(C, op);
+      gpencil_fill_exit(C, op, NULL);
       break;
 
     case OPERATOR_RUNNING_MODAL | OPERATOR_PASS_THROUGH:
