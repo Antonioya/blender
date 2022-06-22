@@ -329,6 +329,7 @@ struct bGPDcurve *BKE_gpencil_stroke_editcurve_new(int tot_curve_points);
  * \return True if layer is editable
  */
 bool BKE_gpencil_layer_is_editable(const struct bGPDlayer *gpl);
+void BKE_gpencil_frame_min_max(const struct bGPdata *gpd, int *r_min, int *r_max);
 
 /* How gpencil_layer_getframe() should behave when there
  * is no existing GP-Frame on the frame requested.

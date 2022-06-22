@@ -609,10 +609,15 @@ static bool view3d_world_drop_poll(bContext *C, wmDrag *drag, const wmEvent *eve
 static bool view3d_object_data_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   ID_Type id_type = view3d_drop_id_in_main_region_poll_get_id_type(C, drag, event);
-  if (id_type && OB_DATA_SUPPORT_ID(id_type)) {
+  if (id_type && OB_DATA_SUPPORT_ID(id_type) && (id_type != ID_GD)) {
     return true;
   }
   return false;
+}
+
+static bool view3d_gpencil_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+{
+  return view3d_drop_id_in_main_region_poll(C, drag, event, ID_GD);
 }
 
 static char *view3d_object_data_drop_tooltip(bContext *UNUSED(C),
@@ -621,6 +626,14 @@ static char *view3d_object_data_drop_tooltip(bContext *UNUSED(C),
                                              wmDropBox *UNUSED(drop))
 {
   return BLI_strdup(TIP_("Create object instance from object-data"));
+}
+
+static char *view3d_gpencil_data_drop_tooltip(bContext *UNUSED(C),
+                                              wmDrag *UNUSED(drag),
+                                              const int UNUSED(xy[2]),
+                                              wmDropBox *UNUSED(drop))
+{
+  return BLI_strdup(TIP_("Add strokes to active object"));
 }
 
 static bool view3d_ima_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
@@ -945,6 +958,14 @@ static void view3d_dropboxes(void)
                  view3d_id_drop_copy,
                  WM_drag_free_imported_drag_ID,
                  NULL);
+
+  /* TODO(@antoniov): Change to use a temp copy using BLO_library_temp_load_id (). */
+  WM_dropbox_add(lb,
+                 "GPENCIL_OT_asset_import",
+                 view3d_gpencil_drop_poll,
+                 view3d_id_drop_copy_with_type,
+                 WM_drag_free_imported_drag_ID,
+                 view3d_gpencil_data_drop_tooltip);
 }
 
 static void view3d_widgets(void)

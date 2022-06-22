@@ -751,6 +751,9 @@ typedef struct bGPdata {
   /* NOTE: When adding new members, make sure to add them to BKE_gpencil_data_copy_settings as
    * well! */
 
+  /** Preview image for assets. */
+  struct PreviewImage *preview;
+
   bGPdata_Runtime runtime;
 } bGPdata;
 

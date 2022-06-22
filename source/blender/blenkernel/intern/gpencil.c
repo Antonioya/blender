@@ -62,7 +62,7 @@ static CLG_LogRef LOG = {"bke.gpencil"};
 static void greasepencil_copy_data(Main *UNUSED(bmain),
                                    ID *id_dst,
                                    const ID *id_src,
-                                   const int UNUSED(flag))
+                                   const int flag)
 {
   bGPdata *gpd_dst = (bGPdata *)id_dst;
   const bGPdata *gpd_src = (const bGPdata *)id_src;
@@ -109,6 +109,13 @@ static void greasepencil_copy_data(Main *UNUSED(bmain),
     }
 
     BLI_addtail(&gpd_dst->layers, gpl_dst);
+  }
+
+  if (flag & LIB_ID_COPY_NO_PREVIEW) {
+    gpd_dst->preview = NULL;
+  }
+  else {
+    BKE_previewimg_id_copy(&gpd_dst->id, &gpd_src->id);
   }
 }
 
@@ -179,6 +186,8 @@ static void greasepencil_blend_write(BlendWriter *writer, ID *id, const void *id
         }
       }
     }
+
+    BKE_previewimg_blend_write(writer, gpd->preview);
   }
 }
 
@@ -192,6 +201,10 @@ void BKE_gpencil_blend_read_data(BlendDataReader *reader, bGPdata *gpd)
   /* Relink anim-data. */
   BLO_read_data_address(reader, &gpd->adt);
   BKE_animdata_blend_read_data(reader, gpd->adt);
+
+  /* Preview. */
+  BLO_read_data_address(reader, &gpd->preview);
+  BKE_previewimg_blend_read(reader, gpd->preview);
 
   /* Ensure full objectmode for linked grease pencil. */
   if (ID_IS_LINKED(gpd)) {
@@ -495,6 +508,8 @@ void BKE_gpencil_free_data(bGPdata *gpd, bool free_all)
     /* clear cache */
     BKE_gpencil_batch_cache_free(gpd);
   }
+  /* Preview. */
+  BKE_previewimg_free(&gpd->preview);
 }
 
 void BKE_gpencil_eval_delete(bGPdata *gpd_eval)
@@ -2197,7 +2212,7 @@ int BKE_gpencil_object_material_index_get_by_name(Object *ob, const char *name)
   for (short i = 0; i < *totcol; i++) {
     read_ma = BKE_object_material_get(ob, i + 1);
     /* Material names are like "MAMaterial.001" */
-    if (STREQ(name, &read_ma->id.name[2])) {
+    if ((read_ma) && (STREQ(name, &read_ma->id.name[2]))) {
       return i;
     }
   }
@@ -3040,4 +3055,20 @@ void BKE_gpencil_update_on_write(bGPdata *gpd_orig, bGPdata *gpd_eval)
   BKE_gpencil_free_update_cache(gpd_orig);
 }
 
+/* Get min and max frame number for all layers. */
+void BKE_gpencil_frame_min_max(const bGPdata *gpd, int *r_min, int *r_max)
+{
+  *r_min = INT_MAX;
+  *r_max = INT_MIN;
+  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
+    LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
+      if (gpf->framenum < *r_min) {
+        *r_min = gpf->framenum;
+      }
+      if (gpf->framenum > *r_max) {
+        *r_max = gpf->framenum;
+      }
+    }
+  }
+}
 /** \} */

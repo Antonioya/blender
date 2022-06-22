@@ -667,6 +667,10 @@ void GPENCIL_OT_convert_old_files(struct wmOperatorType *ot);
 /* armatures */
 void GPENCIL_OT_generate_weights(struct wmOperatorType *ot);
 
+/* Assets. */
+void GPENCIL_OT_asset_create(struct wmOperatorType *ot);
+void GPENCIL_OT_asset_import(struct wmOperatorType *ot);
+
 /* ****************************************************** */
 /* Stroke Iteration Utilities */
 

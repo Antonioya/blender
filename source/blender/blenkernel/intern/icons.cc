@@ -355,6 +355,7 @@ PreviewImage **BKE_previewimg_id_get_p(const ID *id)
     ID_PRV_CASE(ID_LA, Light);
     ID_PRV_CASE(ID_IM, Image);
     ID_PRV_CASE(ID_BR, Brush);
+    ID_PRV_CASE(ID_GD, bGPdata);
     ID_PRV_CASE(ID_GR, Collection);
     ID_PRV_CASE(ID_SCE, Scene);
     ID_PRV_CASE(ID_SCR, bScreen);
@@ -419,7 +420,7 @@ void BKE_previewimg_id_custom_set(ID *id, const char *filepath)
 
 bool BKE_previewimg_id_supports_jobs(const ID *id)
 {
-  return ELEM(GS(id->name), ID_OB, ID_MA, ID_TE, ID_LA, ID_WO, ID_IM, ID_BR, ID_GR);
+  return ELEM(GS(id->name), ID_OB, ID_MA, ID_TE, ID_LA, ID_WO, ID_IM, ID_BR, ID_GR, ID_GD);
 }
 
 void BKE_previewimg_deferred_release(PreviewImage *prv)
