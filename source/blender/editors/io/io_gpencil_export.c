@@ -13,6 +13,8 @@
 #  include "DNA_gpencil_types.h"
 #  include "DNA_space_types.h"
 
+#  include "MEM_guardedalloc.h"
+
 #  include "BKE_gpencil.h"
 #  include "BKE_main.h"
 #  include "BKE_report.h"
@@ -407,6 +409,110 @@ void WM_OT_gpencil_export_pdf(wmOperatorType *ot)
                           GP_EXPORT_ACTIVE,
                           "Frames",
                           "Which frames to include in the export");
+}
+
+static void contact_sheet_pdf_load_files(wmOperator *op, ContactSheetParams *load_data)
+{
+  PropertyRNA *prop;
+  int idx = 0;
+  /* size of dir. */
+  if ((prop = RNA_struct_find_property(op->ptr, "filepath"))) {
+    RNA_property_string_get(op->ptr, prop, load_data->items[idx].path);
+    BLI_strncpy(load_data->items[idx].name,
+                BLI_path_basename(load_data->items[idx].path),
+                sizeof(load_data->items[idx].name));
+    idx++;
+  }
+  else if ((prop = RNA_struct_find_property(op->ptr, "directory"))) {
+    char *directory = RNA_string_get_alloc(op->ptr, "directory", NULL, 0, NULL);
+
+    if ((prop = RNA_struct_find_property(op->ptr, "files"))) {
+      RNA_PROP_BEGIN (op->ptr, itemptr, prop) {
+        char *filename = RNA_string_get_alloc(&itemptr, "name", NULL, 0, NULL);
+        BLI_strncpy(load_data->items[idx].name, filename, sizeof(load_data->items[idx].name));
+        BLI_join_dirfile(
+            load_data->items[idx].path, sizeof(load_data->items[idx].path), directory, filename);
+        MEM_freeN(filename);
+        idx++;
+      }
+      RNA_PROP_END;
+    }
+    MEM_freeN(directory);
+  }
+}
+
+static void contact_sheet_pdf_cancel(bContext *UNUSED(C), wmOperator *op)
+{
+  ContactSheetParams *load_data = (ContactSheetParams *)op->customdata;
+  MEM_SAFE_FREE(load_data->items);
+  // MEM_SAFE_FREE(load_data);
+  MEM_SAFE_FREE(op->customdata);
+}
+
+static int contact_sheet_pdf_exec(bContext *C, wmOperator *op)
+{
+  ContactSheetParams *load_data = MEM_callocN(sizeof(ContactSheetParams), __func__);
+  load_data->len = RNA_property_collection_length(op->ptr,
+                                                  RNA_struct_find_property(op->ptr, "files"));
+  if (load_data->len == 0) {
+    contact_sheet_pdf_cancel(C, op);
+    return OPERATOR_CANCELLED;
+  }
+
+  load_data->items = (ContactSheetItem *)MEM_malloc_arrayN(
+      load_data->len, sizeof(ContactSheetItem), __func__);
+
+  contact_sheet_pdf_load_files(op, load_data);
+  op->customdata = load_data;
+
+  create_contact_sheet(C, load_data);
+
+  /* Free custom data. */
+  contact_sheet_pdf_cancel(C, op);
+
+  return OPERATOR_FINISHED;
+}
+
+static int contact_sheet_pdf_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+  WM_event_add_fileselect(C, op);
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static bool contact_sheet_pdf_poll(bContext *C)
+{
+  if (CTX_wm_window(C) == NULL) {
+    return false;
+  }
+
+  return true;
+}
+
+void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
+{
+
+  /* Identifiers. */
+  ot->name = "Create Contact Sheet";
+  ot->idname = "WM_OT_contact_sheet_pdf";
+  ot->description = "Create a PDF with images as contact sheet";
+
+  /* Api callbacks. */
+  ot->invoke = contact_sheet_pdf_invoke;
+  ot->exec = contact_sheet_pdf_exec;
+  ot->cancel = contact_sheet_pdf_cancel;
+  ot->poll = contact_sheet_pdf_poll;
+
+  /* Flags. */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  WM_operator_properties_filesel(ot,
+                                 FILE_TYPE_FOLDER | FILE_TYPE_IMAGE,
+                                 FILE_SPECIAL,
+                                 FILE_OPENFILE,
+                                 WM_FILESEL_DIRECTORY | WM_FILESEL_FILES | WM_FILESEL_SHOW_PROPS |
+                                     WM_FILESEL_DIRECTORY,
+                                 FILE_DEFAULTDISPLAY,
+                                 FILE_SORT_DEFAULT);
 }
 #  endif /* WITH_HARU */
 

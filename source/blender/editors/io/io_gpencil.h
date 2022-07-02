@@ -19,6 +19,7 @@ void WM_OT_gpencil_export_svg(struct wmOperatorType *ot);
 #endif
 #ifdef WITH_HARU
 void WM_OT_gpencil_export_pdf(struct wmOperatorType *ot);
+void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot);
 #endif
 
 struct ARegion *get_invoke_region(struct bContext *C);

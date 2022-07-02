@@ -25,6 +25,7 @@
 
 #ifdef WITH_HARU
 #  include "gpencil_io_export_pdf.hh"
+#  include "gpencil_io_sheet.hh"
 #endif
 
 #ifdef WITH_PUGIXML
@@ -34,6 +35,7 @@
 #include "gpencil_io_import_svg.hh"
 
 #ifdef WITH_HARU
+using blender::io::gpencil::ContactSheetPDF;
 using blender::io::gpencil::GpencilExporterPDF;
 #endif
 #ifdef WITH_PUGIXML
@@ -196,4 +198,16 @@ bool gpencil_io_export(const char *filepath, GpencilIOParams *iparams)
       break;
   }
   return false;
+}
+
+bool create_contact_sheet(bContext *C, ContactSheetParams *iparams)
+{
+
+  ContactSheetPDF sheet = ContactSheetPDF(C, iparams);
+  bool result = false;
+  result |= sheet.new_document();
+  result |= sheet.add_newpage();
+  result |= sheet.write();
+
+  return result;
 }

@@ -49,6 +49,7 @@ void ED_operatortypes_io(void)
 #  endif
 #  ifdef WITH_HARU
   WM_operatortype_append(WM_OT_gpencil_export_pdf);
+  WM_operatortype_append(WM_OT_contact_sheet_pdf);
 #  endif
 #endif
 
