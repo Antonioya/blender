@@ -76,7 +76,12 @@ typedef struct ContactSheetItem {
 } ContactSheetItem;
 
 typedef struct ContactSheetParams {
-  int len;
+
+  char outpath[1024]; /* 1024 = FILE_MAX */
+  int32_t len;
+  int32_t canvas[2];
+  int32_t rows, cols;
+
   ContactSheetItem *items;
 } ContactSheetParams;
 
@@ -92,7 +97,7 @@ bool gpencil_io_import(const char *filepath, struct GpencilIOParams *iparams);
 /**
  * Create Contact Sheet in PDF.
  */
-bool create_contact_sheet(bContext *C, ContactSheetParams *iparams);
+bool create_contact_sheet_pdf(bContext *C, ContactSheetParams *iparams);
 
 #ifdef __cplusplus
 }

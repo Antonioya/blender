@@ -411,19 +411,24 @@ void WM_OT_gpencil_export_pdf(wmOperatorType *ot)
                           "Which frames to include in the export");
 }
 
-static void contact_sheet_pdf_load_files(wmOperator *op, ContactSheetParams *load_data)
+static void contact_sheet_pdf_load_files(bContext *C,
+                                         wmOperator *op,
+                                         ContactSheetParams *load_data)
 {
   PropertyRNA *prop;
   int idx = 0;
-  /* size of dir. */
+  load_data->outpath[0] = '\0';
+
+  set_export_filepath(C, op, ".pdf");
   if ((prop = RNA_struct_find_property(op->ptr, "filepath"))) {
-    RNA_property_string_get(op->ptr, prop, load_data->items[idx].path);
-    BLI_strncpy(load_data->items[idx].name,
-                BLI_path_basename(load_data->items[idx].path),
-                sizeof(load_data->items[idx].name));
-    idx++;
+    RNA_property_string_get(op->ptr, prop, load_data->outpath);
+    if (!BLI_path_extension_check(load_data->outpath, ".pdf")) {
+      BLI_path_extension_ensure(load_data->outpath, FILE_MAX, ".pdf");
+      RNA_string_set(op->ptr, "filepath", load_data->outpath);
+    }
   }
-  else if ((prop = RNA_struct_find_property(op->ptr, "directory"))) {
+
+  if ((prop = RNA_struct_find_property(op->ptr, "directory"))) {
     char *directory = RNA_string_get_alloc(op->ptr, "directory", NULL, 0, NULL);
 
     if ((prop = RNA_struct_find_property(op->ptr, "files"))) {
@@ -441,51 +446,82 @@ static void contact_sheet_pdf_load_files(wmOperator *op, ContactSheetParams *loa
   }
 }
 
-static void contact_sheet_pdf_cancel(bContext *UNUSED(C), wmOperator *op)
+static void wm_contact_sheet_pdf_cancel(bContext *UNUSED(C), wmOperator *op)
 {
-  ContactSheetParams *load_data = (ContactSheetParams *)op->customdata;
-  MEM_SAFE_FREE(load_data->items);
-  // MEM_SAFE_FREE(load_data);
-  MEM_SAFE_FREE(op->customdata);
+  if (op->customdata) {
+    ContactSheetParams *load_data = (ContactSheetParams *)op->customdata;
+    MEM_SAFE_FREE(load_data->items);
+    MEM_SAFE_FREE(op->customdata);
+  }
 }
 
-static int contact_sheet_pdf_exec(bContext *C, wmOperator *op)
+static int wm_contact_sheet_pdf_exec(bContext *C, wmOperator *op)
 {
   ContactSheetParams *load_data = MEM_callocN(sizeof(ContactSheetParams), __func__);
   load_data->len = RNA_property_collection_length(op->ptr,
                                                   RNA_struct_find_property(op->ptr, "files"));
+  load_data->items = NULL;
+
   if (load_data->len == 0) {
-    contact_sheet_pdf_cancel(C, op);
+    wm_contact_sheet_pdf_cancel(C, op);
     return OPERATOR_CANCELLED;
   }
 
   load_data->items = (ContactSheetItem *)MEM_malloc_arrayN(
       load_data->len, sizeof(ContactSheetItem), __func__);
 
-  contact_sheet_pdf_load_files(op, load_data);
-  op->customdata = load_data;
+  contact_sheet_pdf_load_files(C, op, load_data);
 
-  create_contact_sheet(C, load_data);
+  int resolution[2];
+  RNA_int_get_array(op->ptr, "resolution", resolution);
+  load_data->canvas[0] = resolution[0];
+  load_data->canvas[1] = resolution[1];
+
+  load_data->rows = RNA_int_get(op->ptr, "rows");
+  load_data->cols = RNA_int_get(op->ptr, "columns");
+
+  op->customdata = load_data;
+  create_contact_sheet_pdf(C, load_data);
 
   /* Free custom data. */
-  contact_sheet_pdf_cancel(C, op);
+  wm_contact_sheet_pdf_cancel(C, op);
 
   return OPERATOR_FINISHED;
 }
 
-static int contact_sheet_pdf_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+static int wm_contact_sheet_pdf_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
+  set_export_filepath(C, op, ".pdf");
+
   WM_event_add_fileselect(C, op);
+
   return OPERATOR_RUNNING_MODAL;
 }
 
-static bool contact_sheet_pdf_poll(bContext *C)
+static bool wm_contact_sheet_pdf_poll(bContext *C)
 {
   if (CTX_wm_window(C) == NULL) {
     return false;
   }
 
   return true;
+}
+
+static void wm_contact_sheet_pdf_draw(bContext *UNUSED(C), wmOperator *op)
+{
+  uiLayout *layout = op->layout;
+  PointerRNA *imfptr = op->ptr;
+  uiLayout *row;
+
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+
+  row = uiLayoutRow(layout, false);
+  uiItemR(row, imfptr, "resolution", 0, NULL, ICON_NONE);
+
+  row = uiLayoutRow(layout, false);
+  uiItemR(row, imfptr, "rows", 0, NULL, ICON_NONE);
+  uiItemR(row, imfptr, "columns", 0, NULL, ICON_NONE);
 }
 
 void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
@@ -497,10 +533,11 @@ void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
   ot->description = "Create a PDF with images as contact sheet";
 
   /* Api callbacks. */
-  ot->invoke = contact_sheet_pdf_invoke;
-  ot->exec = contact_sheet_pdf_exec;
-  ot->cancel = contact_sheet_pdf_cancel;
-  ot->poll = contact_sheet_pdf_poll;
+  ot->invoke = wm_contact_sheet_pdf_invoke;
+  ot->exec = wm_contact_sheet_pdf_exec;
+  ot->cancel = wm_contact_sheet_pdf_cancel;
+  ot->ui = wm_contact_sheet_pdf_draw;
+  ot->poll = wm_contact_sheet_pdf_poll;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -510,9 +547,23 @@ void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
                                  FILE_SPECIAL,
                                  FILE_OPENFILE,
                                  WM_FILESEL_DIRECTORY | WM_FILESEL_FILES | WM_FILESEL_SHOW_PROPS |
-                                     WM_FILESEL_DIRECTORY,
+                                     WM_FILESEL_DIRECTORY | WM_FILESEL_FILEPATH,
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_DEFAULT);
+  /* Properties */
+  static int dft[2] = {1920, 1080};
+  RNA_def_int_vector(ot->srna,
+                     "resolution",
+                     2,
+                     dft,
+                     640,
+                     3840,
+                     "Resolution",
+                     "Size in pixel of the output PDF document",
+                     640,
+                     3840);
+  RNA_def_int(ot->srna, "rows", 1, 1, 30, "Rows", "Number of rows by page", 1, 30);
+  RNA_def_int(ot->srna, "columns", 1, 1, 30, "Columns", "Number of columns by page", 1, 30);
 }
 #  endif /* WITH_HARU */
 

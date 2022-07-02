@@ -200,14 +200,16 @@ bool gpencil_io_export(const char *filepath, GpencilIOParams *iparams)
   return false;
 }
 
-bool create_contact_sheet(bContext *C, ContactSheetParams *iparams)
+#ifdef WITH_HARU
+bool create_contact_sheet_pdf(bContext *C, ContactSheetParams *iparams)
 {
-
   ContactSheetPDF sheet = ContactSheetPDF(C, iparams);
   bool result = false;
   result |= sheet.new_document();
   result |= sheet.add_newpage();
   result |= sheet.write();
+  sheet.free_document();
 
   return result;
 }
+#endif
