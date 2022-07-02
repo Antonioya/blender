@@ -10,6 +10,7 @@ set(INC
   ../../bmesh
   ../../depsgraph
   ../../editors/include
+  ../../imbuf
   ../../makesdna
   ../../makesrna
   ../../windowmanager
@@ -44,7 +45,6 @@ set(LIB
   bf_blenkernel
   bf_blenlib
   bf_io_common
-  bf_imbuf
 )
 
 if(WITH_PUGIXML)

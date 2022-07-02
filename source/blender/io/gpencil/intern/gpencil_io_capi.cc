@@ -205,9 +205,9 @@ bool create_contact_sheet_pdf(bContext *C, ContactSheetParams *iparams)
 {
   ContactSheetPDF sheet = ContactSheetPDF(C, iparams);
   bool result = false;
-  result |= sheet.new_document();
-  result |= sheet.add_newpage();
-  result |= sheet.write();
+  result |= sheet.create_document();
+  result |= sheet.add_newpage(0);
+  result |= sheet.save_document();
   sheet.free_document();
 
   return result;

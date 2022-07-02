@@ -22,15 +22,16 @@ class ContactSheetPDF {
 
  public:
   ContactSheetPDF(struct bContext *C, struct ContactSheetParams *iparams);
-  bool new_document();
-  bool add_newpage();
-  bool write();
+  bool create_document();
+  bool add_newpage(const int32_t start_idx);
+  bool save_document();
   void free_document();
 
  protected:
   ContactSheetParams params_;
   /* Data for easy access. */
   struct Main *bmain_;
+  struct Scene *scene_;
 
  private:
   /** PDF document. */
@@ -43,7 +44,10 @@ class ContactSheetPDF {
   char filepath_[FILE_MAX];
 
   /** Output PDF size. */
-  float2 canvas_;
+  float2 page_size_;
+
+  /** Available canvas size. */
+  float2 canvas_size_;
 
   /** Design of page. */
   int32_t rows_, cols_;
@@ -53,14 +57,17 @@ class ContactSheetPDF {
 
   /** Gap size between images. */
   float2 gap_size_;
-
-  /** Create PDF document. */
-  bool create_document();
-  /** Add page. */
-  bool add_page();
+  /** Thumbnail offset. */
+  float2 offset_;
 
   /** Get size of thumbnail relative to page canvas size. */
-  void get_thumbnail_size(HPDF_Image image);
+  void get_thumbnail_size(int iw, int ih);
+  /** Add a text to the pdf. */
+  void write_text(float2 loc, const char *text);
+  /** Draw main page frame. */
+  void draw_frame(void);
+  /** Draw image to the canvas. */
+  void draw_thumbnail(HPDF_Image pdf_image, int row, int col, int key);
 };
 
 }  // namespace blender::io::gpencil

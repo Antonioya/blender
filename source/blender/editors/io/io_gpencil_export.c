@@ -474,8 +474,8 @@ static int wm_contact_sheet_pdf_exec(bContext *C, wmOperator *op)
 
   int resolution[2];
   RNA_int_get_array(op->ptr, "resolution", resolution);
-  load_data->canvas[0] = resolution[0];
-  load_data->canvas[1] = resolution[1];
+  load_data->page_size[0] = resolution[0];
+  load_data->page_size[1] = resolution[1];
 
   load_data->rows = RNA_int_get(op->ptr, "rows");
   load_data->cols = RNA_int_get(op->ptr, "columns");
@@ -521,6 +521,7 @@ static void wm_contact_sheet_pdf_draw(bContext *UNUSED(C), wmOperator *op)
 
   row = uiLayoutRow(layout, false);
   uiItemR(row, imfptr, "rows", 0, NULL, ICON_NONE);
+  row = uiLayoutRow(layout, false);
   uiItemR(row, imfptr, "columns", 0, NULL, ICON_NONE);
 }
 
@@ -562,8 +563,8 @@ void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
                      "Size in pixel of the output PDF document",
                      640,
                      3840);
-  RNA_def_int(ot->srna, "rows", 1, 1, 30, "Rows", "Number of rows by page", 1, 30);
-  RNA_def_int(ot->srna, "columns", 1, 1, 30, "Columns", "Number of columns by page", 1, 30);
+  RNA_def_int(ot->srna, "rows", 3, 1, 30, "Rows", "Number of rows by page", 1, 30);
+  RNA_def_int(ot->srna, "columns", 6, 1, 30, "Columns", "Number of columns by page", 1, 30);
 }
 #  endif /* WITH_HARU */
 
