@@ -472,10 +472,12 @@ static int wm_contact_sheet_pdf_exec(bContext *C, wmOperator *op)
 
   contact_sheet_pdf_load_files(C, op, load_data);
 
-  int resolution[2];
-  RNA_int_get_array(op->ptr, "resolution", resolution);
-  load_data->page_size[0] = resolution[0];
-  load_data->page_size[1] = resolution[1];
+  const int orientation = RNA_enum_get(op->ptr, "orientation");
+  load_data->page_size[0] = 3840;
+  load_data->page_size[1] = 2160;
+  if (orientation == 1) {
+    SWAP(int32_t, load_data->page_size[0], load_data->page_size[1]);
+  }
 
   load_data->rows = RNA_int_get(op->ptr, "rows");
   load_data->cols = RNA_int_get(op->ptr, "columns");
@@ -531,7 +533,7 @@ static void wm_contact_sheet_pdf_draw(bContext *UNUSED(C), wmOperator *op)
   uiLayoutSetPropDecorate(layout, false);
 
   row = uiLayoutRow(layout, false);
-  uiItemR(row, imfptr, "resolution", 0, NULL, ICON_NONE);
+  uiItemR(row, imfptr, "orientation", 0, NULL, ICON_NONE);
 
   row = uiLayoutRow(layout, false);
   uiItemR(row, imfptr, "rows", 0, NULL, ICON_NONE);
@@ -545,6 +547,11 @@ static void wm_contact_sheet_pdf_draw(bContext *UNUSED(C), wmOperator *op)
 
 void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
 {
+  static const EnumPropertyItem prop_orientation_types[] = {
+      {0, "LANDSCAPE", 0, "Landscape", ""},
+      {1, "PORTRAIT", 0, "Portrait", ""},
+      {0, NULL, 0, NULL, NULL},
+  };
 
   /* Identifiers. */
   ot->name = "Create Contact Sheet";
@@ -570,21 +577,16 @@ void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_DEFAULT);
   /* Properties */
-  static int dft[2] = {1920, 1080};
-  RNA_def_int_vector(ot->srna,
-                     "resolution",
-                     2,
-                     dft,
-                     640,
-                     3840,
-                     "Resolution",
-                     "Size in pixel of the output PDF document",
-                     640,
-                     3840);
   RNA_def_int(ot->srna, "rows", 3, 1, 30, "Rows", "Number of rows by page", 1, 30);
   RNA_def_int(ot->srna, "columns", 6, 1, 30, "Columns", "Number of columns by page", 1, 30);
   RNA_def_string(ot->srna, "title", NULL, 128 - 2, "Title", "Title of the contact sheet");
   RNA_def_boolean(ot->srna, "use_frame", false, "Page Frame", "Draw a page frame");
+  RNA_def_enum(ot->srna,
+               "orientation",
+               prop_orientation_types,
+               0,
+               "Orientation",
+               "Orientation of the PDF page");
 }
 #  endif /* WITH_HARU */
 

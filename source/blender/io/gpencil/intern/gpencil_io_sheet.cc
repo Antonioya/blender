@@ -166,13 +166,15 @@ bool ContactSheetPDF::add_newpage(const uint32_t pagenum)
   draw_page_frame(pagenum);
 
   int idx = start_idx;
-  for (int r = rows_ - 1; r >= 0; r--) {
-    for (int c = 0; c < cols_; c++) {
+  bool doit = true;
+  for (int r = rows_ - 1; r >= 0 && doit; r--) {
+    for (int c = 0; c < cols_ && doit; c++) {
       item = &params_.items[idx];
       HPDF_Image pdf_image = load_image(item->path);
       draw_thumbnail(pdf_image, r, c, item);
       idx++;
       if (idx == params_.len) {
+        doit = false;
         break;
       }
     }

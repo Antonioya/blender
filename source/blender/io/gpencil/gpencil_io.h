@@ -78,10 +78,10 @@ typedef struct ContactSheetItem {
 typedef struct ContactSheetParams {
 
   char outpath[1024]; /* 1024 = FILE_MAX */
-  int32_t len;
+  uint32_t len;
 
-  int32_t page_size[2];
-  int32_t rows, cols;
+  uint32_t page_size[2];
+  uint32_t rows, cols;
 
   bool use_frame;
   char title[128];
