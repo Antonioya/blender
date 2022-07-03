@@ -481,7 +481,9 @@ static int wm_contact_sheet_pdf_exec(bContext *C, wmOperator *op)
   load_data->cols = RNA_int_get(op->ptr, "columns");
 
   op->customdata = load_data;
+  WM_cursor_wait(true);
   create_contact_sheet_pdf(C, load_data);
+  WM_cursor_wait(false);
 
   /* Free custom data. */
   wm_contact_sheet_pdf_cancel(C, op);

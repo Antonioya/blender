@@ -10,6 +10,7 @@
 
 #include "DNA_screen_types.h"
 
+#include "BKE_appdir.h"
 #include "BKE_context.h"
 #include "BKE_image.h"
 #include "BKE_image_save.h"
@@ -54,6 +55,13 @@ ContactSheetPDF::ContactSheetPDF(bContext *C, ContactSheetParams *iparams)
 
   rows_ = iparams->rows;
   cols_ = iparams->cols;
+
+  /* Total pages. */
+  bypage_ = (rows_ * cols_);
+  totpages_ = params_.len / bypage_;
+  if ((totpages_ * bypage_) < params_.len) {
+    totpages_++;
+  }
 }
 
 bool ContactSheetPDF::save_document()
@@ -83,8 +91,56 @@ bool ContactSheetPDF::create_document()
   return true;
 }
 
-bool ContactSheetPDF::add_newpage(const int32_t start_idx)
+HPDF_Image ContactSheetPDF::load_image(char *filepath)
 {
+  ImageUser *iuser = nullptr;
+  HPDF_Image pdf_image = nullptr;
+
+  /* Load original image from disk. */
+  ImBuf *ibuf = IMB_loadiffname(filepath, 0, NULL);
+  if (ibuf == nullptr) {
+    return nullptr;
+  }
+
+  /* Scale image to thumbnail size. */
+  IMB_scaleImBuf(ibuf, thumb_size_.x, thumb_size_.y);
+
+  /* Save as Jpeg thumbnail to make it compatible with Libharu. */
+  Image *ima = BKE_image_add_from_imbuf(bmain_, ibuf, "Thumb");
+  IMB_freeImBuf(ibuf);
+  if (ima == nullptr) {
+    return nullptr;
+  }
+
+  ImageSaveOptions opts;
+  if (BKE_image_save_options_init(&opts, bmain_, scene_, ima, nullptr, false, false)) {
+    /* Save image in temp folder in jpeg format. */
+    opts.im_format.imtype = R_IMF_IMTYPE_JPEG90;
+    opts.im_format.compress = ibuf->foptions.quality;
+    opts.im_format.planes = ibuf->planes;
+    opts.im_format.quality = scene_->r.im_format.quality;
+    BLI_join_dirfile(opts.filepath, sizeof(opts.filepath), BKE_tempdir_session(), "thumb.jpg");
+    if (BKE_image_save(nullptr, bmain_, ima, iuser, &opts)) {
+      /* Load the temp image in libharu.*/
+      pdf_image = HPDF_LoadJpegImageFromFile(pdf_, opts.filepath);
+    }
+
+    /* Delete thumb image from memory. */
+    BKE_id_free(bmain_, ima);
+
+    /* Delete thumb image created on temp folder. */
+    if (BLI_exists(opts.filepath)) {
+      BLI_delete(opts.filepath, false, false);
+    }
+  }
+
+  return pdf_image;
+}
+
+bool ContactSheetPDF::add_newpage(const uint32_t pagenum)
+{
+  ContactSheetItem *item = nullptr;
+
   /* Add a new page object. */
   page_ = HPDF_AddPage(pdf_);
   if (!pdf_) {
@@ -94,42 +150,33 @@ bool ContactSheetPDF::add_newpage(const int32_t start_idx)
 
   HPDF_Page_SetWidth(page_, page_size_.x);
   HPDF_Page_SetHeight(page_, page_size_.y);
+  uint32_t start_idx = pagenum * bypage_;
   /* Calculate thumbnail size base on the size of first image. */
-  ContactSheetItem *item = &params_.items[start_idx];
-  ImBuf *ibuf = IMB_loadiffname(item->path, 0, NULL);
-  get_thumbnail_size(ibuf->x, ibuf->y);
-  /* Scale to thumbnail size. */
-  IMB_scaleImBuf(ibuf, thumb_size_.x, thumb_size_.y);
-
-  /* Save as Jpeg to make it compatible with Libharu. */
-  // TODO: Si ya es jpeg, no salvarlo y usarlo directamente
-  Image *ima = BKE_image_add_from_imbuf(bmain_, ibuf, item->name);
-  ImageSaveOptions opts;
-  ImageUser *iuser = nullptr;
-  HPDF_Image pdf_image = nullptr;
-
-  if (BKE_image_save_options_init(&opts, bmain_, scene_, ima, nullptr, false, false)) {
-    opts.im_format.imtype = R_IMF_IMTYPE_JPEG90;
-    opts.im_format.compress = ibuf->foptions.quality;
-    opts.im_format.planes = ibuf->planes;
-    opts.im_format.quality = scene_->r.im_format.quality;
-    BLI_path_extension_replace(opts.filepath, sizeof(opts.filepath), ".jpg");
-    bool saved = BKE_image_save(nullptr, bmain_, ima, iuser, &opts);
-    pdf_image = HPDF_LoadJpegImageFromFile(pdf_, opts.filepath);
-    /* Delete image */
-    BKE_id_free(bmain_, ima);
-    /* Delete temp image created. */
-    if (BLI_exists(opts.filepath)) {
-      BLI_delete(opts.filepath, false, false);
+  if (pagenum == 0) {
+    item = &params_.items[0];
+    ImBuf *ibuf = IMB_loadiffname(item->path, 0, NULL);
+    if (ibuf == nullptr) {
+      return false;
     }
+    get_thumbnail_size(ibuf->x, ibuf->y);
+    IMB_freeImBuf(ibuf);
   }
 
-  IMB_freeImBuf(ibuf);
+  /* Draw page main frame. */
+  draw_page_frame(pagenum);
 
-  /* Draw page frame. */
-  draw_frame();
-
-  draw_thumbnail(pdf_image, rows_ - 1, 0, 1);
+  int idx = start_idx;
+  for (int r = rows_ - 1; r >= 0; r--) {
+    for (int c = 0; c < cols_; c++) {
+      item = &params_.items[idx];
+      HPDF_Image pdf_image = load_image(item->path);
+      draw_thumbnail(pdf_image, r, c, item);
+      idx++;
+      if (idx == params_.len) {
+        break;
+      }
+    }
+  }
 
   return true;
 }
@@ -159,17 +206,28 @@ void ContactSheetPDF::write_text(float2 loc, const char *text)
   HPDF_Page_EndText(page_);
 }
 
-void ContactSheetPDF::draw_frame(void)
+void ContactSheetPDF::draw_page_frame(uint32_t pagenum)
 {
   HPDF_Page_SetLineWidth(page_, 2);
   HPDF_Page_Rectangle(page_, PAGE_MARGIN_X, PAGE_MARGIN_Y, canvas_size_.x, canvas_size_.y);
   HPDF_Page_Stroke(page_);
   HPDF_Page_SetFontAndSize(page_, font_, 14);
   write_text(float2(PAGE_MARGIN_X, PAGE_MARGIN_Y - 10), scene_->id.name + 2);
+
+  char buf[255];
+  snprintf(buf, 255, "%4d/%4d", pagenum + 1, totpages_);
+  write_text(float2(canvas_size_.x, PAGE_MARGIN_Y - 10), buf);
 }
 
-void ContactSheetPDF::draw_thumbnail(HPDF_Image pdf_image, int row, int col, int key)
+void ContactSheetPDF::draw_thumbnail(HPDF_Image pdf_image,
+                                     int row,
+                                     int col,
+                                     ContactSheetItem *item)
 {
+  if (pdf_image == nullptr) {
+    return;
+  }
+
   HPDF_REAL pos_x = offset_.x + ((thumb_size_.x + gap_size_.x) * col);
   HPDF_REAL pos_y = offset_.y + ((thumb_size_.y + gap_size_.y) * row);
   HPDF_Page_DrawImage(page_, pdf_image, pos_x, pos_y, thumb_size_.x, thumb_size_.y);
@@ -177,10 +235,10 @@ void ContactSheetPDF::draw_thumbnail(HPDF_Image pdf_image, int row, int col, int
   HPDF_Page_Rectangle(page_, pos_x, pos_y, thumb_size_.x, thumb_size_.y);
   HPDF_Page_Stroke(page_);
   /* Text. */
-  char buf[255];
-  snprintf(buf, 255, "Frame: %04d", key);
+  // char buf[255];
+  // snprintf(buf, 255, "Frame: %04d", key);
   HPDF_Page_SetFontAndSize(page_, font_, 8);
-  write_text(float2(pos_x, pos_y), buf);
+  write_text(float2(pos_x, pos_y), item->name);
 }
 
 }  // namespace blender::io::gpencil

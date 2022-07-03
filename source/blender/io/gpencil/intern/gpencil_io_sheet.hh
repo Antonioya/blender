@@ -21,9 +21,15 @@ namespace blender::io::gpencil {
 class ContactSheetPDF {
 
  public:
+  /** Total pages. */
+  uint32_t totpages_;
+
+  /** Items by page. */
+  uint32_t bypage_;
+
   ContactSheetPDF(struct bContext *C, struct ContactSheetParams *iparams);
   bool create_document();
-  bool add_newpage(const int32_t start_idx);
+  bool add_newpage(const uint32_t pagenum);
   bool save_document();
   void free_document();
 
@@ -50,7 +56,7 @@ class ContactSheetPDF {
   float2 canvas_size_;
 
   /** Design of page. */
-  int32_t rows_, cols_;
+  uint32_t rows_, cols_;
 
   /** Thumbnail size. */
   float2 thumb_size_;
@@ -65,9 +71,11 @@ class ContactSheetPDF {
   /** Add a text to the pdf. */
   void write_text(float2 loc, const char *text);
   /** Draw main page frame. */
-  void draw_frame(void);
+  void draw_page_frame(uint32_t pagenum);
   /** Draw image to the canvas. */
-  void draw_thumbnail(HPDF_Image pdf_image, int row, int col, int key);
+  void draw_thumbnail(HPDF_Image pdf_image, int row, int col, ContactSheetItem *item);
+  /** Load image and create thumbnail. */
+  HPDF_Image load_image(char *filepath);
 };
 
 }  // namespace blender::io::gpencil
