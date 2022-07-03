@@ -13,9 +13,6 @@
 
 struct ContactSheetParams;
 
-#define PDF_SHEET_EXPORTER_NAME "PDF Contact Sheet"
-#define PDF_SHEET_EXPORTER_VERSION "v1.0"
-
 namespace blender::io::gpencil {
 
 class ContactSheetPDF {
