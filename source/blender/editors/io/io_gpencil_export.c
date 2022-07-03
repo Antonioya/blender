@@ -480,20 +480,31 @@ static int wm_contact_sheet_pdf_exec(bContext *C, wmOperator *op)
   load_data->rows = RNA_int_get(op->ptr, "rows");
   load_data->cols = RNA_int_get(op->ptr, "columns");
 
+  RNA_string_get(op->ptr, "title", load_data->title);
+
   op->customdata = load_data;
   WM_cursor_wait(true);
-  create_contact_sheet_pdf(C, load_data);
+  bool done = create_contact_sheet_pdf(C, load_data);
   WM_cursor_wait(false);
 
   /* Free custom data. */
   wm_contact_sheet_pdf_cancel(C, op);
+
+  if (!done) {
+    BKE_report(op->reports, RPT_WARNING, "Unable to create Contact Sheet");
+  }
 
   return OPERATOR_FINISHED;
 }
 
 static int wm_contact_sheet_pdf_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
+  Scene *scene = CTX_data_scene(C);
   set_export_filepath(C, op, ".pdf");
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "title");
+  if (!RNA_property_is_set(op->ptr, prop)) {
+    RNA_string_set(op->ptr, "title", scene->id.name + 2);
+  }
 
   WM_event_add_fileselect(C, op);
 
@@ -525,6 +536,8 @@ static void wm_contact_sheet_pdf_draw(bContext *UNUSED(C), wmOperator *op)
   uiItemR(row, imfptr, "rows", 0, NULL, ICON_NONE);
   row = uiLayoutRow(layout, false);
   uiItemR(row, imfptr, "columns", 0, NULL, ICON_NONE);
+  row = uiLayoutRow(layout, false);
+  uiItemR(row, imfptr, "title", 0, NULL, ICON_NONE);
 }
 
 void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
@@ -567,6 +580,7 @@ void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
                      3840);
   RNA_def_int(ot->srna, "rows", 3, 1, 30, "Rows", "Number of rows by page", 1, 30);
   RNA_def_int(ot->srna, "columns", 6, 1, 30, "Columns", "Number of columns by page", 1, 30);
+  RNA_def_string(ot->srna, "title", NULL, 128 - 2, "Title", "Title of the contact sheet");
 }
 #  endif /* WITH_HARU */
 

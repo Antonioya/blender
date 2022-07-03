@@ -82,6 +82,8 @@ typedef struct ContactSheetParams {
   int32_t page_size[2];
   int32_t rows, cols;
 
+  char title[128];
+
   ContactSheetItem *items;
 } ContactSheetParams;
 
