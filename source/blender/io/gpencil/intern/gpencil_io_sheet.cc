@@ -32,8 +32,8 @@ static void error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void *UNU
 
 namespace blender::io::gpencil {
 
-const HPDF_REAL PAGE_MARGIN_X = 50;
-const HPDF_REAL PAGE_MARGIN_Y = 50;
+const HPDF_REAL PAGE_MARGIN_X = 80;
+const HPDF_REAL PAGE_MARGIN_Y = 80;
 
 /* Constructor. */
 ContactSheetPDF::ContactSheetPDF(bContext *C, ContactSheetParams *iparams)
@@ -91,15 +91,13 @@ bool ContactSheetPDF::create_document()
   return true;
 }
 
-HPDF_Image ContactSheetPDF::load_image(char *filepath)
+void ContactSheetPDF::load_and_draw_image(ContactSheetItem *item, const int row, const int col)
 {
   ImageUser *iuser = nullptr;
-  HPDF_Image pdf_image = nullptr;
-
   /* Load original image from disk. */
-  ImBuf *ibuf = IMB_loadiffname(filepath, 0, NULL);
+  ImBuf *ibuf = IMB_loadiffname(item->path, 0, NULL);
   if (ibuf == nullptr) {
-    return nullptr;
+    return;
   }
 
   /* Scale image to thumbnail size. */
@@ -109,7 +107,7 @@ HPDF_Image ContactSheetPDF::load_image(char *filepath)
   Image *ima = BKE_image_add_from_imbuf(bmain_, ibuf, "Thumb");
   IMB_freeImBuf(ibuf);
   if (ima == nullptr) {
-    return nullptr;
+    return;
   }
 
   ImageSaveOptions opts;
@@ -121,20 +119,20 @@ HPDF_Image ContactSheetPDF::load_image(char *filepath)
     opts.im_format.quality = scene_->r.im_format.quality;
     BLI_join_dirfile(opts.filepath, sizeof(opts.filepath), BKE_tempdir_session(), "thumb.jpg");
     if (BKE_image_save(nullptr, bmain_, ima, iuser, &opts)) {
-      /* Load the temp image in libharu.*/
-      pdf_image = HPDF_LoadJpegImageFromFile(pdf_, opts.filepath);
+      /* Load the temp image thumbnail in libharu.*/
+      HPDF_Image pdf_image = HPDF_LoadJpegImageFromFile(pdf_, opts.filepath);
+      /* Draw thumbnail in pdf file. */
+      draw_thumbnail(pdf_image, row, col, item);
     }
-
+    /* Free memory. */
+    BKE_image_save_options_free(&opts);
     /* Delete thumb image from memory. */
     BKE_id_free(bmain_, ima);
-
-    /* Delete thumb image created on temp folder. */
+    /* Delete thumb image file created on temp folder. */
     if (BLI_exists(opts.filepath)) {
       BLI_delete(opts.filepath, false, false);
     }
   }
-
-  return pdf_image;
 }
 
 bool ContactSheetPDF::add_newpage(const uint32_t pagenum)
@@ -170,8 +168,7 @@ bool ContactSheetPDF::add_newpage(const uint32_t pagenum)
   for (int r = rows_ - 1; r >= 0 && doit; r--) {
     for (int c = 0; c < cols_ && doit; c++) {
       item = &params_.items[idx];
-      HPDF_Image pdf_image = load_image(item->path);
-      draw_thumbnail(pdf_image, r, c, item);
+      load_and_draw_image(item, r, c);
       idx++;
       if (idx == params_.len) {
         doit = false;
@@ -203,7 +200,7 @@ void ContactSheetPDF::write_text(float2 loc, const char *text)
   HPDF_Page_SetRGBFill(page_, 0, 0, 0);
 
   HPDF_Page_BeginText(page_);
-  HPDF_Page_MoveTextPos(page_, loc.x, loc.y - 10);
+  HPDF_Page_MoveTextPos(page_, loc.x, loc.y);
   HPDF_Page_ShowText(page_, text);
   HPDF_Page_EndText(page_);
 }
@@ -216,12 +213,12 @@ void ContactSheetPDF::draw_page_frame(uint32_t pagenum)
     HPDF_Page_Stroke(page_);
   }
 
-  HPDF_Page_SetFontAndSize(page_, font_, 14);
-  write_text(float2(PAGE_MARGIN_X, PAGE_MARGIN_Y - 10), params_.title);
+  HPDF_Page_SetFontAndSize(page_, font_, 30);
+  write_text(float2(PAGE_MARGIN_X, PAGE_MARGIN_Y - 30), params_.title);
 
   char buf[255];
   snprintf(buf, 255, "%4d/%4d", pagenum + 1, totpages_);
-  write_text(float2(canvas_size_.x, PAGE_MARGIN_Y - 10), buf);
+  write_text(float2(canvas_size_.x - 15, PAGE_MARGIN_Y - 30), buf);
 }
 
 void ContactSheetPDF::draw_thumbnail(HPDF_Image pdf_image,
@@ -240,10 +237,8 @@ void ContactSheetPDF::draw_thumbnail(HPDF_Image pdf_image,
   HPDF_Page_Rectangle(page_, pos_x, pos_y, thumb_size_.x, thumb_size_.y);
   HPDF_Page_Stroke(page_);
   /* Text. */
-  // char buf[255];
-  // snprintf(buf, 255, "Frame: %04d", key);
-  HPDF_Page_SetFontAndSize(page_, font_, 8);
-  write_text(float2(pos_x, pos_y), item->name);
+  HPDF_Page_SetFontAndSize(page_, font_, 20);
+  write_text(float2(pos_x, pos_y - 20), item->name);
 }
 
 }  // namespace blender::io::gpencil
