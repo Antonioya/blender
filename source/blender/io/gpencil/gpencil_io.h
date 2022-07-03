@@ -79,9 +79,11 @@ typedef struct ContactSheetParams {
 
   char outpath[1024]; /* 1024 = FILE_MAX */
   int32_t len;
+
   int32_t page_size[2];
   int32_t rows, cols;
 
+  bool use_frame;
   char title[128];
 
   ContactSheetItem *items;

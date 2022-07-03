@@ -481,6 +481,7 @@ static int wm_contact_sheet_pdf_exec(bContext *C, wmOperator *op)
   load_data->cols = RNA_int_get(op->ptr, "columns");
 
   RNA_string_get(op->ptr, "title", load_data->title);
+  load_data->use_frame = RNA_boolean_get(op->ptr, "use_frame");
 
   op->customdata = load_data;
   WM_cursor_wait(true);
@@ -538,6 +539,8 @@ static void wm_contact_sheet_pdf_draw(bContext *UNUSED(C), wmOperator *op)
   uiItemR(row, imfptr, "columns", 0, NULL, ICON_NONE);
   row = uiLayoutRow(layout, false);
   uiItemR(row, imfptr, "title", 0, NULL, ICON_NONE);
+  row = uiLayoutRow(layout, false);
+  uiItemR(row, imfptr, "use_frame", 0, NULL, ICON_NONE);
 }
 
 void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
@@ -581,6 +584,7 @@ void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
   RNA_def_int(ot->srna, "rows", 3, 1, 30, "Rows", "Number of rows by page", 1, 30);
   RNA_def_int(ot->srna, "columns", 6, 1, 30, "Columns", "Number of columns by page", 1, 30);
   RNA_def_string(ot->srna, "title", NULL, 128 - 2, "Title", "Title of the contact sheet");
+  RNA_def_boolean(ot->srna, "use_frame", false, "Page Frame", "Draw a page frame");
 }
 #  endif /* WITH_HARU */
 

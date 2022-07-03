@@ -208,9 +208,12 @@ void ContactSheetPDF::write_text(float2 loc, const char *text)
 
 void ContactSheetPDF::draw_page_frame(uint32_t pagenum)
 {
-  HPDF_Page_SetLineWidth(page_, 2);
-  HPDF_Page_Rectangle(page_, PAGE_MARGIN_X, PAGE_MARGIN_Y, canvas_size_.x, canvas_size_.y);
-  HPDF_Page_Stroke(page_);
+  if (params_.use_frame) {
+    HPDF_Page_SetLineWidth(page_, 2);
+    HPDF_Page_Rectangle(page_, PAGE_MARGIN_X, PAGE_MARGIN_Y, canvas_size_.x, canvas_size_.y);
+    HPDF_Page_Stroke(page_);
+  }
+
   HPDF_Page_SetFontAndSize(page_, font_, 14);
   write_text(float2(PAGE_MARGIN_X, PAGE_MARGIN_Y - 10), params_.title);
 
