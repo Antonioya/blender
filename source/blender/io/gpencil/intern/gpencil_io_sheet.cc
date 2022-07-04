@@ -69,7 +69,7 @@ bool ContactSheetPDF::save_document()
   HPDF_STATUS res = 0;
   res = HPDF_SaveToFile(pdf_, filepath_);
   if (res == 0) {
-    printf("File %s created.\n", filepath_);
+    std::cout << "File:" << filepath_ << " created.\n";
   }
   return (res == 0) ? true : false;
 }
