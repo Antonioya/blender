@@ -15,11 +15,18 @@
 #include "GHOST_ContextNone.h"
 
 #include <wayland-client-protocol.h>
+
+#ifdef WITH_GHOST_WAYLAND_DYNLOAD
+#  include <wayland_dynload_egl.h>
+#endif
 #include <wayland-egl.h>
 
 #include <algorithm> /* For `std::find`. */
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
+#  ifdef WITH_GHOST_WAYLAND_DYNLOAD
+#    include <wayland_dynload_libdecor.h>
+#  endif
 #  include <libdecor.h>
 #endif
 
@@ -347,7 +354,7 @@ static void surface_handle_leave(void *data,
   }
 }
 
-struct wl_surface_listener wl_surface_listener = {
+static struct wl_surface_listener wl_surface_listener = {
     surface_handle_enter,
     surface_handle_leave,
 };
@@ -494,7 +501,21 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
 
 GHOST_TSuccess GHOST_WindowWayland::setWindowCursorGrab(GHOST_TGrabCursorMode mode)
 {
-  if (m_system->window_cursor_grab_set(mode, m_cursorGrab, m_cursorGrabInitPos, w->wl_surface)) {
+  GHOST_Rect bounds_buf;
+  GHOST_Rect *bounds = nullptr;
+  if (m_cursorGrab == GHOST_kGrabWrap) {
+    if (getCursorGrabBounds(bounds_buf) == GHOST_kFailure) {
+      getClientBounds(bounds_buf);
+    }
+    bounds = &bounds_buf;
+  }
+  if (m_system->window_cursor_grab_set(mode,
+                                       m_cursorGrab,
+                                       m_cursorGrabInitPos,
+                                       bounds,
+                                       m_cursorGrabAxis,
+                                       w->wl_surface,
+                                       w->scale)) {
     return GHOST_kSuccess;
   }
   return GHOST_kFailure;

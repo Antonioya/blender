@@ -16,7 +16,15 @@
 
 #include "GHOST_ContextEGL.h"
 
+#ifdef WITH_GHOST_WAYLAND_DYNLOAD
+#  include <wayland_dynload_API.h> /* For `ghost_wl_dynload_libraries`. */
+#endif
+
 #include <EGL/egl.h>
+
+#ifdef WITH_GHOST_WAYLAND_DYNLOAD
+#  include <wayland_dynload_egl.h>
+#endif
 #include <wayland-egl.h>
 
 #include <algorithm>
@@ -26,6 +34,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#ifdef WITH_GHOST_WAYLAND_DYNLOAD
+#  include <wayland_dynload_cursor.h>
+#endif
 #include <wayland-cursor.h>
 
 #include "GHOST_WaylandCursorSettings.h"
@@ -1205,7 +1216,7 @@ static void cursor_buffer_handle_release(void *data, struct wl_buffer *wl_buffer
   }
 }
 
-const struct wl_buffer_listener cursor_buffer_listener = {
+static const struct wl_buffer_listener cursor_buffer_listener = {
     cursor_buffer_handle_release,
 };
 
@@ -1264,7 +1275,7 @@ static void cursor_surface_handle_leave(void *data,
   update_cursor_scale(input->cursor, input->system->shm());
 }
 
-struct wl_surface_listener cursor_surface_listener = {
+static const struct wl_surface_listener cursor_surface_listener = {
     cursor_surface_handle_enter,
     cursor_surface_handle_leave,
 };
@@ -1750,7 +1761,7 @@ static void tablet_seat_handle_pad_added(void * /*data*/,
   /* Pass. */
 }
 
-const struct zwp_tablet_seat_v2_listener tablet_seat_listener = {
+static const struct zwp_tablet_seat_v2_listener tablet_seat_listener = {
     tablet_seat_handle_tablet_added,
     tablet_seat_handle_tool_added,
     tablet_seat_handle_pad_added,
@@ -3438,7 +3449,10 @@ void GHOST_SystemWayland::window_surface_unref(const wl_surface *surface)
 bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mode,
                                                  const GHOST_TGrabCursorMode mode_current,
                                                  int32_t init_grab_xy[2],
-                                                 wl_surface *surface)
+                                                 const GHOST_Rect *wrap_bounds,
+                                                 const GHOST_TAxisFlag wrap_axis,
+                                                 wl_surface *surface,
+                                                 const int scale)
 {
   /* Ignore, if the required protocols are not supported. */
   if (!d->relative_pointer_manager || !d->pointer_constraints) {
@@ -3491,31 +3505,22 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
       if (mode_current == GHOST_kGrabWrap) {
         /* Since this call is initiated by Blender, we can be sure the window wasn't closed
          * by logic outside this function - as the window was needed to make this call. */
-        GHOST_WindowWayland *win = ghost_wl_surface_user_data(surface);
-        GHOST_ASSERT(win, "could not find window from surface when un-grabbing!");
-
-        GHOST_Rect bounds;
         int32_t xy_new[2] = {input->pointer.xy[0], input->pointer.xy[1]};
 
-        /* Fallback to window bounds. */
-        if (win->getCursorGrabBounds(bounds) == GHOST_kFailure) {
-          win->getClientBounds(bounds);
-        }
+        GHOST_Rect bounds_scale;
 
-        const int scale = win->scale();
+        bounds_scale.m_l = wl_fixed_from_int(wrap_bounds->m_l) / scale;
+        bounds_scale.m_t = wl_fixed_from_int(wrap_bounds->m_t) / scale;
+        bounds_scale.m_r = wl_fixed_from_int(wrap_bounds->m_r) / scale;
+        bounds_scale.m_b = wl_fixed_from_int(wrap_bounds->m_b) / scale;
 
-        bounds.m_l = wl_fixed_from_int(bounds.m_l) / scale;
-        bounds.m_t = wl_fixed_from_int(bounds.m_t) / scale;
-        bounds.m_r = wl_fixed_from_int(bounds.m_r) / scale;
-        bounds.m_b = wl_fixed_from_int(bounds.m_b) / scale;
-
-        bounds.wrapPoint(xy_new[0], xy_new[1], 0, win->getCursorGrabAxis());
+        bounds_scale.wrapPoint(xy_new[0], xy_new[1], 0, wrap_axis);
 
         /* Push an event so the new location is registered. */
         if ((xy_new[0] != input->pointer.xy[0]) || (xy_new[1] != input->pointer.xy[1])) {
           input->system->pushEvent(new GHOST_EventCursor(input->system->getMilliSeconds(),
                                                          GHOST_kEventCursorMove,
-                                                         win,
+                                                         ghost_wl_surface_user_data(surface),
                                                          wl_fixed_to_int(scale * xy_new[0]),
                                                          wl_fixed_to_int(scale * xy_new[1]),
                                                          GHOST_TABLET_DATA_NONE));
@@ -3530,8 +3535,6 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
       else if (mode_current == GHOST_kGrabHide) {
         if ((init_grab_xy[0] != input->grab_lock_xy[0]) ||
             (init_grab_xy[1] != input->grab_lock_xy[1])) {
-          GHOST_WindowWayland *win = ghost_wl_surface_user_data(surface);
-          const int scale = win->scale();
           const wl_fixed_t xy_next[2] = {
               wl_fixed_from_int(init_grab_xy[0]) / scale,
               wl_fixed_from_int(init_grab_xy[1]) / scale,
@@ -3584,8 +3587,6 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
       if (mode == GHOST_kGrabHide) {
         /* Set the initial position to detect any changes when un-grabbing,
          * otherwise the unlocked cursor defaults to un-locking in-place. */
-        GHOST_WindowWayland *win = ghost_wl_surface_user_data(surface);
-        const int scale = win->scale();
         init_grab_xy[0] = wl_fixed_to_int(scale * input->pointer.xy[0]);
         init_grab_xy[1] = wl_fixed_to_int(scale * input->pointer.xy[1]);
         input->grab_lock_xy[0] = init_grab_xy[0];
@@ -3613,5 +3614,36 @@ bool GHOST_SystemWayland::window_cursor_grab_set(const GHOST_TGrabCursorMode mod
 
   return GHOST_kSuccess;
 }
+
+#ifdef WITH_GHOST_WAYLAND_DYNLOAD
+bool ghost_wl_dynload_libraries()
+{
+  /* Only report when `libwayland-client` is not found when building without X11,
+   * which will be used as a fallback. */
+#  ifdef WITH_GHOST_X11
+  bool verbose = false;
+#  else
+  bool verbose = true;
+#  endif
+
+  if (wayland_dynload_client_init(verbose) && /* `libwayland-client`. */
+      wayland_dynload_cursor_init(verbose) && /* `libwayland-cursor`. */
+      wayland_dynload_egl_init(verbose) &&    /* `libwayland-egl`. */
+#  ifdef WITH_GHOST_WAYLAND_LIBDECOR
+      wayland_dynload_libdecor_init(verbose) && /* `libdecor-0`. */
+#  endif
+      true) {
+    return true;
+  }
+#  ifdef WITH_GHOST_WAYLAND_LIBDECOR
+  wayland_dynload_libdecor_exit();
+#  endif
+  wayland_dynload_client_exit();
+  wayland_dynload_cursor_exit();
+  wayland_dynload_egl_exit();
+
+  return false;
+}
+#endif /* WITH_GHOST_WAYLAND_DYNLOAD */
 
 /** \} */
