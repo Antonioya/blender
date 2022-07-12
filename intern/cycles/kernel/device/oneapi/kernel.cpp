@@ -670,7 +670,7 @@ bool oneapi_enqueue_kernel(KernelContext *kernel_context,
 }
 
 static const int lowest_supported_driver_version_win = 1011660;
-static const int lowest_supported_driver_version_neo = 20066;
+static const int lowest_supported_driver_version_neo = 23570;
 
 static int parse_driver_build_version(const sycl::device &device)
 {
