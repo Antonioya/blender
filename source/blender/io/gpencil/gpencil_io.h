@@ -83,7 +83,6 @@ typedef struct ContactSheetParams {
   uint32_t page_size[2];
   uint32_t rows, cols;
 
-  bool use_frame;
   char title[128];
 
   ContactSheetItem *items;
