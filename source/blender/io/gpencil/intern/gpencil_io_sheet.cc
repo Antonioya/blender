@@ -185,14 +185,19 @@ bool ContactSheetPDF::add_newpage(const uint32_t pagenum)
 
 void ContactSheetPDF::get_thumbnail_size(int iw, int ih)
 {
-  float x_size = canvas_size_.x / (float)(cols_ + 1);
-  float y_size = canvas_size_.y / (float)(rows_ + 1);
+  const float ratio = (float)iw / (float)ih;
+  const float oversize = ratio > 2.0f ? 0.0f : 0.25f;
+  const float cols = (float)cols_;
+  const float rows = (float)rows_;
+
+  float x_size = canvas_size_.x / (cols + oversize);
+  float y_size = canvas_size_.y / (rows + oversize);
 
   thumb_size_.x = (x_size <= y_size) ? x_size : y_size;
   thumb_size_.y = thumb_size_.x * ((float)ih / (float)iw);
 
-  gap_size_.x = (canvas_size_.x - (thumb_size_.x * (float)cols_)) / (float)cols_;
-  gap_size_.y = (canvas_size_.y - (thumb_size_.y * (float)rows_)) / (float)rows_;
+  gap_size_.x = (canvas_size_.x - (thumb_size_.x * cols)) / cols;
+  gap_size_.y = (canvas_size_.y - (thumb_size_.y * rows)) / rows;
 
   offset_.x = PAGE_MARGIN_X + (gap_size_.x * 0.5f);
   offset_.y = PAGE_MARGIN_Y + (gap_size_.y * 0.5f);
