@@ -535,9 +535,9 @@ static void wm_contact_sheet_pdf_draw(bContext *UNUSED(C), wmOperator *op)
   uiItemR(row, imfptr, "orientation", 0, NULL, ICON_NONE);
 
   row = uiLayoutRow(layout, false);
-  uiItemR(row, imfptr, "rows", 0, NULL, ICON_NONE);
-  row = uiLayoutRow(layout, false);
   uiItemR(row, imfptr, "columns", 0, NULL, ICON_NONE);
+  row = uiLayoutRow(layout, false);
+  uiItemR(row, imfptr, "rows", 0, NULL, ICON_NONE);
   row = uiLayoutRow(layout, false);
   uiItemR(row, imfptr, "title", 0, NULL, ICON_NONE);
 }
