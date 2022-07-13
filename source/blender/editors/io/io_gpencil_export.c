@@ -574,8 +574,8 @@ void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
                                  FILE_DEFAULTDISPLAY,
                                  FILE_SORT_DEFAULT);
   /* Properties */
-  RNA_def_int(ot->srna, "rows", 3, 1, 30, "Rows", "Number of rows by page", 1, 30);
-  RNA_def_int(ot->srna, "columns", 6, 1, 30, "Columns", "Number of columns by page", 1, 30);
+  RNA_def_int(ot->srna, "rows", 2, 1, 30, "Rows", "Number of rows by page", 1, 30);
+  RNA_def_int(ot->srna, "columns", 3, 1, 30, "Columns", "Number of columns by page", 1, 30);
   RNA_def_string(ot->srna, "title", NULL, 128 - 2, "Title", "Title of the contact sheet");
   RNA_def_enum(ot->srna,
                "orientation",
