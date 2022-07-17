@@ -434,9 +434,11 @@ static void contact_sheet_pdf_load_files(bContext *C,
     if ((prop = RNA_struct_find_property(op->ptr, "files"))) {
       RNA_PROP_BEGIN (op->ptr, itemptr, prop) {
         char *filename = RNA_string_get_alloc(&itemptr, "name", NULL, 0, NULL);
-        BLI_strncpy(load_data->items[idx].name, filename, sizeof(load_data->items[idx].name));
         BLI_join_dirfile(
             load_data->items[idx].path, sizeof(load_data->items[idx].path), directory, filename);
+        BLI_split_file_part(
+            filename, load_data->items[idx].name, sizeof(load_data->items[idx].name) - 1);
+
         MEM_freeN(filename);
         idx++;
       }
