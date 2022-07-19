@@ -294,9 +294,9 @@ void ContactSheetPDF::draw_page_frame(uint32_t pagenum)
   HPDF_Page_SetFontAndSize(page_, font_, 30);
   write_text(float2(PAGE_MARGIN_X, PAGE_MARGIN_Y - 30), params_.title);
 
-  char buf[255];
-  snprintf(buf, 255, "%4d/%4d", pagenum + 1, totpages_);
-  write_text(float2(canvas_size_.x - 15, PAGE_MARGIN_Y - 30), buf);
+  char page_text[255];
+  snprintf(page_text, 255, "%4d/%4d", pagenum + 1, totpages_);
+  write_text(float2(canvas_size_.x - 15, PAGE_MARGIN_Y - 30), page_text);
   write_text(float2(canvas_size_.x * 0.5f, PAGE_MARGIN_Y - 30), date_creation_);
 }
 
