@@ -73,6 +73,8 @@ class ContactSheetPDF {
   void draw_thumbnail(HPDF_Image pdf_image, int row, int col, ContactSheetItem *item);
   /** Load image and create thumbnail. */
   void load_and_draw_image(ContactSheetItem *item, const int row, const int col);
+  /** Load logo image and draw in page. */
+  void load_and_draw_logo(void);
 };
 
 }  // namespace blender::io::gpencil

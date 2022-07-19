@@ -84,6 +84,7 @@ typedef struct ContactSheetParams {
   uint32_t rows, cols;
 
   char title[128];
+  char logo_image[256];
 
   ContactSheetItem *items;
 } ContactSheetParams;

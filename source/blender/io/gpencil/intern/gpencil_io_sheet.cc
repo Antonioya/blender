@@ -138,6 +138,62 @@ void ContactSheetPDF::load_and_draw_image(ContactSheetItem *item, const int row,
   }
 }
 
+void ContactSheetPDF::load_and_draw_logo(void)
+{
+  ImageUser *iuser = nullptr;
+  /* Load original image from disk. */
+  ImBuf *ibuf = IMB_loadiffname(params_.logo_image, 0, NULL);
+  if (ibuf == nullptr) {
+    return;
+  }
+
+  HPDF_REAL size_x = ibuf->x;
+  HPDF_REAL size_y = ibuf->y;
+
+  /* Scale image. */
+  if (size_y > 128.0f) {
+    float ratio = size_x / size_y;
+    size_y = 128.0f;
+    size_x = size_y * ratio;
+    IMB_scaleImBuf(ibuf, size_x, size_y);
+  }
+
+  /* Save as Jpeg to make it compatible with Libharu. */
+  Image *ima = BKE_image_add_from_imbuf(bmain_, ibuf, "Thumb");
+  IMB_freeImBuf(ibuf);
+  if (ima == nullptr) {
+    return;
+  }
+
+  ImageSaveOptions opts;
+  if (BKE_image_save_options_init(&opts, bmain_, scene_, ima, nullptr, false, false)) {
+    /* Save image in temp folder in jpeg format. */
+    opts.im_format.imtype = R_IMF_IMTYPE_JPEG90;
+    opts.im_format.compress = ibuf->foptions.quality;
+    opts.im_format.planes = ibuf->planes;
+    opts.im_format.quality = scene_->r.im_format.quality;
+    BLI_join_dirfile(opts.filepath, sizeof(opts.filepath), BKE_tempdir_session(), "logo.jpg");
+    if (BKE_image_save(nullptr, bmain_, ima, iuser, &opts)) {
+      /* Load the temp image thumbnail in libharu.*/
+      HPDF_Image pdf_image = HPDF_LoadJpegImageFromFile(pdf_, opts.filepath);
+      /* Draw logo in pdf file. */
+      if (pdf_image) {
+        HPDF_REAL pos_x = PAGE_MARGIN_X * 0.5f;
+        HPDF_REAL pos_y = page_size_.y - (PAGE_MARGIN_Y * 0.5f) - size_y;
+        HPDF_Page_DrawImage(page_, pdf_image, pos_x, pos_y, size_x, size_y);
+      }
+    }
+    /* Free memory. */
+    BKE_image_save_options_free(&opts);
+    /* Delete temp image from memory. */
+    BKE_id_free(bmain_, ima);
+    /* Delete temp image file created on temp folder. */
+    if (BLI_exists(opts.filepath)) {
+      BLI_delete(opts.filepath, false, false);
+    }
+  }
+}
+
 bool ContactSheetPDF::add_newpage(const uint32_t pagenum)
 {
   ContactSheetItem *item = nullptr;
@@ -152,6 +208,12 @@ bool ContactSheetPDF::add_newpage(const uint32_t pagenum)
   HPDF_Page_SetWidth(page_, page_size_.x);
   HPDF_Page_SetHeight(page_, page_size_.y);
   uint32_t start_idx = pagenum * bypage_;
+
+  /* Add Logo Image. */
+  if (params_.logo_image) {
+    load_and_draw_logo();
+  }
+
   /* Calculate thumbnail size base on the size of first image. */
   if (pagenum == 0) {
     item = &params_.items[0];
@@ -185,16 +247,16 @@ bool ContactSheetPDF::add_newpage(const uint32_t pagenum)
 
 void ContactSheetPDF::get_thumbnail_size(int iw, int ih)
 {
-  const float ratio = (float)iw / (float)ih;
+  const float ratio = static_cast<float>(iw) / static_cast<float>(ih);
   const float oversize = ratio > 2.0f ? 0.0f : 0.25f;
-  const float cols = (float)cols_;
-  const float rows = (float)rows_;
+  const float cols = static_cast<float>(cols_);
+  const float rows = static_cast<float>(rows_);
 
   float x_size = canvas_size_.x / (cols + oversize);
   float y_size = canvas_size_.y / (rows + oversize);
 
   thumb_size_.x = (x_size <= y_size) ? x_size : y_size;
-  thumb_size_.y = thumb_size_.x * ((float)ih / (float)iw);
+  thumb_size_.y = thumb_size_.x * (static_cast<float>(ih) / static_cast<float>(iw));
 
   gap_size_.x = (canvas_size_.x - (thumb_size_.x * cols)) / cols;
   gap_size_.y = (canvas_size_.y - (thumb_size_.y * rows)) / rows;

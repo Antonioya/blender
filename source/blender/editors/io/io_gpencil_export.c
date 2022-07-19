@@ -493,6 +493,7 @@ static int wm_contact_sheet_pdf_exec(bContext *C, wmOperator *op)
   load_data->cols = RNA_int_get(op->ptr, "columns");
 
   RNA_string_get(op->ptr, "title", load_data->title);
+  RNA_string_get(op->ptr, "logo_image", load_data->logo_image);
 
   op->customdata = load_data;
   WM_cursor_wait(true);
@@ -593,6 +594,8 @@ void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
                0,
                "Orientation",
                "Orientation of the PDF page");
+  RNA_def_string(
+      ot->srna, "logo_image", NULL, 256, "Logo Image", "Path for an optional logo image");
 }
 #  endif /* WITH_HARU */
 
