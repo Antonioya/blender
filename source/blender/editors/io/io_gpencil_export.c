@@ -6,6 +6,7 @@
  */
 
 #ifdef WITH_IO_GPENCIL
+#  include <string.h>
 
 #  include "BLI_path_util.h"
 #  include "BLI_string.h"
@@ -438,6 +439,13 @@ static void contact_sheet_pdf_load_files(bContext *C,
             load_data->items[idx].path, sizeof(load_data->items[idx].path), directory, filename);
         BLI_split_file_part(
             filename, load_data->items[idx].name, sizeof(load_data->items[idx].name) - 1);
+
+        /* Remove extension of the file. */
+        const char *ext = BLI_path_extension(load_data->items[idx].name);
+        if (ext != NULL) {
+          const int size = strlen(load_data->items[idx].name) - strlen(ext) + 1;
+          BLI_strncpy_rlen(load_data->items[idx].name, load_data->items[idx].name, size);
+        }
 
         MEM_SAFE_FREE(filename);
         idx++;
