@@ -439,7 +439,7 @@ static void contact_sheet_pdf_load_files(bContext *C,
         BLI_split_file_part(
             filename, load_data->items[idx].name, sizeof(load_data->items[idx].name) - 1);
 
-        MEM_freeN(filename);
+        MEM_SAFE_FREE(filename);
         idx++;
       }
       RNA_PROP_END;
