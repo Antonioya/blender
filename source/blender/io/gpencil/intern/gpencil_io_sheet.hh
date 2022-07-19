@@ -62,6 +62,8 @@ class ContactSheetPDF {
   float2 gap_size_;
   /** Thumbnail offset. */
   float2 offset_;
+  /** Creation date and time in text format */
+  char date_creation_[128];
 
   /** Get size of thumbnail relative to page canvas size. */
   void get_thumbnail_size(int iw, int ih);

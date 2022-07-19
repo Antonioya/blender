@@ -91,6 +91,20 @@ bool ContactSheetPDF::create_document()
 
   font_ = HPDF_GetFont(pdf_, "Helvetica", NULL);
 
+  /* Date and time of creation. */
+  struct tm *tl;
+  time_t t;
+  t = time(nullptr);
+  tl = localtime(&t);
+  SNPRINTF(date_creation_,
+           "%04d/%02d/%02d %02d:%02d:%02d",
+           tl->tm_year + 1900,
+           tl->tm_mon + 1,
+           tl->tm_mday,
+           tl->tm_hour,
+           tl->tm_min,
+           tl->tm_sec);
+
   return true;
 }
 
@@ -283,6 +297,7 @@ void ContactSheetPDF::draw_page_frame(uint32_t pagenum)
   char buf[255];
   snprintf(buf, 255, "%4d/%4d", pagenum + 1, totpages_);
   write_text(float2(canvas_size_.x - 15, PAGE_MARGIN_Y - 30), buf);
+  write_text(float2(canvas_size_.x * 0.5f, PAGE_MARGIN_Y - 30), date_creation_);
 }
 
 void ContactSheetPDF::draw_thumbnail(HPDF_Image pdf_image,
