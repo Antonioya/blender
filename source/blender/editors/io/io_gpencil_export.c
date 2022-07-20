@@ -464,9 +464,13 @@ static void contact_sheet_pdf_load_files(bContext *C,
            * generation. In this case, all info received is used as is and not converted or
            * analyzed. */
           token = strtok_s(next_tokens, sep, &next_tokens);
-          BLI_strncpy(load_data->items[idx].name, token, sizeof(load_data->items[idx].name) - 1);
-          BLI_strncpy(
-              load_data->items[idx].data, next_tokens, sizeof(load_data->items[idx].data) - 1);
+          if (token) {
+            BLI_strncpy(load_data->items[idx].name, token, sizeof(load_data->items[idx].name) - 1);
+          }
+          if (next_tokens) {
+            BLI_strncpy(
+                load_data->items[idx].data, next_tokens, sizeof(load_data->items[idx].data) - 1);
+          }
         }
 
         MEM_SAFE_FREE(filename);
