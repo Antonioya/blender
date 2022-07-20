@@ -435,16 +435,38 @@ static void contact_sheet_pdf_load_files(bContext *C,
     if ((prop = RNA_struct_find_property(op->ptr, "files"))) {
       RNA_PROP_BEGIN (op->ptr, itemptr, prop) {
         char *filename = RNA_string_get_alloc(&itemptr, "name", NULL, 0, NULL);
-        BLI_join_dirfile(
-            load_data->items[idx].path, sizeof(load_data->items[idx].path), directory, filename);
-        BLI_split_file_part(
-            filename, load_data->items[idx].name, sizeof(load_data->items[idx].name) - 1);
 
-        /* Remove extension of the file. */
-        const char *ext = BLI_path_extension(load_data->items[idx].name);
-        if (ext != NULL) {
-          const int size = strlen(load_data->items[idx].name) - strlen(ext) + 1;
-          BLI_strncpy_rlen(load_data->items[idx].name, load_data->items[idx].name, size);
+        /* Split the tokens. */
+        const char sep[2] = "|";
+        char *next_tokens = NULL;
+        char *token = strtok_s(filename, sep, &next_tokens);
+
+        /* Image filepath. */
+        BLI_join_dirfile(
+            load_data->items[idx].path, sizeof(load_data->items[idx].path), directory, token);
+
+        load_data->items[idx].name[0] = '\0';
+        load_data->items[idx].data[0] = '\0';
+
+        /* Check if more tokens. If not, use first token to determine name. */
+        if (&next_tokens[0] == '\0') {
+          BLI_split_file_part(
+              filename, load_data->items[idx].name, sizeof(load_data->items[idx].name) - 1);
+          /* Remove extension from the file name. */
+          const char *ext = BLI_path_extension(load_data->items[idx].name);
+          if (ext != NULL) {
+            const int size = strlen(load_data->items[idx].name) - strlen(ext) + 1;
+            BLI_strncpy_rlen(load_data->items[idx].name, load_data->items[idx].name, size);
+          }
+        }
+        else {
+          /* More tokens, use first for `name` and save other data to be used later in the PDF
+           * generation. In this case, all info received is used as is and not converted or
+           * analyzed. */
+          token = strtok_s(next_tokens, sep, &next_tokens);
+          BLI_strncpy(load_data->items[idx].name, token, sizeof(load_data->items[idx].name) - 1);
+          BLI_strncpy(
+              load_data->items[idx].data, next_tokens, sizeof(load_data->items[idx].data) - 1);
         }
 
         MEM_SAFE_FREE(filename);

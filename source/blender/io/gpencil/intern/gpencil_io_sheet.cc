@@ -316,8 +316,35 @@ void ContactSheetPDF::draw_thumbnail(HPDF_Image pdf_image,
   HPDF_Page_Rectangle(page_, pos_x, pos_y, thumb_size_.x, thumb_size_.y);
   HPDF_Page_Stroke(page_);
   /* Text. */
-  HPDF_Page_SetFontAndSize(page_, font_, 20);
-  write_text(float2(pos_x, pos_y - 20), item->name);
+  const int font_height = 20;
+  HPDF_Page_SetFontAndSize(page_, font_, font_height);
+  write_text(float2(pos_x, pos_y - font_height), item->name);
+
+  int i = 1;
+  if (item->data[0] != '\0') {
+    char sep[2] = "|";
+    char *next_p;
+    char *token = strtok_s(item->data, sep, &next_p);
+    write_text(float2(pos_x, pos_y - 20 - (font_height * i)), token);
+    i++;
+    /* Loop through the string to extract all other tokens. */
+    if (next_p[0] == '\0') {
+      return;
+    }
+
+    token = strtok_s(next_p, sep, &next_p);
+    const int maxtokens = 3;
+    int tok = 0;
+    while (token != NULL) {
+      tok++;
+      if (tok > maxtokens) {
+        break;
+      }
+      write_text(float2(pos_x, pos_y - 20 - (font_height * i)), token);
+      i++;
+      token = strtok_s(NULL, sep, &next_p);
+    }
+  }
 }
 
 }  // namespace blender::io::gpencil

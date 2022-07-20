@@ -73,6 +73,8 @@ typedef enum eGpencilExportFrame {
 typedef struct ContactSheetItem {
   char name[64];   /* name. */
   char path[1024]; /* 1024 = FILE_MAX */
+  /** Extra info data separated by pipes (|). */
+  char data[2048];
 } ContactSheetItem;
 
 typedef struct ContactSheetParams {
