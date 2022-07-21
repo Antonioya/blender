@@ -449,7 +449,7 @@ static void contact_sheet_pdf_load_files(bContext *C,
         load_data->items[idx].data[0] = '\0';
 
         /* Check if more tokens. If not, use first token to determine name. */
-        if (&next_tokens[0] == '\0') {
+        if (next_tokens[0] == '\0') {
           BLI_split_file_part(
               filename, load_data->items[idx].name, sizeof(load_data->items[idx].name) - 1);
           /* Remove extension from the file name. */
