@@ -214,36 +214,33 @@ static bool add_custom_data_layer_from_attribute_init(const AttributeIDRef &attr
                                                       const int domain_num,
                                                       const AttributeInit &initializer)
 {
+  const int old_layer_num = custom_data.totlayer;
   switch (initializer.type) {
     case AttributeInit::Type::Default: {
-      void *data = add_generic_custom_data_layer(
+      add_generic_custom_data_layer(
           custom_data, data_type, CD_DEFAULT, nullptr, domain_num, attribute_id);
-      return data != nullptr;
+      break;
     }
     case AttributeInit::Type::VArray: {
       void *data = add_generic_custom_data_layer(
           custom_data, data_type, CD_DEFAULT, nullptr, domain_num, attribute_id);
-      if (data == nullptr) {
-        return false;
+      if (data != nullptr) {
+        const GVArray &varray = static_cast<const AttributeInitVArray &>(initializer).varray;
+        varray.materialize_to_uninitialized(varray.index_range(), data);
       }
-      const GVArray &varray = static_cast<const AttributeInitVArray &>(initializer).varray;
-      varray.materialize_to_uninitialized(varray.index_range(), data);
-      return true;
+      break;
     }
     case AttributeInit::Type::MoveArray: {
       void *source_data = static_cast<const AttributeInitMove &>(initializer).data;
       void *data = add_generic_custom_data_layer(
           custom_data, data_type, CD_ASSIGN, source_data, domain_num, attribute_id);
-      if (data == nullptr) {
+      if (source_data != nullptr && data == nullptr) {
         MEM_freeN(source_data);
-        return false;
       }
-      return true;
+      break;
     }
   }
-
-  BLI_assert_unreachable();
-  return false;
+  return old_layer_num < custom_data.totlayer;
 }
 
 static bool custom_data_layer_matches_attribute_id(const CustomDataLayer &layer,
@@ -265,17 +262,25 @@ GVArray BuiltinCustomDataLayerProvider::try_get_for_read(const void *owner) cons
     return {};
   }
 
-  const void *data;
-  if (stored_as_named_attribute_) {
-    data = CustomData_get_layer_named(custom_data, stored_type_, name_.c_str());
+  const void *data = nullptr;
+  bool found_attribute = false;
+  for (const CustomDataLayer &layer : Span(custom_data->layers, custom_data->totlayer)) {
+    if (stored_as_named_attribute_) {
+      if (layer.name == name_) {
+        data = layer.data;
+        found_attribute = true;
+        break;
+      }
+    }
+    else if (layer.type == stored_type_) {
+      data = layer.data;
+      found_attribute = true;
+      break;
+    }
   }
-  else {
-    data = CustomData_get_layer(custom_data, stored_type_);
-  }
-  if (data == nullptr) {
+  if (!found_attribute) {
     return {};
   }
-
   const int element_num = custom_data_access_.get_element_num(owner);
   return as_read_attribute_(data, element_num);
 }
@@ -291,36 +296,47 @@ GAttributeWriter BuiltinCustomDataLayerProvider::try_get_for_write(void *owner) 
   }
   const int element_num = custom_data_access_.get_element_num(owner);
 
-  void *data;
-  if (stored_as_named_attribute_) {
-    data = CustomData_get_layer_named(custom_data, stored_type_, name_.c_str());
+  void *data = nullptr;
+  bool found_attribute = false;
+  for (const CustomDataLayer &layer : Span(custom_data->layers, custom_data->totlayer)) {
+    if (stored_as_named_attribute_) {
+      if (layer.name == name_) {
+        data = layer.data;
+        found_attribute = true;
+        break;
+      }
+    }
+    else if (layer.type == stored_type_) {
+      data = layer.data;
+      found_attribute = true;
+      break;
+    }
   }
-  else {
-    data = CustomData_get_layer(custom_data, stored_type_);
-  }
-  if (data == nullptr) {
+  if (!found_attribute) {
     return {};
   }
 
-  void *new_data;
-  if (stored_as_named_attribute_) {
-    new_data = CustomData_duplicate_referenced_layer_named(
-        custom_data, stored_type_, name_.c_str(), element_num);
-  }
-  else {
-    new_data = CustomData_duplicate_referenced_layer(custom_data, stored_type_, element_num);
-  }
-
-  if (data != new_data) {
-    if (custom_data_access_.update_custom_data_pointers) {
-      custom_data_access_.update_custom_data_pointers(owner);
+  if (data != nullptr) {
+    void *new_data;
+    if (stored_as_named_attribute_) {
+      new_data = CustomData_duplicate_referenced_layer_named(
+          custom_data, stored_type_, name_.c_str(), element_num);
     }
-    data = new_data;
+    else {
+      new_data = CustomData_duplicate_referenced_layer(custom_data, stored_type_, element_num);
+    }
+
+    if (data != new_data) {
+      if (custom_data_access_.update_custom_data_pointers) {
+        custom_data_access_.update_custom_data_pointers(owner);
+      }
+      data = new_data;
+    }
   }
 
   std::function<void()> tag_modified_fn;
-  if (update_on_write_ != nullptr) {
-    tag_modified_fn = [owner, update = update_on_write_]() { update(owner); };
+  if (update_on_change_ != nullptr) {
+    tag_modified_fn = [owner, update = update_on_change_]() { update(owner); };
   }
 
   return {as_write_attribute_(data, element_num), domain_, std::move(tag_modified_fn)};
@@ -336,12 +352,19 @@ bool BuiltinCustomDataLayerProvider::try_delete(void *owner) const
     return {};
   }
 
+  auto update = [&]() {
+    if (update_on_change_ != nullptr) {
+      update_on_change_(owner);
+    }
+  };
+
   const int element_num = custom_data_access_.get_element_num(owner);
   if (stored_as_named_attribute_) {
     if (CustomData_free_layer_named(custom_data, name_.c_str(), element_num)) {
       if (custom_data_access_.update_custom_data_pointers) {
         custom_data_access_.update_custom_data_pointers(owner);
       }
+      update();
       return true;
     }
     return false;
@@ -352,8 +375,10 @@ bool BuiltinCustomDataLayerProvider::try_delete(void *owner) const
     if (custom_data_access_.update_custom_data_pointers) {
       custom_data_access_.update_custom_data_pointers(owner);
     }
+    update();
     return true;
   }
+
   return false;
 }
 
