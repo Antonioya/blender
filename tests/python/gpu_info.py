@@ -1,13 +1,15 @@
-"""
-    Prints GPU backend information to the console and exits.
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-    Use this script as `blender --background --python gpu_info.py`.
+"""
+Prints GPU back-end information to the console and exits.
+
+Use this script as `blender --background --python gpu_info.py`.
 """
 import bpy
 import gpu
 import sys
 
-# Render with workbench to initialize the GPU backend otherwise it would fail when running in 
+# Render with workbench to initialize the GPU backend otherwise it would fail when running in
 # background mode as the GPU backend won't be initialized.
 scene = bpy.context.scene
 scene.render.resolution_x = 1

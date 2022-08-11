@@ -1422,7 +1422,7 @@ static BMLoop *bm_select_edgeloop_single_side_next(const Scene *scene,
       scene, l_step, v_from_next, cd_loop_uv_offset);
 }
 
-/* TODO(campbell): support this in the BMesh API, as we have for clearing other types. */
+/* TODO(@campbellbarton): support this in the BMesh API, as we have for clearing other types. */
 static void bm_loop_tags_clear(BMesh *bm)
 {
   BMIter iter;
@@ -5395,7 +5395,7 @@ static void uv_isolate_selected_islands(const Scene *scene,
     return;
   }
 
-  int num_islands = elementmap->totalIslands;
+  int num_islands = elementmap->total_islands;
   /* Boolean array that tells if island with index i is completely selected or not. */
   bool *is_island_not_selected = MEM_callocN(sizeof(bool) * (num_islands), __func__);
 
