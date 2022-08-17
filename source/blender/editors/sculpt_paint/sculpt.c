@@ -344,9 +344,11 @@ int SCULPT_active_face_set_get(SculptSession *ss)
 void SCULPT_vertex_visible_set(SculptSession *ss, PBVHVertRef vertex, bool visible)
 {
   switch (BKE_pbvh_type(ss->pbvh)) {
-    case PBVH_FACES:
-      SET_FLAG_FROM_TEST(ss->mvert[vertex.i].flag, !visible, ME_HIDE);
+    case PBVH_FACES: {
+      bool *hide_vert = BKE_pbvh_get_vert_hide_for_write(ss->pbvh);
+      hide_vert[vertex.i] = visible;
       break;
+    }
     case PBVH_BMESH: {
       BMVert *v = (BMVert *)vertex.i;
       BM_elem_flag_set(v, BM_ELEM_HIDDEN, !visible);
@@ -360,8 +362,10 @@ void SCULPT_vertex_visible_set(SculptSession *ss, PBVHVertRef vertex, bool visib
 bool SCULPT_vertex_visible_get(SculptSession *ss, PBVHVertRef vertex)
 {
   switch (BKE_pbvh_type(ss->pbvh)) {
-    case PBVH_FACES:
-      return !(ss->mvert[vertex.i].flag & ME_HIDE);
+    case PBVH_FACES: {
+      const bool *hide_vert = BKE_pbvh_get_vert_hide(ss->pbvh);
+      return hide_vert == NULL || !hide_vert[vertex.i];
+    }
     case PBVH_BMESH:
       return !BM_elem_flag_test((BMVert *)vertex.i, BM_ELEM_HIDDEN);
     case PBVH_GRIDS: {
@@ -1402,16 +1406,13 @@ static void paint_mesh_restore_co_task_cb(void *__restrict userdata,
   switch (data->brush->sculpt_tool) {
     case SCULPT_TOOL_MASK:
       type = SCULPT_UNDO_MASK;
-      BKE_pbvh_node_mark_update_mask(data->nodes[n]);
       break;
     case SCULPT_TOOL_PAINT:
     case SCULPT_TOOL_SMEAR:
       type = SCULPT_UNDO_COLOR;
-      BKE_pbvh_node_mark_update_color(data->nodes[n]);
       break;
     default:
       type = SCULPT_UNDO_COORDS;
-      BKE_pbvh_node_mark_update(data->nodes[n]);
       break;
   }
 
@@ -1424,6 +1425,20 @@ static void paint_mesh_restore_co_task_cb(void *__restrict userdata,
 
   if (!unode) {
     return;
+  }
+
+  switch (type) {
+    case SCULPT_UNDO_MASK:
+      BKE_pbvh_node_mark_update_mask(data->nodes[n]);
+      break;
+    case SCULPT_UNDO_COLOR:
+      BKE_pbvh_node_mark_update_color(data->nodes[n]);
+      break;
+    case SCULPT_UNDO_COORDS:
+      BKE_pbvh_node_mark_update(data->nodes[n]);
+      break;
+    default:
+      break;
   }
 
   PBVHVertexIter vd;
@@ -5378,7 +5393,7 @@ static bool sculpt_stroke_test_start(bContext *C, struct wmOperator *op, const f
       ED_image_undo_push_begin(op->type->name, PAINT_MODE_SCULPT);
     }
     else {
-      SCULPT_undo_push_begin(ob, sculpt_tool_name(sd));
+      SCULPT_undo_push_begin_ex(ob, sculpt_tool_name(sd));
     }
 
     return true;
@@ -5641,6 +5656,10 @@ static int sculpt_brush_stroke_modal(bContext *C, wmOperator *op, const wmEvent 
   return paint_stroke_modal(C, op, event, (struct PaintStroke **)&op->customdata);
 }
 
+static void sculpt_redo_empty_ui(bContext *UNUSED(C), wmOperator *UNUSED(op))
+{
+}
+
 void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -5654,6 +5673,7 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
   ot->exec = sculpt_brush_stroke_exec;
   ot->poll = SCULPT_poll;
   ot->cancel = sculpt_brush_stroke_cancel;
+  ot->ui = sculpt_redo_empty_ui;
 
   /* Flags (sculpt does own undo? (ton)). */
   ot->flag = OPTYPE_BLOCKING | OPTYPE_REGISTER | OPTYPE_UNDO;

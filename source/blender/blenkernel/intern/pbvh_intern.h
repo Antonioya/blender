@@ -123,6 +123,11 @@ struct PBVHNode {
   /* Used to store the brush color during a stroke and composite it over the original color */
   PBVHColorBufferNode color_buffer;
   PBVHPixelsNode pixels;
+
+  /* Used to flash colors of updated node bounding boxes in
+   * debug draw mode (when G.debug_value / bpy.app.debug_value is 889).
+   */
+  int debug_draw_gen;
 };
 
 typedef enum { PBVH_DYNTOPO_SMOOTH_SHADING = 1 } PBVHFlags;
@@ -144,10 +149,11 @@ struct PBVH {
   int leaf_limit;
 
   /* Mesh data */
-  const struct Mesh *mesh;
+  struct Mesh *mesh;
 
   /* NOTE: Normals are not `const` because they can be updated for drawing by sculpt code. */
   float (*vert_normals)[3];
+  bool *hide_vert;
   struct MVert *verts;
   const struct MPoly *mpoly;
   const struct MLoop *mloop;

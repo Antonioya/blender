@@ -663,7 +663,7 @@ static void template_id_liboverride_hierarchy_create(bContext *C,
    * system override with reset. */
   if (!ID_IS_LINKED(id) && ID_IS_OVERRIDE_LIBRARY(id)) {
     if (!ID_IS_OVERRIDE_LIBRARY_REAL(id)) {
-      BKE_lib_override_library_get(bmain, id, &id);
+      BKE_lib_override_library_get(bmain, id, NULL, &id);
     }
     if (id->override_library->flag & IDOVERRIDE_LIBRARY_FLAG_SYSTEM_DEFINED) {
       id->override_library->flag &= ~IDOVERRIDE_LIBRARY_FLAG_SYSTEM_DEFINED;
@@ -684,6 +684,7 @@ static void template_id_liboverride_hierarchy_create(bContext *C,
    * NOTE: do not attempt to perform such hierarchy override at all cost, if there is not enough
    * context, better to abort than create random overrides all over the place. */
   if (!ID_IS_OVERRIDABLE_LIBRARY_HIERARCHY(id)) {
+    RNA_warning("The data-block %s is not direclty overridable", id->name);
     return;
   }
 
@@ -816,7 +817,8 @@ static void template_id_liboverride_hierarchy_create(bContext *C,
     case ID_CV:
     case ID_PT:
     case ID_VO:
-      if (object_active != NULL && object_active->data == id) {
+    case ID_NT: /* Essentially geometry nodes from modifier currently. */
+      if (object_active != NULL) {
         if (collection_active != NULL &&
             BKE_collection_has_object_recursive(collection_active, object_active)) {
           template_id_liboverride_hierarchy_collections_tag_recursive(collection_active, id, true);
@@ -850,12 +852,16 @@ static void template_id_liboverride_hierarchy_create(bContext *C,
     case ID_MA:
     case ID_TE:
     case ID_IM:
+      RNA_warning("The type of data-block %s could not yet implemented", id->name);
       break;
     case ID_WO:
+      RNA_warning("The type of data-block %s could not yet implemented", id->name);
       break;
     case ID_PA:
+      RNA_warning("The type of data-block %s could not yet implemented", id->name);
       break;
     default:
+      RNA_warning("The type of data-block %s could not yet implemented", id->name);
       break;
   }
   if (id_override != NULL) {
@@ -867,6 +873,9 @@ static void template_id_liboverride_hierarchy_create(bContext *C,
      * created liboverride (note that in theory this remapping has already been done by code
      * above). */
     RNA_id_pointer_create(id_override, idptr);
+  }
+  else {
+    RNA_warning("The data-block %s could not be overridden", id->name);
   }
 }
 
@@ -6458,13 +6467,13 @@ bool uiTemplateEventFromKeymapItem(struct uiLayout *layout,
     for (int j = 0; j < ARRAY_SIZE(icon_mod) && icon_mod[j]; j++) {
       uiItemL(layout, "", icon_mod[j]);
     }
-    uiItemL(layout, TIP_(text), icon);
+    uiItemL(layout, CTX_TIP_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, text), icon);
     ok = true;
   }
   else if (text_fallback) {
     const char *event_text = WM_key_event_string(kmi->type, true);
     uiItemL(layout, event_text, ICON_NONE);
-    uiItemL(layout, TIP_(text), ICON_NONE);
+    uiItemL(layout, CTX_TIP_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, text), ICON_NONE);
     ok = true;
   }
   return ok;

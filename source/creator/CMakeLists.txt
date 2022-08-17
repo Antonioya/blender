@@ -3,7 +3,6 @@
 
 blender_include_dirs(
   ../../intern/clog
-  ../../intern/glew-mx
   ../../intern/guardedalloc
   ../blender/blenkernel
   ../blender/blenlib
@@ -720,6 +719,11 @@ elseif(WIN32)
 
   set(BLENDER_TEXT_FILES_DESTINATION ".")
 
+  install(
+    FILES ${LIBDIR}/epoxy/bin/epoxy-0.dll
+    DESTINATION "."
+  )
+
   if(WITH_OPENMP AND MSVC_CLANG)
     install(
       FILES ${CLANG_OPENMP_DLL}
@@ -884,18 +888,6 @@ elseif(WIN32)
     endif()
 
     unset(_PYTHON_VERSION_NO_DOTS)
-  endif()
-
-  # EGL Runtime Components
-  if(WITH_GL_EGL)
-    if(WIN32)
-      install(FILES "${OPENGLES_DLL}"     DESTINATION ".")
-      install(FILES "${OPENGLES_EGL_DLL}" DESTINATION ".")
-
-      if(WITH_GL_ANGLE)
-        install(FILES "${D3DCOMPILER_DLL}" DESTINATION ".")
-      endif()
-    endif()
   endif()
 
   if(WITH_CODEC_FFMPEG)

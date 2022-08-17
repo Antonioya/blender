@@ -50,7 +50,6 @@
  *
  * `draw::Framebuffer`
  *   Simple wrapper to #GPUFramebuffer that can be moved.
- *
  */
 
 #include "DRW_render.h"
@@ -560,6 +559,11 @@ class Texture : NonCopyable {
   GPUTexture *mip_view(int miplvl)
   {
     return mip_views_[miplvl];
+  }
+
+  int mip_count() const
+  {
+    return GPU_texture_mip_count(tx_);
   }
 
   /**

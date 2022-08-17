@@ -34,13 +34,12 @@ set(INC
   ../../../intern/atomic
   ../../../intern/clog
   ../../../intern/ghost
-  ../../../intern/glew-mx
   ../../../intern/guardedalloc
   ../../../intern/mantaflow/extern
 )
 
 set(INC_SYS
-  ${GLEW_INCLUDE_PATH}
+  ${Epoxy_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -93,12 +92,10 @@ set(SRC
   GPU_debug.h
   GPU_drawlist.h
   GPU_framebuffer.h
-  GPU_glew.h
   GPU_immediate.h
   GPU_immediate_util.h
   GPU_index_buffer.h
   GPU_init_exit.h
-  GPU_legacy_stubs.h
   GPU_material.h
   GPU_matrix.h
   GPU_platform.h
@@ -224,14 +221,8 @@ if(WITH_METAL_BACKEND)
 endif()
 
 set(LIB
-  ${BLENDER_GL_LIBRARIES}
+  ${Epoxy_LIBRARIES}
 )
-
-if(NOT WITH_SYSTEM_GLEW)
-  list(APPEND LIB
-    ${BLENDER_GLEW_LIBRARIES}
-  )
-endif()
 
 set(MSL_SRC
 
@@ -495,6 +486,8 @@ set(SRC_SHADER_CREATE_INFOS
   ../draw/engines/basic/shaders/infos/basic_depth_info.hh
   ../draw/engines/eevee_next/shaders/infos/eevee_depth_of_field_info.hh
   ../draw/engines/eevee_next/shaders/infos/eevee_film_info.hh
+  ../draw/engines/eevee_next/shaders/infos/eevee_hiz_info.hh
+  ../draw/engines/eevee_next/shaders/infos/eevee_light_culling_info.hh
   ../draw/engines/eevee_next/shaders/infos/eevee_material_info.hh
   ../draw/engines/eevee_next/shaders/infos/eevee_motion_blur_info.hh
   ../draw/engines/eevee_next/shaders/infos/eevee_velocity_info.hh
@@ -592,8 +585,6 @@ if(WITH_MOD_FLUID)
   add_definitions(-DWITH_FLUID)
 endif()
 
-add_definitions(${GL_DEFINITIONS})
-
 if(WITH_IMAGE_DDS)
   add_definitions(-DWITH_DDS)
 endif()
@@ -645,9 +636,9 @@ if(WITH_GPU_BUILDTIME_SHADER_BUILDER)
 
   endif()
   target_link_libraries(shader_builder PUBLIC
-    bf_blenlib
     bf_gpu
     bf_intern_clog
+    bf_blenlib
     bf_intern_ghost
     ${PLATFORM_LINKLIBS}
   )

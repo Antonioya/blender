@@ -227,8 +227,9 @@ static void SCULPT_dynamic_topology_disable_ex(
     me->face_sets_color_default = 1;
 
     /* Sync the visibility to vertices manually as the pmap is still not initialized. */
-    for (int i = 0; i < me->totvert; i++) {
-      me->mvert[i].flag &= ~ME_HIDE;
+    bool *hide_vert = (bool *)CustomData_get_layer_named(&me->vdata, CD_PROP_BOOL, ".hide_vert");
+    if (hide_vert != NULL) {
+      memset(hide_vert, 0, sizeof(bool) * me->totvert);
     }
   }
 
@@ -273,7 +274,7 @@ void sculpt_dynamic_topology_disable_with_undo(Main *bmain,
     /* May be false in background mode. */
     const bool use_undo = G.background ? (ED_undo_stack_get() != NULL) : true;
     if (use_undo) {
-      SCULPT_undo_push_begin(ob, "Dynamic topology disable");
+      SCULPT_undo_push_begin_ex(ob, "Dynamic topology disable");
       SCULPT_undo_push_node(ob, NULL, SCULPT_UNDO_DYNTOPO_END);
     }
     SCULPT_dynamic_topology_disable_ex(bmain, depsgraph, scene, ob, NULL);
@@ -293,7 +294,7 @@ static void sculpt_dynamic_topology_enable_with_undo(Main *bmain,
     /* May be false in background mode. */
     const bool use_undo = G.background ? (ED_undo_stack_get() != NULL) : true;
     if (use_undo) {
-      SCULPT_undo_push_begin(ob, "Dynamic topology enable");
+      SCULPT_undo_push_begin_ex(ob, "Dynamic topology enable");
     }
     SCULPT_dynamic_topology_enable_ex(bmain, depsgraph, scene, ob);
     if (use_undo) {
