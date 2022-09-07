@@ -580,7 +580,7 @@ static void region_cursor_set(wmWindow *win, bool swin_changed)
   }
 }
 
-void ED_screen_do_listen(bContext *C, wmNotifier *note)
+void ED_screen_do_listen(bContext *C, const wmNotifier *note)
 {
   wmWindow *win = CTX_wm_window(C);
   bScreen *screen = CTX_wm_screen(C);
@@ -1212,10 +1212,10 @@ void ED_screen_scene_change(bContext *C,
   /* Mode Syncing. */
   if (view_layer_old) {
     WorkSpace *workspace = CTX_wm_workspace(C);
-    Object *obact_new = OBACT(view_layer);
+    Object *obact_new = BKE_view_layer_active_object_get(view_layer);
     UNUSED_VARS(obact_new);
     eObjectMode object_mode_old = workspace->object_mode;
-    Object *obact_old = OBACT(view_layer_old);
+    Object *obact_old = BKE_view_layer_active_object_get(view_layer_old);
     UNUSED_VARS(obact_old, object_mode_old);
   }
 #endif

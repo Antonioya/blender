@@ -916,7 +916,7 @@ static void stitch_propagate_uv_final_position(Scene *scene,
       if (final) {
         copy_v2_v2(luv->uv, final_position[index].uv);
 
-        uvedit_uv_select_enable(scene, state->em, l, false, cd_loop_uv_offset);
+        uvedit_uv_select_enable(scene, state->em->bm, l, false, cd_loop_uv_offset);
       }
       else {
         int face_preview_pos =
@@ -1664,7 +1664,7 @@ static void stitch_calculate_edge_normal(BMEditMesh *em, UvEdge *edge, float *no
 static void stitch_draw_vbo(GPUVertBuf *vbo, GPUPrimType prim_type, const float col[4])
 {
   GPUBatch *batch = GPU_batch_create_ex(prim_type, vbo, NULL, GPU_BATCH_OWNS_VBO);
-  GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_UNIFORM_COLOR);
+  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_batch_uniform_4fv(batch, "color", col);
   GPU_batch_draw(batch);
   GPU_batch_discard(batch);

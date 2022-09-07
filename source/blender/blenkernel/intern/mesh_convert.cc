@@ -72,61 +72,6 @@ using blender::Span;
 
 static CLG_LogRef LOG = {"bke.mesh_convert"};
 
-void BKE_mesh_from_metaball(ListBase *lb, Mesh *me)
-{
-  DispList *dl;
-  MVert *mvert;
-  MLoop *mloop, *allloop;
-  MPoly *mpoly;
-  int a, *index;
-
-  dl = (DispList *)lb->first;
-  if (dl == nullptr) {
-    return;
-  }
-
-  if (dl->type == DL_INDEX4) {
-    mvert = (MVert *)CustomData_add_layer(&me->vdata, CD_MVERT, CD_CALLOC, nullptr, dl->nr);
-    allloop = mloop = (MLoop *)CustomData_add_layer(
-        &me->ldata, CD_MLOOP, CD_CALLOC, nullptr, dl->parts * 4);
-    mpoly = (MPoly *)CustomData_add_layer(&me->pdata, CD_MPOLY, CD_CALLOC, nullptr, dl->parts);
-    me->mvert = mvert;
-    me->mloop = mloop;
-    me->mpoly = mpoly;
-    me->totvert = dl->nr;
-    me->totpoly = dl->parts;
-
-    for (const int i : IndexRange(dl->nr)) {
-      copy_v3_v3(me->mvert[i].co, &dl->verts[3 * i]);
-    }
-
-    a = dl->parts;
-    index = dl->index;
-    while (a--) {
-      int count = index[2] != index[3] ? 4 : 3;
-
-      mloop[0].v = index[0];
-      mloop[1].v = index[1];
-      mloop[2].v = index[2];
-      if (count == 4) {
-        mloop[3].v = index[3];
-      }
-
-      mpoly->totloop = count;
-      mpoly->loopstart = (int)(mloop - allloop);
-      mpoly->flag = ME_SMOOTH;
-
-      mpoly++;
-      mloop += count;
-      me->totloop += count;
-      index += 4;
-    }
-
-    BKE_mesh_update_customdata_pointers(me, true);
-    BKE_mesh_calc_edges(me, true, false);
-  }
-}
-
 /**
  * Specialized function to use when we _know_ existing edges don't overlap with poly edges.
  */
@@ -136,8 +81,8 @@ static void make_edges_mdata_extend(Mesh &mesh)
   const MPoly *mp;
   int i;
 
-  Span<MPoly> polys(mesh.mpoly, mesh.totpoly);
-  MutableSpan<MLoop> loops(mesh.mloop, mesh.totloop);
+  const Span<MPoly> polys = mesh.polys();
+  MutableSpan<MLoop> loops = mesh.loops_for_write();
 
   const int eh_reserve = max_ii(totedge, BLI_EDGEHASH_SIZE_GUESS_FROM_POLYS(mesh.totpoly));
   EdgeHash *eh = BLI_edgehash_new_ex(__func__, eh_reserve);
@@ -151,20 +96,18 @@ static void make_edges_mdata_extend(Mesh &mesh)
 #ifdef DEBUG
   /* ensure that there's no overlap! */
   if (totedge_new) {
-    MEdge *medge = mesh.medge;
-    for (i = 0; i < totedge; i++, medge++) {
-      BLI_assert(BLI_edgehash_haskey(eh, medge->v1, medge->v2) == false);
+    for (const MEdge &edge : mesh.edges()) {
+      BLI_assert(BLI_edgehash_haskey(eh, edge.v1, edge.v2) == false);
     }
   }
 #endif
 
   if (totedge_new) {
     CustomData_realloc(&mesh.edata, totedge + totedge_new);
-    BKE_mesh_update_customdata_pointers(&mesh, false);
-
-    MEdge *medge = mesh.medge + totedge;
 
     mesh.totedge += totedge_new;
+    MutableSpan<MEdge> edges = mesh.edges_for_write();
+    MEdge *medge = &edges[totedge];
 
     EdgeHashIterator *ehi;
     uint e_index = totedge;
@@ -178,7 +121,7 @@ static void make_edges_mdata_extend(Mesh &mesh)
     }
     BLI_edgehashIterator_free(ehi);
 
-    for (i = 0, mp = mesh.mpoly; i < mesh.totpoly; i++, mp++) {
+    for (i = 0, mp = polys.data(); i < mesh.totpoly; i++, mp++) {
       MLoop *l = &loops[mp->loopstart];
       MLoop *l_prev = (l + (mp->totloop - 1));
       int j;
@@ -195,6 +138,7 @@ static void make_edges_mdata_extend(Mesh &mesh)
 
 static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispbase)
 {
+  using namespace blender::bke;
   const float *data;
   int a, b, ofs, vertcount, startvert, totvert = 0, totedge = 0, totloop = 0, totpoly = 0;
   int p1, p2, p3, p4, *index;
@@ -240,17 +184,20 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
   }
 
   Mesh *mesh = BKE_mesh_new_nomain(totvert, totedge, 0, totloop, totpoly);
-  MutableSpan<MVert> verts(mesh->mvert, mesh->totvert);
-  MutableSpan<MEdge> edges(mesh->medge, mesh->totedge);
-  MutableSpan<MPoly> polys(mesh->mpoly, mesh->totpoly);
-  MutableSpan<MLoop> loops(mesh->mloop, mesh->totloop);
+  MutableSpan<MVert> verts = mesh->verts_for_write();
+  MutableSpan<MEdge> edges = mesh->edges_for_write();
+  MutableSpan<MPoly> polys = mesh->polys_for_write();
+  MutableSpan<MLoop> loops = mesh->loops_for_write();
 
   MVert *mvert = verts.data();
   MEdge *medge = edges.data();
   MPoly *mpoly = polys.data();
   MLoop *mloop = loops.data();
+  MutableAttributeAccessor attributes = mesh_attributes_for_write(*mesh);
+  SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_only_span<int>(
+      "material_index", ATTR_DOMAIN_FACE);
   MLoopUV *mloopuv = static_cast<MLoopUV *>(CustomData_add_layer_named(
-      &mesh->ldata, CD_MLOOPUV, CD_CALLOC, nullptr, mesh->totloop, "UVMap"));
+      &mesh->ldata, CD_MLOOPUV, CD_SET_DEFAULT, nullptr, mesh->totloop, "UVMap"));
 
   /* verts and faces */
   vertcount = 0;
@@ -327,7 +274,7 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
         mloop[2].v = startvert + index[1];
         mpoly->loopstart = (int)(mloop - loops.data());
         mpoly->totloop = 3;
-        mpoly->mat_nr = dl->col;
+        material_indices.span[mpoly - polys.data()] = dl->col;
 
         if (mloopuv) {
           for (int i = 0; i < 3; i++, mloopuv++) {
@@ -387,7 +334,7 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
           mloop[3].v = p2;
           mpoly->loopstart = (int)(mloop - loops.data());
           mpoly->totloop = 4;
-          mpoly->mat_nr = dl->col;
+          material_indices.span[mpoly - polys.data()] = dl->col;
 
           if (mloopuv) {
             int orco_sizeu = dl->nr - 1;
@@ -440,6 +387,8 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
     make_edges_mdata_extend(*mesh);
   }
 
+  material_indices.finish();
+
   return mesh;
 }
 
@@ -483,7 +432,7 @@ Mesh *BKE_mesh_new_nomain_from_curve(const Object *ob)
 
 struct EdgeLink {
   struct EdgeLink *next, *prev;
-  void *edge;
+  const void *edge;
 };
 
 struct VertLink {
@@ -507,10 +456,13 @@ static void appendPolyLineVert(ListBase *lb, uint index)
 
 void BKE_mesh_to_curve_nurblist(const Mesh *me, ListBase *nurblist, const int edge_users_test)
 {
-  MVert *mvert = me->mvert;
-  MEdge *med, *medge = me->medge;
-  MPoly *mp, *mpoly = me->mpoly;
-  MLoop *mloop = me->mloop;
+  const Span<MVert> verts = me->verts();
+  const Span<MEdge> mesh_edges = me->edges();
+  const Span<MPoly> polys = me->polys();
+  const Span<MLoop> loops = me->loops();
+
+  const MEdge *med;
+  const MPoly *mp;
 
   int medge_len = me->totedge;
   int mpoly_len = me->totpoly;
@@ -524,8 +476,8 @@ void BKE_mesh_to_curve_nurblist(const Mesh *me, ListBase *nurblist, const int ed
 
   /* get boundary edges */
   edge_users = (int *)MEM_calloc_arrayN(medge_len, sizeof(int), __func__);
-  for (i = 0, mp = mpoly; i < mpoly_len; i++, mp++) {
-    MLoop *ml = &mloop[mp->loopstart];
+  for (i = 0, mp = polys.data(); i < mpoly_len; i++, mp++) {
+    const MLoop *ml = &loops[mp->loopstart];
     int j;
     for (j = 0; j < mp->totloop; j++, ml++) {
       edge_users[ml->e]++;
@@ -533,7 +485,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *me, ListBase *nurblist, const int ed
   }
 
   /* create edges from all faces (so as to find edges not in any faces) */
-  med = medge;
+  med = mesh_edges.data();
   for (i = 0; i < medge_len; i++, med++) {
     if (edge_users[i] == edge_users_test) {
       EdgeLink *edl = MEM_cnew<EdgeLink>("EdgeLink");
@@ -636,7 +588,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *me, ListBase *nurblist, const int ed
         /* add points */
         vl = (VertLink *)polyline.first;
         for (i = 0, bp = nu->bp; i < totpoly; i++, bp++, vl = (VertLink *)vl->next) {
-          copy_v3_v3(bp->vec, mvert[vl->index].co);
+          copy_v3_v3(bp->vec, verts[vl->index].co);
           bp->f1 = SELECT;
           bp->radius = bp->weight = 1.0;
         }
@@ -731,18 +683,16 @@ void BKE_mesh_from_pointcloud(const PointCloud *pointcloud, Mesh *me)
       &pointcloud->pdata, &me->vdata, CD_MASK_PROP_ALL, CD_DUPLICATE, pointcloud->totpoint);
 
   /* Convert the Position attribute to a mesh vertex. */
-  me->mvert = (MVert *)CustomData_add_layer(&me->vdata, CD_MVERT, CD_CALLOC, nullptr, me->totvert);
-  CustomData_update_typemap(&me->vdata);
+  CustomData_add_layer(&me->vdata, CD_MVERT, CD_SET_DEFAULT, nullptr, me->totvert);
 
   const int layer_idx = CustomData_get_named_layer_index(
       &me->vdata, CD_PROP_FLOAT3, POINTCLOUD_ATTR_POSITION);
   CustomDataLayer *pos_layer = &me->vdata.layers[layer_idx];
   float(*positions)[3] = (float(*)[3])pos_layer->data;
 
-  MVert *mvert;
-  mvert = me->mvert;
-  for (int i = 0; i < me->totvert; i++, mvert++) {
-    copy_v3_v3(mvert->co, positions[i]);
+  MutableSpan<MVert> verts = me->verts_for_write();
+  for (int i = 0; i < me->totvert; i++) {
+    copy_v3_v3(verts[i].co, positions[i]);
   }
 
   /* Delete Position attribute since it is now in vertex coordinates. */
@@ -751,9 +701,9 @@ void BKE_mesh_from_pointcloud(const PointCloud *pointcloud, Mesh *me)
 
 void BKE_mesh_edges_set_draw_render(Mesh *mesh)
 {
-  MEdge *med = mesh->medge;
-  for (int i = 0; i < mesh->totedge; i++, med++) {
-    med->flag |= ME_EDGEDRAW | ME_EDGERENDER;
+  MutableSpan<MEdge> edges = mesh->edges_for_write();
+  for (int i = 0; i < mesh->totedge; i++) {
+    edges[i].flag |= ME_EDGEDRAW | ME_EDGERENDER;
   }
 }
 
@@ -929,32 +879,21 @@ static Mesh *mesh_new_from_curve_type_object(const Object *object)
 
 static Mesh *mesh_new_from_mball_object(Object *object)
 {
-  MetaBall *mball = (MetaBall *)object->data;
-
   /* NOTE: We can only create mesh for a polygonized meta ball. This figures out all original meta
    * balls and all evaluated child meta balls (since polygonization is only stored in the mother
    * ball).
    *
    * Create empty mesh so script-authors don't run into None objects. */
-  if (!DEG_is_evaluated_object(object) || object->runtime.curve_cache == nullptr ||
-      BLI_listbase_is_empty(&object->runtime.curve_cache->disp)) {
+  if (!DEG_is_evaluated_object(object)) {
     return (Mesh *)BKE_id_new_nomain(ID_ME, ((ID *)object->data)->name + 2);
   }
 
-  Mesh *mesh_result = (Mesh *)BKE_id_new_nomain(ID_ME, ((ID *)object->data)->name + 2);
-  BKE_mesh_from_metaball(&object->runtime.curve_cache->disp, mesh_result);
-  BKE_mesh_texspace_copy_from_object(mesh_result, object);
-
-  /* Copy materials. */
-  mesh_result->totcol = mball->totcol;
-  mesh_result->mat = (Material **)MEM_dupallocN(mball->mat);
-  if (mball->mat != nullptr) {
-    for (int i = mball->totcol; i-- > 0;) {
-      mesh_result->mat[i] = BKE_object_material_get(object, i + 1);
-    }
+  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(object);
+  if (mesh_eval == nullptr) {
+    return (Mesh *)BKE_id_new_nomain(ID_ME, ((ID *)object->data)->name + 2);
   }
 
-  return mesh_result;
+  return BKE_mesh_copy_for_eval(mesh_eval, false);
 }
 
 static Mesh *mesh_new_from_mesh(Object *object, Mesh *mesh)
@@ -1230,7 +1169,8 @@ Mesh *BKE_mesh_create_derived_for_modifier(struct Depsgraph *depsgraph,
 
   if (build_shapekey_layers && me->key &&
       (kb = (KeyBlock *)BLI_findlink(&me->key->block, ob_eval->shapenr - 1))) {
-    BKE_keyblock_convert_to_mesh(kb, me->mvert, me->totvert);
+    MutableSpan<MVert> verts = me->verts_for_write();
+    BKE_keyblock_convert_to_mesh(kb, verts.data(), me->totvert);
   }
 
   Mesh *mesh_temp = (Mesh *)BKE_id_copy_ex(nullptr, &me->id, nullptr, LIB_ID_COPY_LOCALIZE);
@@ -1333,10 +1273,9 @@ static void shapekey_layers_to_keyblocks(Mesh *mesh_src, Mesh *mesh_dst, int act
 
     kb->data = kbcos = (float(*)[3])MEM_malloc_arrayN(kb->totelem, sizeof(float[3]), __func__);
     if (kb->uid == actshape_uid) {
-      MVert *mvert = mesh_src->mvert;
-
-      for (j = 0; j < mesh_src->totvert; j++, kbcos++, mvert++) {
-        copy_v3_v3(*kbcos, mvert->co);
+      const Span<MVert> verts = mesh_src->verts();
+      for (j = 0; j < mesh_src->totvert; j++, kbcos++) {
+        copy_v3_v3(*kbcos, verts[j].co);
       }
     }
     else {
@@ -1365,6 +1304,7 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src,
                              const CustomData_MeshMasks *mask,
                              bool take_ownership)
 {
+  using namespace blender::bke;
   BLI_assert(mesh_src->id.tag & LIB_TAG_NO_MAIN);
 
   /* mesh_src might depend on mesh_dst, so we need to do everything with a local copy */
@@ -1444,30 +1384,30 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src,
     CustomData_add_layer(&tmp.vdata,
                          CD_MVERT,
                          CD_ASSIGN,
-                         (alloctype == CD_ASSIGN) ? mesh_src->mvert :
-                                                    MEM_dupallocN(mesh_src->mvert),
+                         (alloctype == CD_ASSIGN) ? mesh_src->verts_for_write().data() :
+                                                    MEM_dupallocN(mesh_src->verts().data()),
                          totvert);
   }
   if (!CustomData_has_layer(&tmp.edata, CD_MEDGE)) {
     CustomData_add_layer(&tmp.edata,
                          CD_MEDGE,
                          CD_ASSIGN,
-                         (alloctype == CD_ASSIGN) ? mesh_src->medge :
-                                                    MEM_dupallocN(mesh_src->medge),
+                         (alloctype == CD_ASSIGN) ? mesh_src->edges_for_write().data() :
+                                                    MEM_dupallocN(mesh_src->edges().data()),
                          totedge);
   }
   if (!CustomData_has_layer(&tmp.pdata, CD_MPOLY)) {
     CustomData_add_layer(&tmp.ldata,
                          CD_MLOOP,
                          CD_ASSIGN,
-                         (alloctype == CD_ASSIGN) ? mesh_src->mloop :
-                                                    MEM_dupallocN(mesh_src->mloop),
+                         (alloctype == CD_ASSIGN) ? mesh_src->loops_for_write().data() :
+                                                    MEM_dupallocN(mesh_src->loops().data()),
                          tmp.totloop);
     CustomData_add_layer(&tmp.pdata,
                          CD_MPOLY,
                          CD_ASSIGN,
-                         (alloctype == CD_ASSIGN) ? mesh_src->mpoly :
-                                                    MEM_dupallocN(mesh_src->mpoly),
+                         (alloctype == CD_ASSIGN) ? mesh_src->polys_for_write().data() :
+                                                    MEM_dupallocN(mesh_src->polys().data()),
                          tmp.totpoly);
   }
 
@@ -1483,9 +1423,6 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src,
       }
     }
   }
-
-  /* yes, must be before _and_ after tessellate */
-  BKE_mesh_update_customdata_pointers(&tmp, false);
 
   CustomData_free(&mesh_dst->vdata, mesh_dst->totvert);
   CustomData_free(&mesh_dst->edata, mesh_dst->totedge);
@@ -1540,7 +1477,6 @@ void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb)
 
   int a, totvert = mesh_src->totvert;
   float *fp;
-  MVert *mvert;
 
   if (totvert == 0 || mesh_dst->totvert == 0 || mesh_dst->totvert != totvert) {
     return;
@@ -1553,9 +1489,8 @@ void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb)
   kb->totelem = totvert;
 
   fp = (float *)kb->data;
-  mvert = mesh_src->mvert;
-
-  for (a = 0; a < kb->totelem; a++, fp += 3, mvert++) {
-    copy_v3_v3(fp, mvert->co);
+  const Span<MVert> verts = mesh_src->verts();
+  for (a = 0; a < kb->totelem; a++, fp += 3) {
+    copy_v3_v3(fp, verts[a].co);
   }
 }

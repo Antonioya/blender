@@ -210,15 +210,13 @@ static void SCULPT_dynamic_topology_disable_ex(
         &geometry->ldata, &me->ldata, CD_MASK_MESH.lmask, CD_DUPLICATE, geometry->totloop);
     CustomData_copy(
         &geometry->pdata, &me->pdata, CD_MASK_MESH.pmask, CD_DUPLICATE, geometry->totpoly);
-
-    BKE_mesh_update_customdata_pointers(me, false);
   }
   else {
     BKE_sculptsession_bm_to_me(ob, true);
 
     /* Reset Face Sets as they are no longer valid. */
     if (!CustomData_has_layer(&me->pdata, CD_SCULPT_FACE_SETS)) {
-      CustomData_add_layer(&me->pdata, CD_SCULPT_FACE_SETS, CD_CALLOC, NULL, me->totpoly);
+      CustomData_add_layer(&me->pdata, CD_SCULPT_FACE_SETS, CD_SET_DEFAULT, NULL, me->totpoly);
     }
     ss->face_sets = CustomData_get_layer(&me->pdata, CD_SCULPT_FACE_SETS);
     for (int i = 0; i < me->totpoly; i++) {

@@ -14,6 +14,7 @@
 #include "BLI_math.h"
 #include "BLI_task.h"
 
+#include "BKE_attribute.hh"
 #include "BKE_editmesh.h"
 #include "BKE_editmesh_cache.h"
 #include "BKE_mesh.h"
@@ -231,7 +232,7 @@ static void mesh_render_data_polys_sorted_build(MeshRenderData *mr, MeshBufferCa
     for (int i = 0; i < mr->poly_len; i++) {
       if (!(mr->use_hide && mr->hide_poly && mr->hide_poly[i])) {
         const MPoly *mp = &mr->mpoly[i];
-        const int mat = min_ii(mp->mat_nr, mat_last);
+        const int mat = min_ii(mr->material_indices ? mr->material_indices[i] : 0, mat_last);
         tri_first_index[i] = mat_tri_offs[mat];
         mat_tri_offs[mat] += mp->totloop - 2;
       }
@@ -270,7 +271,7 @@ static void mesh_render_data_mat_tri_len_mesh_range_fn(void *__restrict userdata
 
   const MPoly *mp = &mr->mpoly[iter];
   if (!(mr->use_hide && mr->hide_poly && mr->hide_poly[iter])) {
-    int mat = min_ii(mp->mat_nr, mr->mat_len - 1);
+    int mat = min_ii(mr->material_indices ? mr->material_indices[iter] : 0, mr->mat_len - 1);
     mat_tri_len[mat] += mp->totloop - 2;
   }
 }
@@ -338,9 +339,9 @@ void mesh_render_data_update_looptris(MeshRenderData *mr,
       mr->mlooptri = static_cast<MLoopTri *>(
           MEM_mallocN(sizeof(*mr->mlooptri) * mr->tri_len, "MR_DATATYPE_LOOPTRI"));
       if (mr->poly_normals != nullptr) {
-        BKE_mesh_recalc_looptri_with_normals(me->mloop,
-                                             me->mpoly,
-                                             me->mvert,
+        BKE_mesh_recalc_looptri_with_normals(mr->mloop,
+                                             mr->mpoly,
+                                             mr->mvert,
                                              me->totloop,
                                              me->totpoly,
                                              mr->mlooptri,
@@ -348,7 +349,7 @@ void mesh_render_data_update_looptris(MeshRenderData *mr,
       }
       else {
         BKE_mesh_recalc_looptri(
-            me->mloop, me->mpoly, me->mvert, me->totloop, me->totpoly, mr->mlooptri);
+            mr->mloop, mr->mpoly, mr->mvert, me->totloop, me->totpoly, mr->mlooptri);
       }
     }
   }
@@ -378,15 +379,15 @@ void mesh_render_data_update_normals(MeshRenderData *mr, const eMRDataType data_
           MEM_mallocN(sizeof(*mr->loop_normals) * mr->loop_len, __func__));
       short(*clnors)[2] = static_cast<short(*)[2]>(
           CustomData_get_layer(&mr->me->ldata, CD_CUSTOMLOOPNORMAL));
-      BKE_mesh_normals_loop_split(mr->me->mvert,
+      BKE_mesh_normals_loop_split(mr->mvert,
                                   mr->vert_normals,
                                   mr->vert_len,
-                                  mr->me->medge,
+                                  mr->medge,
                                   mr->edge_len,
-                                  mr->me->mloop,
+                                  mr->mloop,
                                   mr->loop_normals,
                                   mr->loop_len,
-                                  mr->me->mpoly,
+                                  mr->mpoly,
                                   mr->poly_normals,
                                   mr->poly_len,
                                   is_auto_smooth,
@@ -567,14 +568,17 @@ MeshRenderData *mesh_render_data_create(Object *object,
     mr->poly_len = mr->me->totpoly;
     mr->tri_len = poly_to_tri_count(mr->poly_len, mr->loop_len);
 
-    mr->mvert = static_cast<MVert *>(CustomData_get_layer(&mr->me->vdata, CD_MVERT));
-    mr->medge = static_cast<MEdge *>(CustomData_get_layer(&mr->me->edata, CD_MEDGE));
-    mr->mloop = static_cast<MLoop *>(CustomData_get_layer(&mr->me->ldata, CD_MLOOP));
-    mr->mpoly = static_cast<MPoly *>(CustomData_get_layer(&mr->me->pdata, CD_MPOLY));
+    mr->mvert = BKE_mesh_verts(mr->me);
+    mr->medge = BKE_mesh_edges(mr->me);
+    mr->mpoly = BKE_mesh_polys(mr->me);
+    mr->mloop = BKE_mesh_loops(mr->me);
 
     mr->v_origindex = static_cast<const int *>(CustomData_get_layer(&mr->me->vdata, CD_ORIGINDEX));
     mr->e_origindex = static_cast<const int *>(CustomData_get_layer(&mr->me->edata, CD_ORIGINDEX));
     mr->p_origindex = static_cast<const int *>(CustomData_get_layer(&mr->me->pdata, CD_ORIGINDEX));
+
+    mr->material_indices = static_cast<const int *>(
+        CustomData_get_layer_named(&me->pdata, CD_PROP_INT32, "material_index"));
 
     mr->hide_vert = static_cast<const bool *>(
         CustomData_get_layer_named(&me->vdata, CD_PROP_BOOL, ".hide_vert"));

@@ -1931,7 +1931,7 @@ static int sequencer_meta_toggle_exec(bContext *C, wmOperator *UNUSED(op))
     SEQ_select_active_set(scene, meta_parent);
   }
 
-  // DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
@@ -2637,12 +2637,12 @@ static int sequencer_swap_data_exec(bContext *C, wmOperator *op)
   Sequence *seq_other;
   const char *error_msg;
 
-  if (SEQ_select_active_get_pair(scene, &seq_act, &seq_other) == 0) {
+  if (SEQ_select_active_get_pair(scene, &seq_act, &seq_other) == false) {
     BKE_report(op->reports, RPT_ERROR, "Please select two strips");
     return OPERATOR_CANCELLED;
   }
 
-  if (SEQ_edit_sequence_swap(scene, seq_act, seq_other, &error_msg) == 0) {
+  if (SEQ_edit_sequence_swap(scene, seq_act, seq_other, &error_msg) == false) {
     BKE_report(op->reports, RPT_ERROR, error_msg);
     return OPERATOR_CANCELLED;
   }
@@ -3076,7 +3076,7 @@ static int seq_cmp_time_startdisp_channel(void *thunk, const void *a, const void
   int seq_a_start = SEQ_time_left_handle_frame_get(scene, seq_a);
   int seq_b_start = SEQ_time_left_handle_frame_get(scene, seq_b);
 
-  /* If strips have the same start frame favor the one with a higher channel.*/
+  /* If strips have the same start frame favor the one with a higher channel. */
   if (seq_a_start == seq_b_start) {
     return seq_a->machine > seq_b->machine;
   }
@@ -3093,7 +3093,7 @@ static int sequencer_export_subtitles_invoke(bContext *C,
     char filepath[FILE_MAX];
 
     if (BKE_main_blendfile_path(bmain)[0] == '\0') {
-      BLI_strncpy(filepath, "untitled", sizeof(filepath));
+      BLI_strncpy(filepath, DATA_("untitled"), sizeof(filepath));
     }
     else {
       BLI_strncpy(filepath, BKE_main_blendfile_path(bmain), sizeof(filepath));

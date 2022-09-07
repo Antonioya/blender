@@ -71,16 +71,15 @@ set(SRC
   intern/draw_attributes.cc
   intern/draw_cache_impl_curve.cc
   intern/draw_cache_impl_curves.cc
-  intern/draw_cache_impl_displist.c
   intern/draw_cache_impl_gpencil.c
   intern/draw_cache_impl_lattice.c
   intern/draw_cache_impl_mesh.cc
-  intern/draw_cache_impl_metaball.c
   intern/draw_cache_impl_particles.c
   intern/draw_cache_impl_pointcloud.cc
   intern/draw_cache_impl_subdivision.cc
   intern/draw_cache_impl_volume.c
   intern/draw_color_management.cc
+  intern/draw_command.cc
   intern/draw_common.c
   intern/draw_curves.cc
   intern/draw_debug.cc
@@ -88,6 +87,7 @@ set(SRC
   intern/draw_hair.cc
   intern/draw_instance_data.c
   intern/draw_manager.c
+  intern/draw_manager.cc
   intern/draw_manager_data.c
   intern/draw_manager_exec.c
   intern/draw_manager_profiling.c
@@ -138,10 +138,10 @@ set(SRC
   engines/eevee_next/eevee_depth_of_field.cc
   engines/eevee_next/eevee_engine.cc
   engines/eevee_next/eevee_film.cc
+  engines/eevee_next/eevee_hizbuffer.cc
   engines/eevee_next/eevee_instance.cc
   engines/eevee_next/eevee_light.cc
   engines/eevee_next/eevee_material.cc
-  engines/eevee_next/eevee_hizbuffer.cc
   engines/eevee_next/eevee_motion_blur.cc
   engines/eevee_next/eevee_pipeline.cc
   engines/eevee_next/eevee_renderbuffers.cc
@@ -213,22 +213,31 @@ set(SRC
   intern/draw_cache_impl.h
   intern/draw_cache_inline.h
   intern/draw_color_management.h
+  intern/draw_command.hh
   intern/draw_common.h
   intern/draw_common_shader_shared.h
   intern/draw_curves_private.h
   intern/draw_debug.h
   intern/draw_debug.hh
   intern/draw_hair_private.h
+  intern/draw_handle.hh
   intern/draw_instance_data.h
   intern/draw_manager.h
+  intern/draw_manager.hh
   intern/draw_manager_profiling.h
   intern/draw_manager_testing.h
   intern/draw_manager_text.h
+  intern/draw_pass.hh
+  intern/draw_resource.cc
+  intern/draw_resource.hh
   intern/draw_shader.h
   intern/draw_shader_shared.h
+  intern/draw_state.h
   intern/draw_subdivision.h
   intern/draw_texture_pool.h
+  intern/draw_view.cc
   intern/draw_view.h
+  intern/draw_view.hh
   intern/draw_view_data.h
   intern/mesh_extractors/extract_mesh.hh
   intern/smaa_textures.h
@@ -239,7 +248,23 @@ set(SRC
   engines/eevee/eevee_lightcache.h
   engines/eevee/eevee_lut.h
   engines/eevee/eevee_private.h
+  engines/eevee_next/eevee_camera.hh
+  engines/eevee_next/eevee_depth_of_field.hh
   engines/eevee_next/eevee_engine.h
+  engines/eevee_next/eevee_film.hh
+  engines/eevee_next/eevee_hizbuffer.hh
+  engines/eevee_next/eevee_instance.hh
+  engines/eevee_next/eevee_light.hh
+  engines/eevee_next/eevee_material.hh
+  engines/eevee_next/eevee_motion_blur.hh
+  engines/eevee_next/eevee_pipeline.hh
+  engines/eevee_next/eevee_renderbuffers.hh
+  engines/eevee_next/eevee_sampling.hh
+  engines/eevee_next/eevee_shader.hh
+  engines/eevee_next/eevee_sync.hh
+  engines/eevee_next/eevee_velocity.hh
+  engines/eevee_next/eevee_view.hh
+  engines/eevee_next/eevee_world.hh
   engines/external/external_engine.h
   engines/image/image_batches.hh
   engines/image/image_buffer_cache.hh
@@ -482,13 +507,18 @@ set(GLSL_SRC
   intern/shaders/common_subdiv_vbo_sculpt_data_comp.glsl
   intern/shaders/common_view_clipping_lib.glsl
   intern/shaders/common_view_lib.glsl
+  intern/shaders/draw_command_generate_comp.glsl
   intern/shaders/draw_debug_draw_display_frag.glsl
   intern/shaders/draw_debug_draw_display_vert.glsl
   intern/shaders/draw_debug_info.hh
   intern/shaders/draw_debug_print_display_frag.glsl
   intern/shaders/draw_debug_print_display_vert.glsl
+  intern/shaders/draw_resource_finalize_comp.glsl
+  intern/shaders/draw_visibility_comp.glsl
 
+  intern/draw_command_shared.hh
   intern/draw_common_shader_shared.h
+  intern/draw_defines.h
   intern/draw_shader_shared.h
 
   engines/gpencil/shaders/gpencil_frag.glsl
@@ -693,6 +723,7 @@ add_dependencies(bf_draw bf_dna)
 if(WITH_GTESTS)
   if(WITH_OPENGL_DRAW_TESTS)
     set(TEST_SRC
+      tests/draw_pass_test.cc
       tests/draw_testing.cc
       tests/shaders_test.cc
 

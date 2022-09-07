@@ -2052,7 +2052,7 @@ static void direct_link_id_embedded_id(BlendDataReader *reader,
                           (ID *)*nodetree,
                           id_old != NULL ? (ID *)ntreeFromID(id_old) : NULL,
                           0);
-    ntreeBlendReadData(reader, *nodetree);
+    ntreeBlendReadData(reader, id, *nodetree);
   }
 
   if (GS(id->name) == ID_SCE) {
@@ -2064,7 +2064,7 @@ static void direct_link_id_embedded_id(BlendDataReader *reader,
                             &scene->master_collection->id,
                             id_old != NULL ? &((Scene *)id_old)->master_collection->id : NULL,
                             0);
-      BKE_collection_blend_read_data(reader, scene->master_collection);
+      BKE_collection_blend_read_data(reader, scene->master_collection, &scene->id);
     }
   }
 }
@@ -2630,9 +2630,6 @@ static void lib_link_workspace_layout_restore(struct IDNameLib_Map *id_map,
         }
         else if (sl->spacetype == SPACE_OUTLINER) {
           SpaceOutliner *space_outliner = (SpaceOutliner *)sl;
-
-          space_outliner->search_tse.id = restore_pointer_by_name(
-              id_map, space_outliner->search_tse.id, USER_IGNORE);
 
           if (space_outliner->treestore) {
             TreeStoreElem *tselem;

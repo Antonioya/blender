@@ -155,7 +155,7 @@ static void id_drop_copy(bContext *UNUSED(C), wmDrag *drag, wmDropBox *drop)
   ID *id = WM_drag_get_local_ID(drag, 0);
 
   /* copy drag path to properties */
-  char *text = RNA_path_full_ID_py(G_MAIN, id);
+  char *text = RNA_path_full_ID_py(id);
   RNA_string_set(drop->ptr, "text", text);
   MEM_freeN(text);
 }
@@ -257,7 +257,7 @@ static void console_main_region_listener(const wmRegionListenerParams *params)
 {
   ScrArea *area = params->area;
   ARegion *region = params->region;
-  wmNotifier *wmn = params->notifier;
+  const wmNotifier *wmn = params->notifier;
 
   /* context changes */
   switch (wmn->category) {

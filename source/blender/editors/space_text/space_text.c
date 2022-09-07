@@ -109,7 +109,7 @@ static SpaceLink *text_duplicate(SpaceLink *sl)
 static void text_listener(const wmSpaceTypeListenerParams *params)
 {
   ScrArea *area = params->area;
-  wmNotifier *wmn = params->notifier;
+  const wmNotifier *wmn = params->notifier;
   SpaceText *st = area->spacedata.first;
 
   /* context changes */
@@ -326,7 +326,7 @@ static void text_drop_paste(bContext *UNUSED(C), wmDrag *drag, wmDropBox *drop)
   ID *id = WM_drag_get_local_ID(drag, 0);
 
   /* copy drag path to properties */
-  text = RNA_path_full_ID_py(G_MAIN, id);
+  text = RNA_path_full_ID_py(id);
   RNA_string_set(drop->ptr, "text", text);
   MEM_freeN(text);
 }

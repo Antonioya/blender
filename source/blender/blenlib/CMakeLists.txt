@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright 2006 Blender Foundation. All rights reserved.
 
+if(HAVE_EXECINFO_H)
+  add_definitions(-DHAVE_EXECINFO_H)
+endif()
+
 set(INC
   .
   # ../blenkernel  # don't add this back!
@@ -279,6 +283,7 @@ set(SRC
   BLI_path_util.h
   BLI_polyfill_2d.h
   BLI_polyfill_2d_beautify.h
+  BLI_pool.hh
   BLI_probing_strategies.hh
   BLI_quadric.h
   BLI_rand.h
@@ -470,6 +475,7 @@ if(WITH_GTESTS)
     tests/BLI_multi_value_map_test.cc
     tests/BLI_path_util_test.cc
     tests/BLI_polyfill_2d_test.cc
+    tests/BLI_pool_test.cc
     tests/BLI_ressource_strings.h
     tests/BLI_serialize_test.cc
     tests/BLI_session_uuid_test.cc

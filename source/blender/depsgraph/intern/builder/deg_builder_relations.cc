@@ -1865,18 +1865,20 @@ void DepsgraphRelationBuilder::build_driver_id_property(ID *id, const char *rna_
   if (RNA_struct_is_a(ptr.type, &RNA_PoseBone)) {
     const bPoseChannel *pchan = static_cast<const bPoseChannel *>(ptr.data);
     id_property_key = OperationKey(
-        id, NodeType::BONE, pchan->name, OperationCode::ID_PROPERTY, prop_identifier);
+        ptr.owner_id, NodeType::BONE, pchan->name, OperationCode::ID_PROPERTY, prop_identifier);
     /* Create relation from the parameters component so that tagging armature for parameters update
      * properly propagates updates to all properties on bones and deeper (if needed). */
-    OperationKey parameters_init_key(id, NodeType::PARAMETERS, OperationCode::PARAMETERS_ENTRY);
+    OperationKey parameters_init_key(
+        ptr.owner_id, NodeType::PARAMETERS, OperationCode::PARAMETERS_ENTRY);
     add_relation(
         parameters_init_key, id_property_key, "Init -> ID Property", RELATION_CHECK_BEFORE_ADD);
   }
   else {
     id_property_key = OperationKey(
-        id, NodeType::PARAMETERS, OperationCode::ID_PROPERTY, prop_identifier);
+        ptr.owner_id, NodeType::PARAMETERS, OperationCode::ID_PROPERTY, prop_identifier);
   }
-  OperationKey parameters_exit_key(id, NodeType::PARAMETERS, OperationCode::PARAMETERS_EXIT);
+  OperationKey parameters_exit_key(
+      ptr.owner_id, NodeType::PARAMETERS, OperationCode::PARAMETERS_EXIT);
   add_relation(
       id_property_key, parameters_exit_key, "ID Property -> Done", RELATION_CHECK_BEFORE_ADD);
 }
@@ -2215,7 +2217,7 @@ void DepsgraphRelationBuilder::build_shapekeys(Key *key)
  * ==========================
  *
  * The evaluation of geometry on objects is as follows:
- * - The actual evaluated of the derived geometry (e.g. Mesh, DispList)
+ * - The actual evaluated of the derived geometry (e.g. #Mesh, #Curves, etc.)
  *   occurs in the Geometry component of the object which references this.
  *   This includes modifiers, and the temporary "ubereval" for geometry.
  *   Therefore, each user of a piece of shared geometry data ends up evaluating
