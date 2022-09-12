@@ -553,6 +553,11 @@ class MutableAttributeAccessor : public AttributeAccessor {
   GAttributeWriter lookup_for_write(const AttributeIDRef &attribute_id);
 
   /**
+   * Same as above, but returns a type that makes it easier to work with the attribute as a span.
+   */
+  GSpanAttributeWriter lookup_for_write_span(const AttributeIDRef &attribute_id);
+
+  /**
    * Get a writable attribute or non if it does not exist.
    * Make sure to call #finish after changes are done.
    */
@@ -566,6 +571,19 @@ class MutableAttributeAccessor : public AttributeAccessor {
       return {};
     }
     return attribute.typed<T>();
+  }
+
+  /**
+   * Same as above, but returns a type that makes it easier to work with the attribute as a span.
+   */
+  template<typename T>
+  SpanAttributeWriter<T> lookup_for_write_span(const AttributeIDRef &attribute_id)
+  {
+    AttributeWriter<T> attribute = this->lookup_for_write<T>(attribute_id);
+    if (attribute) {
+      return SpanAttributeWriter<T>{std::move(attribute), true};
+    }
+    return {};
   }
 
   /**
@@ -754,12 +772,6 @@ class CustomDataAttributes {
 
   bool foreach_attribute(const AttributeForeachCallback callback, eAttrDomain domain) const;
 };
-
-AttributeAccessor mesh_attributes(const Mesh &mesh);
-MutableAttributeAccessor mesh_attributes_for_write(Mesh &mesh);
-
-AttributeAccessor pointcloud_attributes(const PointCloud &pointcloud);
-MutableAttributeAccessor pointcloud_attributes_for_write(PointCloud &pointcloud);
 
 /* -------------------------------------------------------------------- */
 /** \name #AttributeIDRef Inline Methods

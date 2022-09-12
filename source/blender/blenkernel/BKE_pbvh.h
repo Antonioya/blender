@@ -389,7 +389,7 @@ const struct CCGKey *BKE_pbvh_get_grid_key(const PBVH *pbvh);
 
 struct CCGElem **BKE_pbvh_get_grids(const PBVH *pbvh);
 BLI_bitmap **BKE_pbvh_get_grid_visibility(const PBVH *pbvh);
-int BKE_pbvh_get_grid_num_vertices(const PBVH *pbvh);
+int BKE_pbvh_get_grid_num_verts(const PBVH *pbvh);
 int BKE_pbvh_get_grid_num_faces(const PBVH *pbvh);
 
 /**
@@ -673,6 +673,8 @@ struct MVert *BKE_pbvh_get_verts(const PBVH *pbvh);
 const float (*BKE_pbvh_get_vert_normals(const PBVH *pbvh))[3];
 const bool *BKE_pbvh_get_vert_hide(const PBVH *pbvh);
 bool *BKE_pbvh_get_vert_hide_for_write(PBVH *pbvh);
+
+const bool *BKE_pbvh_get_poly_hide(const PBVH *pbvh);
 
 PBVHColorBufferNode *BKE_pbvh_node_color_buffer_get(PBVHNode *node);
 void BKE_pbvh_node_color_buffer_free(PBVH *pbvh);
