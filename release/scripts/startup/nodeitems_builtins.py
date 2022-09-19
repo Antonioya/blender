@@ -128,6 +128,7 @@ def mesh_node_items(context):
     yield NodeItem("GeometryNodeInputMeshEdgeVertices")
     yield NodeItem("GeometryNodeInputMeshFaceArea")
     yield NodeItem("GeometryNodeInputMeshFaceNeighbors")
+    yield NodeItem("GeometryNodeMeshFaceSetBoundaries")
     yield NodeItem("GeometryNodeInputMeshFaceIsPlanar")
     yield NodeItem("GeometryNodeInputShadeSmooth")
     yield NodeItem("GeometryNodeInputMeshIsland")
@@ -424,6 +425,7 @@ shader_node_categories = [
         NodeItem("ShaderNodeTexWhiteNoise"),
     ]),
     ShaderNodeCategory("SH_NEW_OP_COLOR", "Color", items=[
+        NodeItem("ShaderNodeMix", label="Mix Color", settings={"data_type": "'RGBA'"}),
         NodeItem("ShaderNodeRGBCurve"),
         NodeItem("ShaderNodeInvert"),
         NodeItem("ShaderNodeLightFalloff"),
@@ -651,6 +653,7 @@ geometry_node_categories = [
         NodeItem("GeometryNodeStoreNamedAttribute"),
     ]),
     GeometryNodeCategory("GEO_COLOR", "Color", items=[
+        NodeItem("ShaderNodeMix", label="Mix Color", settings={"data_type": "'RGBA'"}),
         NodeItem("ShaderNodeRGBCurve"),
         NodeItem("ShaderNodeValToRGB"),
         NodeItem("FunctionNodeSeparateColor"),

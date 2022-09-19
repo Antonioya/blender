@@ -71,6 +71,7 @@
 #include "NOD_composite.h"
 #include "NOD_function.h"
 #include "NOD_geometry.h"
+#include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_shader.h"
 #include "NOD_socket.h"
@@ -131,7 +132,7 @@ static void ntree_copy_data(Main *UNUSED(bmain), ID *id_dst, const ID *id_src, c
   bNodeTree *ntree_dst = (bNodeTree *)id_dst;
   const bNodeTree *ntree_src = (const bNodeTree *)id_src;
 
-  /* We never handle usercount here for own data. */
+  /* We never handle user-count here for own data. */
   const int flag_subdata = flag | LIB_ID_CREATE_NO_USER_REFCOUNT;
 
   ntree_dst->runtime = MEM_new<bNodeTreeRuntime>(__func__);
@@ -4747,6 +4748,7 @@ static void registerGeometryNodes()
   register_node_type_geo_material_replace();
   register_node_type_geo_material_selection();
   register_node_type_geo_merge_by_distance();
+  register_node_type_geo_mesh_face_set_boundaries();
   register_node_type_geo_mesh_primitive_circle();
   register_node_type_geo_mesh_primitive_cone();
   register_node_type_geo_mesh_primitive_cube();

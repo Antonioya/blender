@@ -16,6 +16,10 @@
 
 struct Mesh;
 struct PointCloud;
+namespace blender::fn {
+class MultiFunction;
+class GField;
+}  // namespace blender::fn
 
 namespace blender::bke {
 
@@ -160,6 +164,27 @@ template<typename T> struct AttributeReader {
   {
     return this->varray;
   }
+};
+
+/**
+ * A utility to make sure attribute values are valid, for attributes like "material_index" which
+ * can only be positive, or attributes that represent enum options. This is usually only necessary
+ * when writing attributes from an untrusted/arbitrary user input.
+ */
+struct AttributeValidator {
+  /**
+   * Single input, single output function that corrects attribute values if necessary.
+   */
+  const fn::MultiFunction *function;
+
+  operator bool() const
+  {
+    return this->function != nullptr;
+  }
+  /**
+   * Return a field that creates corrected attribute values.
+   */
+  fn::GField validate_field_if_necessary(const fn::GField &field) const;
 };
 
 /**
@@ -343,7 +368,7 @@ struct AttributeAccessorFunctions {
                           eAttrDomain to_domain);
   bool (*for_all)(const void *owner,
                   FunctionRef<bool(const AttributeIDRef &, const AttributeMetaData &)> fn);
-
+  AttributeValidator (*lookup_validator)(const void *owner, const AttributeIDRef &attribute_id);
   GAttributeWriter (*lookup_for_write)(void *owner, const AttributeIDRef &attribute_id);
   bool (*remove)(void *owner, const AttributeIDRef &attribute_id);
   bool (*add)(void *owner,
@@ -495,6 +520,14 @@ class AttributeAccessor {
       return varray;
     }
     return VArray<T>::ForSingle(default_value, this->domain_size(domain));
+  }
+
+  /**
+   * Same as the generic version above, but should be used when the type is known at compile time.
+   */
+  AttributeValidator lookup_validator(const AttributeIDRef &attribute_id) const
+  {
+    return fn_->lookup_validator(owner_, attribute_id);
   }
 
   /**
@@ -709,6 +742,19 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     bke::MutableAttributeAccessor dst_attributes,
     eAttrDomainMask domain_mask,
     const Set<std::string> &skip = {});
+
+/**
+ * Copy attributes for the domain based on the elementwise mask.
+ *
+ * \param mask_indices: Indexed elements to copy from the source data-block.
+ * \param domain: Attribute domain to transfer.
+ * \param skip: Named attributes to ignore/skip.
+ */
+void copy_attribute_domain(AttributeAccessor src_attributes,
+                           MutableAttributeAccessor dst_attributes,
+                           IndexMask selection,
+                           eAttrDomain domain,
+                           const Set<std::string> &skip = {});
 
 bool allow_procedural_attribute_access(StringRef attribute_name);
 extern const char *no_procedural_access_message;
