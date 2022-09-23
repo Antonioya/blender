@@ -47,6 +47,7 @@
 
 #include "BKE_anim_data.h"
 #include "BKE_animsys.h"
+#include "BKE_asset.h"
 #include "BKE_bpath.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
@@ -54,6 +55,7 @@
 #include "BKE_global.h"
 #include "BKE_icons.h"
 #include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.h"
 #include "BKE_image_format.h"
 #include "BKE_lib_id.h"
@@ -1026,6 +1028,33 @@ static void ntree_blend_read_expand(BlendExpander *expander, ID *id)
   ntreeBlendReadExpand(expander, ntree);
 }
 
+namespace blender::bke {
+
+static void node_tree_asset_pre_save(void *asset_ptr, struct AssetMetaData *asset_data)
+{
+  bNodeTree &node_tree = *static_cast<bNodeTree *>(asset_ptr);
+
+  BKE_asset_metadata_idprop_ensure(asset_data, idprop::create("type", node_tree.type).release());
+  auto inputs = idprop::create_group("inputs");
+  auto outputs = idprop::create_group("outputs");
+  LISTBASE_FOREACH (const bNodeSocket *, socket, &node_tree.inputs) {
+    auto property = idprop::create(socket->name, socket->typeinfo->idname);
+    IDP_AddToGroup(inputs.get(), property.release());
+  }
+  LISTBASE_FOREACH (const bNodeSocket *, socket, &node_tree.outputs) {
+    auto property = idprop::create(socket->name, socket->typeinfo->idname);
+    IDP_AddToGroup(outputs.get(), property.release());
+  }
+  BKE_asset_metadata_idprop_ensure(asset_data, inputs.release());
+  BKE_asset_metadata_idprop_ensure(asset_data, outputs.release());
+}
+
+}  // namespace blender::bke
+
+static AssetTypeInfo AssetType_NT = {
+    /* pre_save_fn */ blender::bke::node_tree_asset_pre_save,
+};
+
 IDTypeInfo IDType_ID_NT = {
     /* id_code */ ID_NT,
     /* id_filter */ FILTER_ID_NT,
@@ -1035,7 +1064,7 @@ IDTypeInfo IDType_ID_NT = {
     /* name_plural */ "node_groups",
     /* translation_context */ BLT_I18NCONTEXT_ID_NODETREE,
     /* flags */ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /* asset_type_info */ nullptr,
+    /* asset_type_info */ &AssetType_NT,
 
     /* init_data */ ntree_init_data,
     /* copy_data */ ntree_copy_data,
@@ -2149,7 +2178,7 @@ bNode *nodeAddNode(const struct bContext *C, bNodeTree *ntree, const char *idnam
 
   BKE_ntree_update_tag_node_new(ntree, node);
 
-  if (node->type == GEO_NODE_INPUT_SCENE_TIME) {
+  if (ELEM(node->type, GEO_NODE_INPUT_SCENE_TIME, GEO_NODE_SELF_OBJECT)) {
     DEG_relations_tag_update(CTX_data_main(C));
   }
 
@@ -2992,7 +3021,7 @@ void nodeRemoveNode(Main *bmain, bNodeTree *ntree, bNode *node, bool do_id_user)
 
   /* Also update relations for the scene time node, which causes a dependency
    * on time that users expect to be removed when the node is removed. */
-  if (node_has_id || node->type == GEO_NODE_INPUT_SCENE_TIME) {
+  if (node_has_id || ELEM(node->type, GEO_NODE_INPUT_SCENE_TIME, GEO_NODE_SELF_OBJECT)) {
     if (bmain != nullptr) {
       DEG_relations_tag_update(bmain);
     }
@@ -4702,6 +4731,7 @@ static void registerGeometryNodes()
   register_node_type_geo_curve_trim();
   register_node_type_geo_deform_curves_on_surface();
   register_node_type_geo_delete_geometry();
+  register_node_type_geo_distribute_points_in_volume();
   register_node_type_geo_distribute_points_on_faces();
   register_node_type_geo_dual_mesh();
   register_node_type_geo_duplicate_elements();
@@ -4774,6 +4804,7 @@ static void registerGeometryNodes()
   register_node_type_geo_scale_instances();
   register_node_type_geo_separate_components();
   register_node_type_geo_separate_geometry();
+  register_node_type_geo_self_object();
   register_node_type_geo_set_curve_handles();
   register_node_type_geo_set_curve_radius();
   register_node_type_geo_set_curve_tilt();

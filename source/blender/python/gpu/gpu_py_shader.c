@@ -270,6 +270,7 @@ static PyObject *pygpu_shader_uniform_vector_float(BPyGPUShader *self, PyObject 
     return NULL;
   }
 
+  GPU_shader_bind(self->shader);
   GPU_shader_uniform_vector(self->shader, location, length, count, pybuffer.buf);
 
   PyBuffer_Release(&pybuffer);
@@ -292,6 +293,7 @@ static PyObject *pygpu_shader_uniform_vector_int(BPyGPUShader *self, PyObject *a
     return NULL;
   }
 
+  GPU_shader_bind(self->shader);
   GPU_shader_uniform_vector_int(self->shader, location, length, count, pybuffer.buf);
 
   PyBuffer_Release(&pybuffer);
@@ -300,14 +302,14 @@ static PyObject *pygpu_shader_uniform_vector_int(BPyGPUShader *self, PyObject *a
 }
 
 PyDoc_STRVAR(pygpu_shader_uniform_bool_doc,
-             ".. method:: uniform_bool(name, seq)\n"
+             ".. method:: uniform_bool(name, value)\n"
              "\n"
              "   Specify the value of a uniform variable for the current program object.\n"
              "\n"
              "   :arg name: Name of the uniform variable whose value is to be changed.\n"
              "   :type name: str\n"
-             "   :arg seq: Value that will be used to update the specified uniform variable.\n"
-             "   :type seq: sequence of bools\n");
+             "   :arg value: Value that will be used to update the specified uniform variable.\n"
+             "   :type value: bool or sequence of bools\n");
 static PyObject *pygpu_shader_uniform_bool(BPyGPUShader *self, PyObject *args)
 {
   const char *error_prefix = "GPUShader.uniform_bool";
@@ -323,15 +325,14 @@ static PyObject *pygpu_shader_uniform_bool(BPyGPUShader *self, PyObject *args)
 
   int values[4];
   int length;
-  int ret;
-  {
+  int ret = -1;
+  if (PySequence_Check(params.seq)) {
     PyObject *seq_fast = PySequence_Fast(params.seq, error_prefix);
     if (seq_fast == NULL) {
       PyErr_Format(PyExc_TypeError,
                    "%s: expected a sequence, got %s",
                    error_prefix,
                    Py_TYPE(params.seq)->tp_name);
-      ret = -1;
     }
     else {
       length = PySequence_Fast_GET_SIZE(seq_fast);
@@ -340,7 +341,6 @@ static PyObject *pygpu_shader_uniform_bool(BPyGPUShader *self, PyObject *args)
                      "%s: invalid sequence length. expected 1..4, got %d",
                      error_prefix,
                      length);
-        ret = -1;
       }
       else {
         ret = PyC_AsArray_FAST(
@@ -349,6 +349,15 @@ static PyObject *pygpu_shader_uniform_bool(BPyGPUShader *self, PyObject *args)
       Py_DECREF(seq_fast);
     }
   }
+  else if (((values[0] = (int)PyLong_AsLong(params.seq)) != -1) && ELEM(values[0], 0, 1)) {
+    length = 1;
+    ret = 0;
+  }
+  else {
+    PyErr_Format(
+        PyExc_ValueError, "expected a bool or sequence, got %s", Py_TYPE(params.seq)->tp_name);
+  }
+
   if (ret == -1) {
     return NULL;
   }
@@ -359,6 +368,7 @@ static PyObject *pygpu_shader_uniform_bool(BPyGPUShader *self, PyObject *args)
     return NULL;
   }
 
+  GPU_shader_bind(self->shader);
   GPU_shader_uniform_vector_int(self->shader, location, length, 1, values);
 
   Py_RETURN_NONE;
@@ -428,6 +438,7 @@ static PyObject *pygpu_shader_uniform_float(BPyGPUShader *self, PyObject *args)
     return NULL;
   }
 
+  GPU_shader_bind(self->shader);
   GPU_shader_uniform_vector(self->shader, location, length, 1, values);
 
   Py_RETURN_NONE;
@@ -499,6 +510,7 @@ static PyObject *pygpu_shader_uniform_int(BPyGPUShader *self, PyObject *args)
     return NULL;
   }
 
+  GPU_shader_bind(self->shader);
   GPU_shader_uniform_vector_int(self->shader, location, length, 1, values);
 
   Py_RETURN_NONE;
@@ -522,6 +534,7 @@ static PyObject *pygpu_shader_uniform_sampler(BPyGPUShader *self, PyObject *args
     return NULL;
   }
 
+  GPU_shader_bind(self->shader);
   int slot = GPU_shader_get_texture_binding(self->shader, name);
   GPU_texture_bind(py_texture->tex, slot);
   GPU_shader_uniform_1i(self->shader, name, slot);
@@ -556,6 +569,7 @@ static PyObject *pygpu_shader_uniform_block(BPyGPUShader *self, PyObject *args)
     return NULL;
   }
 
+  GPU_shader_bind(self->shader);
   GPU_uniformbuf_bind(py_ubo->ubo, binding);
 
   Py_RETURN_NONE;

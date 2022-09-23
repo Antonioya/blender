@@ -132,6 +132,9 @@ static CustomData &get_customdata(Mesh &mesh, const eAttrDomain domain)
   }
 }
 
+/**
+ * \note The result may be an empty span.
+ */
 static MutableSpan<int> get_orig_index_layer(Mesh &mesh, const eAttrDomain domain)
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
@@ -147,7 +150,6 @@ static MEdge new_edge(const int v1, const int v2)
   MEdge edge;
   edge.v1 = v1;
   edge.v2 = v2;
-  edge.crease = 0;
   edge.flag = (ME_EDGEDRAW | ME_EDGERENDER);
   return edge;
 }
@@ -157,7 +159,6 @@ static MEdge new_loose_edge(const int v1, const int v2)
   MEdge edge;
   edge.v1 = v1;
   edge.v2 = v2;
-  edge.crease = 0;
   edge.flag = ME_LOOSEEDGE;
   return edge;
 }
@@ -288,13 +289,15 @@ static void extrude_mesh_vertices(Mesh &mesh,
       for (const int i : range) {
         const float3 offset = offsets[selection[i]];
         add_v3_v3(new_verts[i].co, offset);
-        new_verts[i].flag = 0;
       }
     });
   });
 
   MutableSpan<int> vert_orig_indices = get_orig_index_layer(mesh, ATTR_DOMAIN_POINT);
   vert_orig_indices.slice(new_vert_range).fill(ORIGINDEX_NONE);
+
+  MutableSpan<int> new_edge_orig_indices = get_orig_index_layer(mesh, ATTR_DOMAIN_EDGE);
+  new_edge_orig_indices.slice(new_edge_range).fill(ORIGINDEX_NONE);
 
   if (attribute_outputs.top_id) {
     save_selection_as_attribute(
@@ -611,7 +614,6 @@ static void extrude_mesh_edges(Mesh &mesh,
     threading::parallel_for(new_verts.index_range(), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         add_v3_v3(new_verts[i].co, offset);
-        new_verts[i].flag = 0;
       }
     });
   }
@@ -619,7 +621,6 @@ static void extrude_mesh_edges(Mesh &mesh,
     threading::parallel_for(new_verts.index_range(), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         add_v3_v3(new_verts[i].co, vert_offsets[new_vert_indices[i]]);
-        new_verts[i].flag = 0;
       }
     });
   }
@@ -630,6 +631,9 @@ static void extrude_mesh_edges(Mesh &mesh,
   MutableSpan<int> edge_orig_indices = get_orig_index_layer(mesh, ATTR_DOMAIN_EDGE);
   edge_orig_indices.slice(connect_edge_range).fill(ORIGINDEX_NONE);
   edge_orig_indices.slice(duplicate_edge_range).fill(ORIGINDEX_NONE);
+
+  MutableSpan<int> poly_orig_indices = get_orig_index_layer(mesh, ATTR_DOMAIN_FACE);
+  poly_orig_indices.slice(new_poly_range).fill(ORIGINDEX_NONE);
 
   if (attribute_outputs.top_id) {
     save_selection_as_attribute(
@@ -1001,10 +1005,6 @@ static void extrude_mesh_face_regions(Mesh &mesh,
         });
   }
 
-  for (MVert &vert : verts.slice(new_vert_range)) {
-    vert.flag = 0;
-  }
-
   MutableSpan<int> vert_orig_indices = get_orig_index_layer(mesh, ATTR_DOMAIN_POINT);
   vert_orig_indices.slice(new_vert_range).fill(ORIGINDEX_NONE);
 
@@ -1262,7 +1262,6 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
       const IndexRange poly_corner_range = selected_corner_range(index_offsets, i_selection);
       for (MVert &vert : new_verts.slice(poly_corner_range)) {
         add_v3_v3(vert.co, poly_offset[poly_selection[i_selection]]);
-        vert.flag = 0;
       }
     }
   });

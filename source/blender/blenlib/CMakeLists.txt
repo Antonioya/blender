@@ -85,6 +85,7 @@ set(SRC
   intern/kdtree_3d.c
   intern/kdtree_4d.c
   intern/lasso_2d.c
+  intern/lazy_threading.cc
   intern/length_parameterize.cc
   intern/listbase.c
   intern/math_base.c
@@ -332,7 +333,6 @@ set(SRC
   BLI_uuid.h
   BLI_uvproject.h
   BLI_vector.hh
-  BLI_vector_adaptor.hh
   BLI_vector_set.hh
   BLI_vector_set_slots.hh
   BLI_virtual_array.hh
