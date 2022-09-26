@@ -215,7 +215,7 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
   }
 }
 
-unsigned int BLI_filelist_dir_contents(const char *dirname, struct direntry **r_filelist)
+uint BLI_filelist_dir_contents(const char *dirname, struct direntry **r_filelist)
 {
   struct BuildDirCtx dir_ctx;
 
@@ -395,9 +395,9 @@ void BLI_filelist_entry_duplicate(struct direntry *dst, const struct direntry *s
 
 void BLI_filelist_duplicate(struct direntry **dest_filelist,
                             struct direntry *const src_filelist,
-                            const unsigned int nrentries)
+                            const uint nrentries)
 {
-  unsigned int i;
+  uint i;
 
   *dest_filelist = MEM_mallocN(sizeof(**dest_filelist) * (size_t)(nrentries), __func__);
   for (i = 0; i < nrentries; i++) {
@@ -417,9 +417,9 @@ void BLI_filelist_entry_free(struct direntry *entry)
   }
 }
 
-void BLI_filelist_free(struct direntry *filelist, const unsigned int nrentries)
+void BLI_filelist_free(struct direntry *filelist, const uint nrentries)
 {
-  unsigned int i;
+  uint i;
   for (i = 0; i < nrentries; i++) {
     BLI_filelist_entry_free(&filelist[i]);
   }

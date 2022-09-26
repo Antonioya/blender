@@ -910,7 +910,7 @@ static wl_buffer *ghost_wl_buffer_create_for_image(struct wl_shm *shm,
         wl_shm_pool_destroy(pool);
         if (buffer) {
           *r_buffer_data = buffer_data;
-          *r_buffer_data_size = (size_t)buffer_size;
+          *r_buffer_data_size = size_t(buffer_size);
         }
         else {
           /* Highly unlikely. */
@@ -1991,7 +1991,7 @@ static void tablet_tool_handle_pressure(void *data,
                                         struct zwp_tablet_tool_v2 * /*zwp_tablet_tool_v2*/,
                                         const uint32_t pressure)
 {
-  const float pressure_unit = (float)pressure / 65535;
+  const float pressure_unit = float(pressure) / 65535;
   CLOG_INFO(LOG, 2, "pressure (%.4f)", pressure_unit);
 
   GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(data);
@@ -2012,8 +2012,8 @@ static void tablet_tool_handle_tilt(void *data,
 {
   /* Map degrees to `-1.0..1.0`. */
   const float tilt_unit[2] = {
-      (float)(wl_fixed_to_double(tilt_x) / 90.0),
-      (float)(wl_fixed_to_double(tilt_y) / 90.0),
+      float(wl_fixed_to_double(tilt_x) / 90.0),
+      float(wl_fixed_to_double(tilt_y) / 90.0),
   };
   CLOG_INFO(LOG, 2, "tilt (x=%.4f, y=%.4f)", UNPACK2(tilt_unit));
   GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(data);
@@ -3141,7 +3141,7 @@ bool GHOST_SystemWayland::processEvents(bool waitForEvent)
     wl_display_roundtrip(d->display);
   }
 
-  if ((getEventManager()->getNumEvents() > 0)) {
+  if (getEventManager()->getNumEvents() > 0) {
     any_processed = true;
   }
 
@@ -3219,7 +3219,7 @@ GHOST_TSuccess GHOST_SystemWayland::getButtons(GHOST_Buttons &buttons) const
 
 char *GHOST_SystemWayland::getClipboard(bool /*selection*/) const
 {
-  char *clipboard = static_cast<char *>(malloc((selection.size() + 1)));
+  char *clipboard = static_cast<char *>(malloc(selection.size() + 1));
   memcpy(clipboard, selection.data(), selection.size() + 1);
   return clipboard;
 }
@@ -3656,12 +3656,12 @@ static void cursor_visible_set(GWL_Seat *seat,
   if (set_mode == CURSOR_VISIBLE_ALWAYS_SET) {
     /* Pass. */
   }
-  else if ((set_mode == CURSOR_VISIBLE_ONLY_SHOW)) {
+  else if (set_mode == CURSOR_VISIBLE_ONLY_SHOW) {
     if (!use_visible) {
       return;
     }
   }
-  else if ((set_mode == CURSOR_VISIBLE_ONLY_HIDE)) {
+  else if (set_mode == CURSOR_VISIBLE_ONLY_HIDE) {
     if (use_visible) {
       return;
     }

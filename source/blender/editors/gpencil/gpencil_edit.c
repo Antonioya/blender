@@ -5221,7 +5221,9 @@ static int gpencil_stroke_separate_exec(bContext *C, wmOperator *op)
   for (int slot = 1; slot <= ob_dst->totcol; slot++) {
     while (slot <= ob_dst->totcol && !BKE_object_material_slot_used(ob_dst, slot)) {
       ob_dst->actcol = slot;
-      BKE_object_material_slot_remove(bmain, ob_dst);
+      if (!BKE_object_material_slot_remove(bmain, ob_dst)) {
+        break;
+      }
       if (actcol >= slot) {
         actcol--;
       }
@@ -5586,7 +5588,7 @@ static int gpencil_cutter_lasso_select(bContext *C,
 
   /* Select points */
   LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    if ((gpl->flag & GP_LAYER_LOCKED) || ((gpl->flag & GP_LAYER_HIDE))) {
+    if ((gpl->flag & GP_LAYER_LOCKED) || (gpl->flag & GP_LAYER_HIDE)) {
       continue;
     }
 
