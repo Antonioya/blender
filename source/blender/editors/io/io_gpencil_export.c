@@ -404,7 +404,7 @@ static void contact_sheet_pdf_load_files(bContext *C,
   int idx = 0;
   load_data->outpath[0] = '\0';
 
-  set_export_filepath(C, op, ".pdf");
+  ED_fileselect_ensure_default_filepath(C, op, ".pdf");
   if ((prop = RNA_struct_find_property(op->ptr, "filepath"))) {
     RNA_property_string_get(op->ptr, prop, load_data->outpath);
     if (!BLI_path_extension_check(load_data->outpath, ".pdf")) {
@@ -523,7 +523,7 @@ static int wm_contact_sheet_pdf_exec(bContext *C, wmOperator *op)
 static int wm_contact_sheet_pdf_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
   Scene *scene = CTX_data_scene(C);
-  set_export_filepath(C, op, ".pdf");
+  ED_fileselect_ensure_default_filepath(C, op, ".pdf");
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "title");
   if (!RNA_property_is_set(op->ptr, prop)) {
     RNA_string_set(op->ptr, "title", scene->id.name + 2);
