@@ -269,7 +269,7 @@ BMVert *EDBM_vert_find_nearest_ex(ViewContext *vc,
     uint index;
     BMVert *eve;
 
-    /* No afterqueue (yet), so we check it now, otherwise the bm_xxxofs indices are bad. */
+    /* No after-queue (yet), so we check it now, otherwise the bm_xxxofs indices are bad. */
     {
       DRW_select_buffer_context_create(bases, bases_len, SCE_SELECT_VERTEX);
 
@@ -373,7 +373,7 @@ static void find_nearest_edge_center__doZBuf(void *userData,
                                              BMEdge *eed,
                                              const float screen_co_a[2],
                                              const float screen_co_b[2],
-                                             int UNUSED(index))
+                                             int /*index*/)
 {
   NearestEdgeUserData_ZBuf *data = static_cast<NearestEdgeUserData_ZBuf *>(userData);
 
@@ -495,7 +495,7 @@ BMEdge *EDBM_edge_find_nearest_ex(ViewContext *vc,
     uint index;
     BMEdge *eed;
 
-    /* No afterqueue (yet), so we check it now, otherwise the bm_xxxofs indices are bad. */
+    /* No after-queue (yet), so we check it now, otherwise the bm_xxxofs indices are bad. */
     {
       DRW_select_buffer_context_create(bases, bases_len, SCE_SELECT_EDGE);
 
@@ -546,7 +546,7 @@ BMEdge *EDBM_edge_find_nearest_ex(ViewContext *vc,
     return nullptr;
   }
 
-  NearestEdgeUserData data = {{0}};
+  NearestEdgeUserData data = {{nullptr}};
   const NearestEdgeUserData_Hit *hit = nullptr;
   /* interpolate along the edge before doing a clipping plane test */
   const eV3DProjTest clip_flag = V3D_PROJ_TEST_CLIP_DEFAULT & ~V3D_PROJ_TEST_CLIP_BB;
@@ -628,7 +628,7 @@ struct NearestFaceUserData_ZBuf {
 static void find_nearest_face_center__doZBuf(void *userData,
                                              BMFace *efa,
                                              const float screen_co[2],
-                                             int UNUSED(index))
+                                             int /*index*/)
 {
   NearestFaceUserData_ZBuf *data = static_cast<NearestFaceUserData_ZBuf *>(userData);
 
@@ -877,7 +877,7 @@ static bool unified_findnearest(ViewContext *vc,
     } f, f_zbuf;
   } hit = {{nullptr}};
 
-  /* no afterqueue (yet), so we check it now, otherwise the em_xxxofs indices are bad */
+  /* No after-queue (yet), so we check it now, otherwise the em_xxxofs indices are bad. */
 
   if ((dist > 0.0f) && (em->selectmode & SCE_SELECT_FACE)) {
     float dist_center = 0.0f;
@@ -1378,8 +1378,8 @@ static int edbm_select_mode_invoke(bContext *C, wmOperator *op, const wmEvent *e
   return edbm_select_mode_exec(C, op);
 }
 
-static char *edbm_select_mode_get_description(bContext *UNUSED(C),
-                                              wmOperatorType *UNUSED(op),
+static char *edbm_select_mode_get_description(bContext * /*C*/,
+                                              wmOperatorType * /*op*/,
                                               PointerRNA *values)
 {
   const int type = RNA_enum_get(values, "type");
@@ -1414,9 +1414,9 @@ void MESH_OT_select_mode(wmOperatorType *ot)
   PropertyRNA *prop;
 
   static const EnumPropertyItem actions_items[] = {
-      {0, "DISABLE", 0, "Disable", "Disable selected markers"},
-      {1, "ENABLE", 0, "Enable", "Enable selected markers"},
-      {2, "TOGGLE", 0, "Toggle", "Toggle disabled flag for selected markers"},
+      {0, "DISABLE", false, "Disable", "Disable selected markers"},
+      {1, "ENABLE", false, "Enable", "Enable selected markers"},
+      {2, "TOGGLE", false, "Toggle", "Toggle disabled flag for selected markers"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1597,7 +1597,7 @@ void MESH_OT_loop_multi_select(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  RNA_def_boolean(ot->srna, "ring", 0, "Ring", "");
+  RNA_def_boolean(ot->srna, "ring", false, "Ring", "");
 }
 
 /** \} */
@@ -1678,8 +1678,8 @@ static bool mouse_mesh_loop(
   float mvalf[2];
 
   em_setup_viewcontext(C, &vc);
-  mvalf[0] = (float)(vc.mval[0] = mval[0]);
-  mvalf[1] = (float)(vc.mval[1] = mval[1]);
+  mvalf[0] = float(vc.mval[0] = mval[0]);
+  mvalf[1] = float(vc.mval[1] = mval[1]);
 
   BMEditMesh *em_original = vc.em;
   const short selectmode = em_original->selectmode;
@@ -1865,13 +1865,13 @@ void MESH_OT_loop_select(wmOperatorType *ot)
   /* properties */
   PropertyRNA *prop;
 
-  prop = RNA_def_boolean(ot->srna, "extend", 0, "Extend Select", "Extend the selection");
+  prop = RNA_def_boolean(ot->srna, "extend", false, "Extend Select", "Extend the selection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  prop = RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "Remove from the selection");
+  prop = RNA_def_boolean(ot->srna, "deselect", false, "Deselect", "Remove from the selection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  prop = RNA_def_boolean(ot->srna, "toggle", 0, "Toggle Select", "Toggle the selection");
+  prop = RNA_def_boolean(ot->srna, "toggle", false, "Toggle Select", "Toggle the selection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  prop = RNA_def_boolean(ot->srna, "ring", 0, "Select Ring", "Select ring");
+  prop = RNA_def_boolean(ot->srna, "ring", false, "Select Ring", "Select ring");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -1891,11 +1891,11 @@ void MESH_OT_edgering_select(wmOperatorType *ot)
 
   /* Properties. */
   PropertyRNA *prop;
-  prop = RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend the selection");
+  prop = RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  prop = RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "Remove from the selection");
+  prop = RNA_def_boolean(ot->srna, "deselect", false, "Deselect", "Remove from the selection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  prop = RNA_def_boolean(ot->srna, "toggle", 0, "Toggle Select", "Toggle the selection");
+  prop = RNA_def_boolean(ot->srna, "toggle", false, "Toggle Select", "Toggle the selection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_boolean(ot->srna, "ring", 1, "Select Ring", "Select ring");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
@@ -1976,7 +1976,7 @@ void MESH_OT_select_all(wmOperatorType *ot)
 /** \name Select Interior Faces Operator
  * \{ */
 
-static int edbm_faces_select_interior_exec(bContext *C, wmOperator *UNUSED(op))
+static int edbm_faces_select_interior_exec(bContext *C, wmOperator * /*op*/)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -2797,7 +2797,7 @@ struct BMFaceLink {
   float area;
 };
 
-static bool bm_interior_loop_filter_fn(const BMLoop *l, void *UNUSED(user_data))
+static bool bm_interior_loop_filter_fn(const BMLoop *l, void * /*user_data*/)
 {
   if (BM_elem_flag_test(l->e, BM_ELEM_TAG)) {
     return false;
@@ -3225,7 +3225,7 @@ static void select_linked_delimit_begin(BMesh *bm, int delimit)
     }
   }
 
-  /* grr, shouldn't need to alloc BMO flags here */
+  /* Shouldn't need to allocated BMO flags here (sigh). */
   BM_mesh_elem_toolflags_ensure(bm);
 
   {
@@ -3702,8 +3702,8 @@ static int edbm_select_linked_pick_exec(bContext *C, wmOperator *op)
     const Scene *scene = CTX_data_scene(C);
     ViewLayer *view_layer = CTX_data_view_layer(C);
     /* Intentionally wrap negative values so the lookup fails. */
-    const uint object_index = (uint)RNA_int_get(op->ptr, "object_index");
-    const uint index = (uint)RNA_int_get(op->ptr, "index");
+    const uint object_index = uint(RNA_int_get(op->ptr, "object_index"));
+    const uint index = uint(RNA_int_get(op->ptr, "index"));
     ele = EDBM_elem_from_index_any_multi(scene, view_layer, object_index, index, &obedit);
   }
 
@@ -3745,7 +3745,7 @@ void MESH_OT_select_linked_pick(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "");
+  RNA_def_boolean(ot->srna, "deselect", false, "Deselect", "");
   prop = RNA_def_enum_flag(ot->srna,
                            "delimit",
                            rna_enum_mesh_delimit_mode_items,
@@ -3830,10 +3830,10 @@ static int edbm_select_face_by_sides_exec(bContext *C, wmOperator *op)
 void MESH_OT_select_face_by_sides(wmOperatorType *ot)
 {
   static const EnumPropertyItem type_items[] = {
-      {0, "LESS", 0, "Less Than", ""},
-      {1, "EQUAL", 0, "Equal To", ""},
-      {2, "GREATER", 0, "Greater Than", ""},
-      {3, "NOTEQUAL", 0, "Not Equal To", ""},
+      {0, "LESS", false, "Less Than", ""},
+      {1, "EQUAL", false, "Equal To", ""},
+      {2, "GREATER", false, "Greater Than", ""},
+      {3, "NOTEQUAL", false, "Not Equal To", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -4023,7 +4023,7 @@ void MESH_OT_select_mirror(wmOperatorType *ot)
   /* props */
   RNA_def_enum_flag(ot->srna, "axis", rna_enum_axis_flag_xyz_items, (1 << 0), "Axis", "");
 
-  RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend the existing selection");
+  RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the existing selection");
 }
 
 /** \} */
@@ -4199,7 +4199,7 @@ static void walker_deselect_nth(BMEditMesh *em,
       break;
   }
 
-  /* grr, shouldn't need to alloc BMO flags here */
+  /* Shouldn't need to allocate BMO flags here (sigh). */
   BM_mesh_elem_toolflags_ensure(bm);
 
   /* Walker restrictions uses BMO flags, not header flags,
@@ -4218,7 +4218,7 @@ static void walker_deselect_nth(BMEditMesh *em,
            mask_vert,
            mask_edge,
            mask_face,
-           BMW_FLAG_NOP, /* don't use BMW_FLAG_TEST_HIDDEN here since we want to desel all */
+           BMW_FLAG_NOP, /* Don't use #BMW_FLAG_TEST_HIDDEN here since we want to deselect all. */
            BMW_NIL_LAY);
 
   /* use tag to avoid touching the same verts twice */
@@ -5012,9 +5012,9 @@ static int edbm_select_axis_exec(bContext *C, wmOperator *op)
 void MESH_OT_select_axis(wmOperatorType *ot)
 {
   static const EnumPropertyItem axis_sign_items[] = {
-      {SELECT_AXIS_POS, "POS", 0, "Positive Axis", ""},
-      {SELECT_AXIS_NEG, "NEG", 0, "Negative Axis", ""},
-      {SELECT_AXIS_ALIGN, "ALIGN", 0, "Aligned Axis", ""},
+      {SELECT_AXIS_POS, "POS", false, "Positive Axis", ""},
+      {SELECT_AXIS_NEG, "NEG", false, "Negative Axis", ""},
+      {SELECT_AXIS_ALIGN, "ALIGN", false, "Aligned Axis", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -5054,7 +5054,7 @@ void MESH_OT_select_axis(wmOperatorType *ot)
 /** \name Select Region to Loop Operator
  * \{ */
 
-static int edbm_region_to_loop_exec(bContext *C, wmOperator *UNUSED(op))
+static int edbm_region_to_loop_exec(bContext *C, wmOperator * /*op*/)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -5345,7 +5345,7 @@ void MESH_OT_loop_to_region(wmOperatorType *ot)
 
   RNA_def_boolean(ot->srna,
                   "select_bigger",
-                  0,
+                  false,
                   "Select Bigger",
                   "Select bigger regions instead of smaller ones");
 }
