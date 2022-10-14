@@ -695,7 +695,7 @@ static void drw_call_obinfos_init(DRWObjectInfos *ob_infos, Object *ob)
   drw_call_calc_orco(ob, ob_infos->orcotexfac);
   /* Random float value. */
   uint random = (DST.dupli_source) ?
-                    DST.dupli_source->random_id :
+                     DST.dupli_source->random_id :
                      /* TODO(fclem): this is rather costly to do at runtime. Maybe we can
                       * put it in ob->runtime and make depsgraph ensure it is up to date. */
                      BLI_hash_int_2d(BLI_hash_string(ob->id.name + 2), 0);
@@ -1347,7 +1347,7 @@ static void drw_sculpt_generate_calls(DRWSculptCallbackData *scd)
   }
 
   Mesh *mesh = static_cast<Mesh *>(scd->ob->data);
-  BKE_pbvh_update_normals(pbvh, mesh->runtime.subdiv_ccg);
+  BKE_pbvh_update_normals(pbvh, mesh->runtime->subdiv_ccg);
 
   BKE_pbvh_draw_cb(pbvh,
                    update_only_visible,
@@ -1839,6 +1839,13 @@ void DRW_shgroup_add_material_resources(DRWShadingGroup *grp, GPUMaterial *mater
     drw_shgroup_uniform_create_ex(
         grp, loc, DRW_UNIFORM_BLOCK_OBATTRS, uattrs, GPU_SAMPLER_DEFAULT, 0, 1);
     grp->uniform_attrs = uattrs;
+  }
+
+  if (GPU_material_layer_attributes(material) != NULL) {
+    int loc = GPU_shader_get_uniform_block_binding(grp->shader,
+                                                   GPU_LAYER_ATTRIBUTE_UBO_BLOCK_NAME);
+    drw_shgroup_uniform_create_ex(
+        grp, loc, DRW_UNIFORM_BLOCK_VLATTRS, nullptr, GPU_SAMPLER_DEFAULT, 0, 1);
   }
 }
 

@@ -77,7 +77,7 @@ set(SRC
   intern/draw_cache_impl_particles.c
   intern/draw_cache_impl_pointcloud.cc
   intern/draw_cache_impl_subdivision.cc
-  intern/draw_cache_impl_volume.c
+  intern/draw_cache_impl_volume.cc
   intern/draw_color_management.cc
   intern/draw_command.cc
   intern/draw_common.c
@@ -731,6 +731,21 @@ if(WITH_GTESTS)
   endif()
 endif()
 
+if(WITH_TBB)
+  add_definitions(-DWITH_TBB)
+  if(WIN32)
+    # TBB includes Windows.h which will define min/max macros
+    # that will collide with the stl versions.
+    add_definitions(-DNOMINMAX)
+  endif()
+  list(APPEND INC_SYS
+    ${TBB_INCLUDE_DIRS}
+  )
+
+  list(APPEND LIB
+    ${TBB_LIBRARIES}
+  )
+endif()
 
 blender_add_lib(bf_draw "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
@@ -756,3 +771,4 @@ if(WITH_GTESTS)
     blender_add_test_lib(bf_draw_tests "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
   endif()
 endif()
+
