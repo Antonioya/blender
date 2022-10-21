@@ -268,7 +268,7 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
 
     if(WITH_GHOST_WAYLAND_DYNLOAD)
       list(APPEND INC_SYS
-        ../../intern/wayland_dynload/extern
+        ../wayland_dynload/extern
       )
       list(APPEND LIB
         bf_intern_wayland_dynload
@@ -375,6 +375,10 @@ elseif(WITH_GHOST_X11 OR WITH_GHOST_WAYLAND)
     # Tablet.
     generate_protocol_bindings(
       "${WAYLAND_PROTOCOLS_DIR}/unstable/tablet/tablet-unstable-v2.xml"
+    )
+    # Primary-selection.
+    generate_protocol_bindings(
+      "${WAYLAND_PROTOCOLS_DIR}/unstable/primary-selection/primary-selection-unstable-v1.xml"
     )
 
     add_definitions(-DWITH_GHOST_WAYLAND)

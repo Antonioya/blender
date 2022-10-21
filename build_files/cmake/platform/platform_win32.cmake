@@ -358,7 +358,6 @@ if(WITH_OPENCOLLADA)
     optimized ${OPENCOLLADA}/lib/opencollada/OpenCOLLADAStreamWriter.lib
     optimized ${OPENCOLLADA}/lib/opencollada/MathMLSolver.lib
     optimized ${OPENCOLLADA}/lib/opencollada/GeneratedSaxParser.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/xml.lib
     optimized ${OPENCOLLADA}/lib/opencollada/buffer.lib
     optimized ${OPENCOLLADA}/lib/opencollada/ftoa.lib
 
@@ -368,10 +367,14 @@ if(WITH_OPENCOLLADA)
     debug ${OPENCOLLADA}/lib/opencollada/OpenCOLLADAStreamWriter_d.lib
     debug ${OPENCOLLADA}/lib/opencollada/MathMLSolver_d.lib
     debug ${OPENCOLLADA}/lib/opencollada/GeneratedSaxParser_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/xml_d.lib
     debug ${OPENCOLLADA}/lib/opencollada/buffer_d.lib
     debug ${OPENCOLLADA}/lib/opencollada/ftoa_d.lib
   )
+  if(EXISTS ${LIBDIR}/xml2/lib/libxml2s.lib) # 3.4 libraries
+    list(APPEND OPENCOLLADA_LIBRARIES ${LIBDIR}/xml2/lib/libxml2s.lib)
+  else()
+    list(APPEND OPENCOLLADA_LIBRARIES ${OPENCOLLADA}/lib/opencollada/xml.lib)
+  endif()
 
   list(APPEND OPENCOLLADA_LIBRARIES ${OPENCOLLADA}/lib/opencollada/UTF.lib)
 
@@ -679,11 +682,11 @@ endif()
 
 if(WITH_IMAGE_OPENJPEG)
   set(OPENJPEG ${LIBDIR}/openjpeg)
-  set(OPENJPEG_INCLUDE_DIRS ${OPENJPEG}/include/openjpeg-2.4)
+  set(OPENJPEG_INCLUDE_DIRS ${OPENJPEG}/include/openjpeg-2.5)
   if(NOT EXISTS "${OPENJPEG_INCLUDE_DIRS}")
-    # when not found, could be an older lib folder with openjpeg 2.3
-    # to ease the transition period, fall back if 2.4 is not found.
-    set(OPENJPEG_INCLUDE_DIRS ${OPENJPEG}/include/openjpeg-2.3)
+    # when not found, could be an older lib folder with openjpeg 2.4
+    # to ease the transition period, fall back if 2.5 is not found.
+    set(OPENJPEG_INCLUDE_DIRS ${OPENJPEG}/include/openjpeg-2.4)
   endif()
   set(OPENJPEG_LIBRARIES ${OPENJPEG}/lib/openjp2.lib)
 endif()
@@ -773,9 +776,11 @@ if(WITH_CYCLES AND WITH_CYCLES_OSL)
   find_library(OSL_LIB_EXEC NAMES oslexec PATHS ${CYCLES_OSL}/lib)
   find_library(OSL_LIB_COMP NAMES oslcomp PATHS ${CYCLES_OSL}/lib)
   find_library(OSL_LIB_QUERY NAMES oslquery PATHS ${CYCLES_OSL}/lib)
+  find_library(OSL_LIB_NOISE NAMES oslnoise PATHS ${CYCLES_OSL}/lib)
   find_library(OSL_LIB_EXEC_DEBUG NAMES oslexec_d PATHS ${CYCLES_OSL}/lib)
   find_library(OSL_LIB_COMP_DEBUG NAMES oslcomp_d PATHS ${CYCLES_OSL}/lib)
   find_library(OSL_LIB_QUERY_DEBUG NAMES oslquery_d PATHS ${CYCLES_OSL}/lib)
+  find_library(OSL_LIB_NOISE_DEBUG NAMES oslnoise_d PATHS ${CYCLES_OSL}/lib)
   list(APPEND OSL_LIBRARIES
     optimized ${OSL_LIB_COMP}
     optimized ${OSL_LIB_EXEC}
@@ -785,6 +790,12 @@ if(WITH_CYCLES AND WITH_CYCLES_OSL)
     debug ${OSL_LIB_QUERY_DEBUG}
     ${PUGIXML_LIBRARIES}
   )
+  if(OSL_LIB_NOISE)
+    list(APPEND OSL_LIBRARIES optimized ${OSL_LIB_NOISE})
+  endif()
+  if(OSL_LIB_NOISE_DEBUG)
+    list(APPEND OSL_LIBRARIES debug ${OSL_LIB_NOISE_DEBUG})
+  endif()
   find_path(OSL_INCLUDE_DIR OSL/oslclosure.h PATHS ${CYCLES_OSL}/include)
   find_program(OSL_COMPILER NAMES oslc PATHS ${CYCLES_OSL}/bin)
 
