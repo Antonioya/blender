@@ -336,11 +336,9 @@ if(APPLE)
 else()
   set(WITH_COREAUDIO OFF)
 endif()
-if(NOT WIN32)
+if(UNIX AND NOT APPLE)
   option(WITH_JACK          "Enable JACK Support (http://www.jackaudio.org)" ON)
-  if(UNIX AND NOT APPLE)
-    option(WITH_JACK_DYNLOAD  "Enable runtime dynamic JACK libraries loading" OFF)
-  endif()
+  option(WITH_JACK_DYNLOAD  "Enable runtime dynamic JACK libraries loading" OFF)
 else()
   set(WITH_JACK OFF)
 endif()
@@ -779,6 +777,8 @@ endif()
 # -----------------------------------------------------------------------------
 # Check for Conflicting/Unsupported Configurations
 
+option(WITH_STRICT_BUILD_OPTIONS "When requirements for a build option are not met, error instead of disabling the option" OFF)
+
 if(NOT WITH_BLENDER AND NOT WITH_CYCLES_STANDALONE AND NOT WITH_CYCLES_HYDRA_RENDER_DELEGATE)
   message(FATAL_ERROR
     "At least one of WITH_BLENDER or WITH_CYCLES_STANDALONE "
@@ -894,10 +894,7 @@ endif()
 
 if(WITH_BUILDINFO)
   find_package(Git)
-  if(NOT GIT_FOUND)
-    message(WARNING "Git was not found, disabling WITH_BUILDINFO")
-    set(WITH_BUILDINFO OFF)
-  endif()
+  set_and_warn_library_found("Git" GIT_FOUND WITH_BUILDINFO)
 endif()
 
 if(WITH_AUDASPACE)
@@ -937,9 +934,10 @@ if(WITH_INTERNATIONAL)
       WARNING
       "Translation path '${CMAKE_SOURCE_DIR}/release/datafiles/locale' is missing, "
       "This is a 'git submodule', which are known not to work with bridges to other version "
-      "control systems, disabling 'WITH_INTERNATIONAL'."
+      "control systems."
     )
-    set(WITH_INTERNATIONAL OFF)
+    set(TRANSLATIONS_FOUND OFF)
+    set_and_warn_library_found("Translations" TRANSLATIONS_FOUND WITH_INTERNATIONAL)
   endif()
 endif()
 
@@ -1244,6 +1242,8 @@ if(WITH_OPENMP)
     find_package(OpenMP)
   endif()
 
+  set_and_warn_library_found("OpenMP" OPENMP_FOUND WITH_OPENMP)
+
   if(OPENMP_FOUND)
     if(NOT WITH_OPENMP_STATIC)
       string(APPEND CMAKE_C_FLAGS " ${OpenMP_C_FLAGS}")
@@ -1259,9 +1259,6 @@ if(WITH_OPENMP)
 
       find_library_static(OpenMP_LIBRARIES gomp ${CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES})
     endif()
-  else()
-    message(STATUS "OpenMP not found, disabling WITH_OPENMP")
-    set(WITH_OPENMP OFF)
   endif()
 
   mark_as_advanced(
@@ -1276,10 +1273,7 @@ endif()
 
 if(WITH_BULLET AND WITH_SYSTEM_BULLET)
   find_package(Bullet)
-  if(NOT BULLET_FOUND)
-    message(STATUS "Bullet not found, disabling WITH_BULLET")
-    set(WITH_BULLET OFF)
-  endif()
+  set_and_warn_library_found("Bullet" BULLET_FOUND WITH_BULLET)
 else()
   set(BULLET_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/extern/bullet2/src")
   # set(BULLET_LIBRARIES "")

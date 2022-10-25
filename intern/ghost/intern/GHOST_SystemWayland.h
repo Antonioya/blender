@@ -23,6 +23,7 @@
 #  include <libdecor.h>
 #endif
 
+#include <mutex>
 #include <string>
 
 class GHOST_WindowWayland;
@@ -51,6 +52,8 @@ void ghost_wl_dynload_libraries_exit();
 #endif
 
 struct GWL_Output {
+  GHOST_SystemWayland *system = nullptr;
+
   struct wl_output *wl_output = nullptr;
   struct zxdg_output_v1 *xdg_output = nullptr;
   /** Dimensions in pixels. */
@@ -84,7 +87,8 @@ struct GWL_Output {
 
 class GHOST_SystemWayland : public GHOST_System {
  public:
-  GHOST_SystemWayland();
+  GHOST_SystemWayland(bool background);
+  GHOST_SystemWayland() : GHOST_SystemWayland(true){};
 
   ~GHOST_SystemWayland() override;
 
@@ -158,7 +162,8 @@ class GHOST_SystemWayland : public GHOST_System {
 
   struct wl_display *wl_display();
   struct wl_compositor *wl_compositor();
-  struct zwp_primary_selection_device_manager_v1 *wl_primary_selection_manager();
+  struct zwp_primary_selection_device_manager_v1 *wp_primary_selection_manager();
+  struct zwp_pointer_gestures_v1 *wp_pointer_gestures();
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   libdecor *libdecor_context();
@@ -185,6 +190,7 @@ class GHOST_SystemWayland : public GHOST_System {
                               int scale);
 
   struct GWL_SimpleBuffer *clipboard_data(bool selection) const;
+  struct std::mutex &clipboard_mutex() const;
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   static bool use_libdecor_runtime();
