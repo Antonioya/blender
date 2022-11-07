@@ -613,7 +613,7 @@ typedef struct bNodeTree {
   void (*progress)(void *, float progress);
   /** \warning may be called by different threads */
   void (*stats_draw)(void *, const char *str);
-  int (*test_break)(void *);
+  bool (*test_break)(void *);
   void (*update_draw)(void *);
   void *tbh, *prh, *sdh, *udh;
 
@@ -931,7 +931,7 @@ typedef struct NodeImageMultiFileSocket {
   char path[1024];
   ImageFormatData format;
 
-  /* multilayer output */
+  /* Multi-layer output. */
   /** EXR_TOT_MAXNAME-2 ('.' and channel char are appended). */
   char layer[30];
   char _pad2[2];
@@ -1273,7 +1273,7 @@ typedef struct CryptomatteLayer {
 typedef struct NodeCryptomatte_Runtime {
   /* Contains `CryptomatteLayer`. */
   ListBase layers;
-  /* Temp storage for the cryptomatte picker. */
+  /* Temp storage for the crypto-matte picker. */
   float add[3];
   float remove[3];
 } NodeCryptomatte_Runtime;
@@ -1497,6 +1497,10 @@ typedef struct NodeGeometryCurveToPoints {
 typedef struct NodeGeometryCurveSample {
   /* GeometryNodeCurveSampleMode. */
   uint8_t mode;
+  int8_t use_all_curves;
+  /* eCustomDataType. */
+  int8_t data_type;
+  char _pad[1];
 } NodeGeometryCurveSample;
 
 typedef struct NodeGeometryTransferAttribute {

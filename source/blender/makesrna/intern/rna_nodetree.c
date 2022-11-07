@@ -2425,21 +2425,13 @@ static bNodeSocket *rna_Node_inputs_new(ID *id,
                                         const char *name,
                                         const char *identifier)
 {
-
-  if (ELEM(node->type, NODE_GROUP_INPUT, NODE_FRAME)) {
-    BKE_report(reports, RPT_ERROR, "Unable to create socket");
+  if (node->type != NODE_CUSTOM) {
+    BKE_report(reports, RPT_ERROR, "Cannot add socket to built-in node");
     return NULL;
-  }
-  /* Adding an input to a group node is not working,
-   * simpler to add it to its underlying nodetree. */
-  if (ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP) && node->id != NULL) {
-    return rna_NodeTree_inputs_new((bNodeTree *)node->id, bmain, reports, type, name);
   }
 
   bNodeTree *ntree = (bNodeTree *)id;
-  bNodeSocket *sock;
-
-  sock = nodeAddSocket(ntree, node, SOCK_IN, type, identifier, name);
+  bNodeSocket *sock = nodeAddSocket(ntree, node, SOCK_IN, type, identifier, name);
 
   if (sock == NULL) {
     BKE_report(reports, RPT_ERROR, "Unable to create socket");
@@ -2460,20 +2452,13 @@ static bNodeSocket *rna_Node_outputs_new(ID *id,
                                          const char *name,
                                          const char *identifier)
 {
-  if (ELEM(node->type, NODE_GROUP_OUTPUT, NODE_FRAME)) {
-    BKE_report(reports, RPT_ERROR, "Unable to create socket");
+  if (node->type != NODE_CUSTOM) {
+    BKE_report(reports, RPT_ERROR, "Cannot add socket to built-in node");
     return NULL;
-  }
-  /* Adding an output to a group node is not working,
-   * simpler to add it to its underlying nodetree. */
-  if (ELEM(node->type, NODE_GROUP, NODE_CUSTOM_GROUP) && node->id != NULL) {
-    return rna_NodeTree_outputs_new((bNodeTree *)node->id, bmain, reports, type, name);
   }
 
   bNodeTree *ntree = (bNodeTree *)id;
-  bNodeSocket *sock;
-
-  sock = nodeAddSocket(ntree, node, SOCK_OUT, type, identifier, name);
+  bNodeSocket *sock = nodeAddSocket(ntree, node, SOCK_OUT, type, identifier, name);
 
   if (sock == NULL) {
     BKE_report(reports, RPT_ERROR, "Unable to create socket");
@@ -2489,6 +2474,11 @@ static bNodeSocket *rna_Node_outputs_new(ID *id,
 static void rna_Node_socket_remove(
     ID *id, bNode *node, Main *bmain, ReportList *reports, bNodeSocket *sock)
 {
+  if (node->type != NODE_CUSTOM) {
+    BKE_report(reports, RPT_ERROR, "Unable to remove socket from built-in node");
+    return;
+  }
+
   bNodeTree *ntree = (bNodeTree *)id;
 
   if (BLI_findindex(&node->inputs, sock) == -1 && BLI_findindex(&node->outputs, sock) == -1) {
@@ -2502,8 +2492,13 @@ static void rna_Node_socket_remove(
   }
 }
 
-static void rna_Node_inputs_clear(ID *id, bNode *node, Main *bmain)
+static void rna_Node_inputs_clear(ID *id, bNode *node, Main *bmain, ReportList *reports)
 {
+  if (node->type != NODE_CUSTOM) {
+    BKE_report(reports, RPT_ERROR, "Unable to remove sockets from built-in node");
+    return;
+  }
+
   bNodeTree *ntree = (bNodeTree *)id;
   bNodeSocket *sock, *nextsock;
 
@@ -2516,8 +2511,13 @@ static void rna_Node_inputs_clear(ID *id, bNode *node, Main *bmain)
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
-static void rna_Node_outputs_clear(ID *id, bNode *node, Main *bmain)
+static void rna_Node_outputs_clear(ID *id, bNode *node, Main *bmain, ReportList *reports)
 {
+  if (node->type != NODE_CUSTOM) {
+    BKE_report(reports, RPT_ERROR, "Unable to remove socket from built-in node");
+    return;
+  }
+
   bNodeTree *ntree = (bNodeTree *)id;
   bNodeSocket *sock, *nextsock;
 
@@ -2530,8 +2530,14 @@ static void rna_Node_outputs_clear(ID *id, bNode *node, Main *bmain)
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
-static void rna_Node_inputs_move(ID *id, bNode *node, Main *bmain, int from_index, int to_index)
+static void rna_Node_inputs_move(
+    ID *id, bNode *node, Main *bmain, ReportList *reports, int from_index, int to_index)
 {
+  if (node->type != NODE_CUSTOM) {
+    BKE_report(reports, RPT_ERROR, "Unable to move sockets in built-in node");
+    return;
+  }
+
   bNodeTree *ntree = (bNodeTree *)id;
   bNodeSocket *sock;
 
@@ -2562,8 +2568,14 @@ static void rna_Node_inputs_move(ID *id, bNode *node, Main *bmain, int from_inde
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
-static void rna_Node_outputs_move(ID *id, bNode *node, Main *bmain, int from_index, int to_index)
+static void rna_Node_outputs_move(
+    ID *id, bNode *node, Main *bmain, ReportList *reports, int from_index, int to_index)
 {
+  if (node->type != NODE_CUSTOM) {
+    BKE_report(reports, RPT_ERROR, "Unable to move sockets in built-in node");
+    return;
+  }
+
   bNodeTree *ntree = (bNodeTree *)id;
   bNodeSocket *sock;
 
@@ -4500,8 +4512,15 @@ static void rna_NodeConvertColorSpace_to_color_space_set(struct PointerRNA *ptr,
 }
 
 static const EnumPropertyItem *rna_NodeConvertColorSpace_color_space_itemf(
-    bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
+    bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
+#  if 0 /* FIXME: Causes blank drop-down, see T102316. */
+  if (C == NULL) {
+    return rna_enum_color_space_convert_default_items;
+  }
+#  else
+  UNUSED_VARS(C);
+#  endif
   EnumPropertyItem *items = NULL;
   int totitem = 0;
 
@@ -7035,11 +7054,11 @@ static void rna_def_cmp_output_file_slots_api(BlenderRNA *brna,
 
   func = RNA_def_function(srna, "clear", "rna_Node_inputs_clear");
   RNA_def_function_ui_description(func, "Remove all file slots from this node");
-  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN);
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_USE_REPORTS);
 
   func = RNA_def_function(srna, "move", "rna_Node_inputs_move");
   RNA_def_function_ui_description(func, "Move a file slot to another position");
-  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN);
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_USE_REPORTS);
   parm = RNA_def_int(
       func, "from_index", -1, 0, INT_MAX, "From Index", "Index of the socket to move", 0, 10000);
   RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
@@ -7323,19 +7342,9 @@ static void def_cmp_convert_color_space(StructRNA *srna)
   PropertyRNA *prop;
   RNA_def_struct_sdna_from(srna, "NodeConvertColorSpace", "storage");
 
-  static const EnumPropertyItem color_space_items[] = {
-      {0,
-       "NONE",
-       0,
-       "None",
-       "Do not perform any color transform on load, treat colors as in scene linear space "
-       "already"},
-      {0, NULL, 0, NULL, NULL},
-  };
-
   prop = RNA_def_property(srna, "from_color_space", PROP_ENUM, PROP_NONE);
   RNA_def_property_flag(prop, PROP_ENUM_NO_CONTEXT);
-  RNA_def_property_enum_items(prop, color_space_items);
+  RNA_def_property_enum_items(prop, rna_enum_color_space_convert_default_items);
   RNA_def_property_enum_funcs(prop,
                               "rna_NodeConvertColorSpace_from_color_space_get",
                               "rna_NodeConvertColorSpace_from_color_space_set",
@@ -7345,7 +7354,7 @@ static void def_cmp_convert_color_space(StructRNA *srna)
 
   prop = RNA_def_property(srna, "to_color_space", PROP_ENUM, PROP_NONE);
   RNA_def_property_flag(prop, PROP_ENUM_NO_CONTEXT);
-  RNA_def_property_enum_items(prop, color_space_items);
+  RNA_def_property_enum_items(prop, rna_enum_color_space_convert_default_items);
   RNA_def_property_enum_funcs(prop,
                               "rna_NodeConvertColorSpace_to_color_space_get",
                               "rna_NodeConvertColorSpace_to_color_space_set",
@@ -9442,9 +9451,25 @@ static void def_geo_curve_sample(StructRNA *srna)
 
   RNA_def_struct_sdna_from(srna, "NodeGeometryCurveSample", "storage");
 
-  PropertyRNA *prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  PropertyRNA *prop;
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, mode_items);
   RNA_def_property_ui_text(prop, "Mode", "Method for sampling input");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  prop = RNA_def_property(srna, "use_all_curves", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(prop,
+                           "All Curves",
+                           "Sample lengths based on the total lengh of all curves, rather than "
+                           "using a length inside each selected curve");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
+
+  prop = RNA_def_property(srna, "data_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_attribute_type_items);
+  RNA_def_property_enum_funcs(
+      prop, NULL, NULL, "rna_GeometryNodeAttributeType_type_with_socket_itemf");
+  RNA_def_property_enum_default(prop, CD_PROP_FLOAT);
+  RNA_def_property_ui_text(prop, "Data Type", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
 
@@ -12108,11 +12133,11 @@ static void rna_def_node_sockets_api(BlenderRNA *brna, PropertyRNA *cprop, int i
 
   func = RNA_def_function(srna, "clear", clearfunc);
   RNA_def_function_ui_description(func, "Remove all sockets from this node");
-  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN);
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_USE_REPORTS);
 
   func = RNA_def_function(srna, "move", movefunc);
   RNA_def_function_ui_description(func, "Move a socket to another position");
-  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN);
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_USE_REPORTS);
   parm = RNA_def_int(
       func, "from_index", -1, 0, INT_MAX, "From Index", "Index of the socket to move", 0, 10000);
   RNA_def_parameter_flags(parm, 0, PARM_REQUIRED);
