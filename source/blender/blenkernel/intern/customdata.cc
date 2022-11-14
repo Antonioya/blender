@@ -19,7 +19,6 @@
 
 #include "BLI_bitmap.h"
 #include "BLI_color.hh"
-#include "BLI_cpp_type_make.hh"
 #include "BLI_endian_switch.h"
 #include "BLI_index_range.hh"
 #include "BLI_math.h"
@@ -2799,8 +2798,11 @@ static CustomDataLayer *customData_add_layer__internal(CustomData *data,
   const LayerTypeInfo *typeInfo = layerType_getInfo(type);
   int flag = 0;
 
+  /* Some layer types only support a single layer. */
   if (!typeInfo->defaultname && CustomData_has_layer(data, type)) {
-    MEM_SAFE_FREE(layerdata);
+    /* This function doesn't support dealing with existing layer data for these layer types when
+     * the layer already exists. */
+    BLI_assert(layerdata == nullptr);
     return &data->layers[CustomData_get_layer_index(data, type)];
   }
 
@@ -5404,5 +5406,3 @@ size_t CustomData_get_elem_size(CustomDataLayer *layer)
 {
   return LAYERTYPEINFO[layer->type].size;
 }
-
-BLI_CPP_TYPE_MAKE(MStringProperty, MStringProperty, CPPTypeFlags::None);
