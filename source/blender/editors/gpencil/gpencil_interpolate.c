@@ -416,13 +416,14 @@ static bGPDframe *gpencil_get_previous_keyframe(bGPDlayer *gpl,
                                                 int cfra,
                                                 const bool use_breakdowns)
 {
-  if (gpl->actframe != NULL && gpl->actframe->framenum < cfra &&
-      gpl->actframe->key_type != BEZT_KEYTYPE_BREAKDOWN) {
-    return gpl->actframe;
+  if (gpl->actframe != NULL && gpl->actframe->framenum < cfra) {
+    if ((use_breakdowns) || (gpl->actframe->key_type != BEZT_KEYTYPE_BREAKDOWN)) {
+      return gpl->actframe;
+    }
   }
 
   LISTBASE_FOREACH_BACKWARD (bGPDframe *, gpf, &gpl->frames) {
-    if (gpf->key_type == BEZT_KEYTYPE_BREAKDOWN) {
+    if ((!use_breakdowns) && (gpf->key_type == BEZT_KEYTYPE_BREAKDOWN)) {
       continue;
     }
     if (gpf->framenum >= cfra) {
@@ -438,7 +439,7 @@ static bGPDframe *gpencil_get_previous_keyframe(bGPDlayer *gpl,
 static bGPDframe *gpencil_get_next_keyframe(bGPDlayer *gpl, int cfra, const bool use_breakdowns)
 {
   LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
-    if (gpf->key_type == BEZT_KEYTYPE_BREAKDOWN) {
+    if ((!use_breakdowns) && (gpf->key_type == BEZT_KEYTYPE_BREAKDOWN)) {
       continue;
     }
     if (gpf->framenum <= cfra) {
