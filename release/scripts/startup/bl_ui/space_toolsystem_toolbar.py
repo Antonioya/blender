@@ -2256,6 +2256,7 @@ class _defs_gpencil_edit:
             props = tool.operator_properties("gpencil.interpolate")
             layout.prop(props, "layers")
             layout.prop(props, "interpolate_selected_only")
+            layout.prop(props, "use_breakdowns")
             layout.prop(props, "flip")
             layout.prop(props, "smooth_factor")
             layout.prop(props, "smooth_steps")
