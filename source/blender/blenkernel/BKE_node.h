@@ -861,7 +861,6 @@ void nodeSocketDeclarationsUpdate(struct bNode *node);
 /**
  * Node Clipboard.
  */
-void BKE_node_clipboard_init(const struct bNodeTree *ntree);
 void BKE_node_clipboard_clear(void);
 void BKE_node_clipboard_free(void);
 /**
@@ -872,7 +871,6 @@ void BKE_node_clipboard_add_node(struct bNode *node);
 void BKE_node_clipboard_add_link(struct bNodeLink *link);
 const struct ListBase *BKE_node_clipboard_get_nodes(void);
 const struct ListBase *BKE_node_clipboard_get_links(void);
-int BKE_node_clipboard_get_type(void);
 
 /**
  * Node Instance Hash.
@@ -1546,6 +1544,7 @@ struct TexResult;
 #define GEO_NODE_MESH_TOPOLOGY_VERTEX_OF_CORNER 1186
 #define GEO_NODE_SAMPLE_UV_SURFACE 1187
 #define GEO_NODE_SET_CURVE_NORMAL 1188
+#define GEO_NODE_IMAGE_INFO 1189
 
 /** \} */
 

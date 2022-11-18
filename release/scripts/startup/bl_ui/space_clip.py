@@ -168,8 +168,9 @@ class CLIP_HT_header(Header):
                 r = active_object.reconstruction
 
                 if r.is_valid and sc.view == 'CLIP':
-                    layout.label(text="Solve error: %.2f px" %
-                                 (r.average_error))
+                    layout.label(text=iface_("Solve error: %.2f px") %
+                                 (r.average_error),
+                                 translate=False)
 
                 row = layout.row()
                 row.prop(sc, "pivot_point", text="", icon_only=True)
@@ -259,6 +260,7 @@ class CLIP_HT_header(Header):
         sub = row.row(align=True)
         sub.active = sc.show_gizmo
         sub.popover(panel="CLIP_PT_gizmo_display", text="")
+
 
 class CLIP_MT_tracking_editor_menus(Menu):
     bl_idname = "CLIP_MT_tracking_editor_menus"
@@ -743,8 +745,8 @@ class CLIP_PT_track(CLIP_PT_tracking_panel, Panel):
         layout.prop(act_track, "weight_stab")
 
         if act_track.has_bundle:
-            label_text = "Average Error: %.2f px" % (act_track.average_error)
-            layout.label(text=label_text)
+            label_text = iface_("Average Error: %.2f px") % (act_track.average_error)
+            layout.label(text=label_text, translate=False)
 
         layout.use_property_split = False
 
@@ -1902,6 +1904,7 @@ class CLIP_MT_view_pie(Menu):
             pie.operator("clip.graph_view_all")
             pie.separator()
             pie.operator("clip.graph_center_current_frame")
+
 
 class CLIP_PT_gizmo_display(Panel):
     bl_space_type = 'CLIP_EDITOR'
