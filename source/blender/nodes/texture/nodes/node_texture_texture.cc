@@ -38,7 +38,7 @@ static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, shor
     zero_v3(dyt);
   }
 
-  if (node->custom2 || node->need_exec == 0) {
+  if (node->custom2 || node->runtime->need_exec == 0) {
     /* this node refers to its own texture tree! */
     copy_v4_v4(out, (fabsf(co[0] - co[1]) < 0.01f) ? white : red);
   }
@@ -50,7 +50,8 @@ static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, shor
     tex_input_rgba(col1, in[0], p, thread);
     tex_input_rgba(col2, in[1], p, thread);
 
-    textype = multitex_nodes(nodetex, co, dxt, dyt, p->osatex, &texres, thread, 0, p->mtex, NULL);
+    textype = multitex_nodes(
+        nodetex, co, dxt, dyt, p->osatex, &texres, thread, 0, p->mtex, nullptr);
 
     if (textype & TEX_RGB) {
       copy_v4_v4(out, texres.trgba);

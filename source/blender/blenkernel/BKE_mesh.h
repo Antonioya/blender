@@ -70,6 +70,8 @@ void BKE_mesh_tag_coords_changed(struct Mesh *mesh);
  */
 void BKE_mesh_tag_coords_changed_uniformly(struct Mesh *mesh);
 
+void BKE_mesh_tag_topology_changed(struct Mesh *mesh);
+
 /* *** mesh.c *** */
 
 struct BMesh *BKE_mesh_to_bmesh_ex(const struct Mesh *me,
@@ -430,6 +432,15 @@ bool BKE_mesh_vertex_normals_are_dirty(const struct Mesh *mesh);
  */
 bool BKE_mesh_poly_normals_are_dirty(const struct Mesh *mesh);
 
+void BKE_mesh_calc_poly_normal(const struct MPoly *mpoly,
+                               const struct MLoop *loopstart,
+                               const struct MVert *mvarray,
+                               float r_no[3]);
+void BKE_mesh_calc_poly_normal_coords(const struct MPoly *mpoly,
+                                      const struct MLoop *loopstart,
+                                      const float (*vertex_coords)[3],
+                                      float r_no[3]);
+
 /**
  * Calculate face normals directly into a result array.
  *
@@ -586,10 +597,10 @@ void BKE_lnor_space_add_loop(MLoopNorSpaceArray *lnors_spacearr,
                              int ml_index,
                              void *bm_loop,
                              bool is_single);
-void BKE_lnor_space_custom_data_to_normal(MLoopNorSpace *lnor_space,
+void BKE_lnor_space_custom_data_to_normal(const MLoopNorSpace *lnor_space,
                                           const short clnor_data[2],
                                           float r_custom_lnor[3]);
-void BKE_lnor_space_custom_normal_to_data(MLoopNorSpace *lnor_space,
+void BKE_lnor_space_custom_normal_to_data(const MLoopNorSpace *lnor_space,
                                           const float custom_lnor[3],
                                           short r_clnor_data[2]);
 
@@ -692,14 +703,6 @@ void BKE_mesh_set_custom_normals_from_verts(struct Mesh *mesh, float (*r_custom_
 
 /* *** mesh_evaluate.cc *** */
 
-void BKE_mesh_calc_poly_normal(const struct MPoly *mpoly,
-                               const struct MLoop *loopstart,
-                               const struct MVert *mvarray,
-                               float r_no[3]);
-void BKE_mesh_calc_poly_normal_coords(const struct MPoly *mpoly,
-                                      const struct MLoop *loopstart,
-                                      const float (*vertex_coords)[3],
-                                      float r_no[3]);
 void BKE_mesh_calc_poly_center(const struct MPoly *mpoly,
                                const struct MLoop *loopstart,
                                const struct MVert *mvarray,
@@ -943,7 +946,6 @@ void BKE_mesh_strip_loose_faces(struct Mesh *me);
 void BKE_mesh_strip_loose_polysloops(struct Mesh *me);
 void BKE_mesh_strip_loose_edges(struct Mesh *me);
 
-void BKE_mesh_calc_edges_loose(struct Mesh *mesh);
 /**
  * Calculate edges from polygons.
  */
