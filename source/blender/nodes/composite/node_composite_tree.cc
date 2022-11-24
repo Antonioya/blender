@@ -18,6 +18,7 @@
 #include "BKE_image.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.h"
 #include "BKE_tracking.h"
 
@@ -64,8 +65,8 @@ static void foreach_nodeclass(Scene * /*scene*/, void *calldata, bNodeClassCallb
 static void free_node_cache(bNodeTree * /*ntree*/, bNode *node)
 {
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-    if (sock->cache) {
-      sock->cache = nullptr;
+    if (sock->runtime->cache) {
+      sock->runtime->cache = nullptr;
     }
   }
 }
@@ -139,8 +140,8 @@ static void local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree)
 
       for (lsock = (bNodeSocket *)lnode->outputs.first; lsock; lsock = lsock->next) {
         if (bNodeSocket *orig_socket = nodeFindSocket(orig_node, SOCK_OUT, lsock->identifier)) {
-          orig_socket->cache = lsock->cache;
-          lsock->cache = nullptr;
+          orig_socket->runtime->cache = lsock->runtime->cache;
+          lsock->runtime->cache = nullptr;
           orig_socket = nullptr;
         }
       }

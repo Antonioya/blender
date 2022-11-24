@@ -49,10 +49,10 @@ static void texture_get_from_context(const bContext *C,
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  Tex *tx = NULL;
+  Tex *tx = nullptr;
 
   if (snode->texfrom == SNODE_TEX_BRUSH) {
-    struct Brush *brush = NULL;
+    struct Brush *brush = nullptr;
 
     if (ob && (ob->mode & OB_MODE_SCULPT)) {
       brush = BKE_paint_brush(&scene->toolsettings->sculpt->paint);
@@ -188,8 +188,8 @@ void ntreeReleaseThreadStack(bNodeThreadStack *nts)
 
 bool ntreeExecThreadNodes(bNodeTreeExec *exec, bNodeThreadStack *nts, void *callerdata, int thread)
 {
-  bNodeStack *nsin[MAX_SOCKET] = {NULL};  /* arbitrary... watch this */
-  bNodeStack *nsout[MAX_SOCKET] = {NULL}; /* arbitrary... watch this */
+  bNodeStack *nsin[MAX_SOCKET] = {nullptr};  /* arbitrary... watch this */
+  bNodeStack *nsout[MAX_SOCKET] = {nullptr}; /* arbitrary... watch this */
   bNodeExec *nodeexec;
   bNode *node;
   int n;
@@ -242,8 +242,8 @@ bNodeTreeExec *ntreeTexBeginExecTree(bNodeTree *ntree)
   /* XXX hack: prevent exec data from being generated twice.
    * this should be handled by the renderer!
    */
-  if (ntree->execdata) {
-    return ntree->execdata;
+  if (ntree->runtime->execdata) {
+    return ntree->runtime->execdata;
   }
 
   context.previews = ntree->previews;
@@ -253,7 +253,7 @@ bNodeTreeExec *ntreeTexBeginExecTree(bNodeTree *ntree)
   /* XXX this should not be necessary, but is still used for compositor/shading/texture nodes,
    * which only store the ntree pointer. Should be fixed at some point!
    */
-  ntree->execdata = exec;
+  ntree->runtime->execdata = exec;
 
   return exec;
 }
@@ -296,7 +296,7 @@ void ntreeTexEndExecTree_internal(bNodeTreeExec *exec)
     }
 
     MEM_freeN(exec->threadstack);
-    exec->threadstack = NULL;
+    exec->threadstack = nullptr;
   }
 
   ntree_exec_end(exec);
@@ -311,7 +311,7 @@ void ntreeTexEndExecTree(bNodeTreeExec *exec)
 
     /* XXX: clear node-tree back-pointer to exec data,
      * same problem as noted in #ntreeBeginExecTree. */
-    ntree->execdata = NULL;
+    ntree->runtime->execdata = nullptr;
   }
 }
 
@@ -330,8 +330,8 @@ int ntreeTexExecTree(bNodeTree *ntree,
 {
   TexCallData data;
   int retval = TEX_INT;
-  bNodeThreadStack *nts = NULL;
-  bNodeTreeExec *exec = ntree->execdata;
+  bNodeThreadStack *nts = nullptr;
+  bNodeTreeExec *exec = ntree->runtime->execdata;
 
   data.co = co;
   data.dxt = dxt;
@@ -348,12 +348,12 @@ int ntreeTexExecTree(bNodeTree *ntree,
   /* ensure execdata is only initialized once */
   if (!exec) {
     BLI_thread_lock(LOCK_NODES);
-    if (!ntree->execdata) {
+    if (!ntree->runtime->execdata) {
       ntreeTexBeginExecTree(ntree);
     }
     BLI_thread_unlock(LOCK_NODES);
 
-    exec = ntree->execdata;
+    exec = ntree->runtime->execdata;
   }
 
   nts = ntreeGetThreadStack(exec, thread);

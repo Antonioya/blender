@@ -654,7 +654,7 @@ Span<float3> CurvesGeometry::evaluated_positions() const
           case CURVE_TYPE_NURBS: {
             curves::nurbs::interpolate_to_evaluated(this->runtime->nurbs_basis_cache[curve_index],
                                                     nurbs_orders[curve_index],
-                                                    nurbs_weights.slice(points),
+                                                    nurbs_weights.slice_safe(points),
                                                     positions.slice(points),
                                                     evaluated_positions.slice(evaluated_points));
             break;
@@ -812,7 +812,7 @@ void CurvesGeometry::interpolate_to_evaluated(const int curve_index,
     case CURVE_TYPE_NURBS:
       curves::nurbs::interpolate_to_evaluated(this->runtime->nurbs_basis_cache[curve_index],
                                               this->nurbs_orders()[curve_index],
-                                              this->nurbs_weights().slice(points),
+                                              this->nurbs_weights().slice_safe(points),
                                               src,
                                               dst);
       return;
@@ -853,7 +853,7 @@ void CurvesGeometry::interpolate_to_evaluated(const GSpan src, GMutableSpan dst)
         case CURVE_TYPE_NURBS:
           curves::nurbs::interpolate_to_evaluated(this->runtime->nurbs_basis_cache[curve_index],
                                                   nurbs_orders[curve_index],
-                                                  nurbs_weights.slice(points),
+                                                  nurbs_weights.slice_safe(points),
                                                   src.slice(points),
                                                   dst.slice(evaluated_points));
           continue;
@@ -956,13 +956,13 @@ static void transform_positions(MutableSpan<float3> positions, const float4x4 &m
 
 void CurvesGeometry::calculate_bezier_auto_handles()
 {
-  const VArray<int8_t> types = this->curve_types();
-  if (types.is_single() && types.get_internal_single() != CURVE_TYPE_BEZIER) {
+  if (!this->has_curve_with_type(CURVE_TYPE_BEZIER)) {
     return;
   }
   if (this->handle_positions_left().is_empty() || this->handle_positions_right().is_empty()) {
     return;
   }
+  const VArray<int8_t> types = this->curve_types();
   const VArray<bool> cyclic = this->cyclic();
   const VArraySpan<int8_t> types_left{this->handle_types_left()};
   const VArraySpan<int8_t> types_right{this->handle_types_right()};
@@ -1020,6 +1020,7 @@ bool CurvesGeometry::bounds_min_max(float3 &min, float3 &max) const
     if (this->attributes().contains("radius")) {
       const VArraySpan<float> radii = this->attributes().lookup<float>("radius");
       Array<float> evaluated_radii(this->evaluated_points_num());
+      this->ensure_can_interpolate_to_evaluated();
       this->interpolate_to_evaluated(radii, evaluated_radii.as_mutable_span());
       r_bounds = *bounds::min_max_with_radii(positions, evaluated_radii.as_span());
     }
