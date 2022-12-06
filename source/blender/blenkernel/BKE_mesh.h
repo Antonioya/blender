@@ -132,7 +132,8 @@ int BKE_mesh_edge_other_vert(const struct MEdge *e, int v);
 /**
  * Sets each output array element to the edge index if it is a real edge, or -1.
  */
-void BKE_mesh_looptri_get_real_edges(const struct Mesh *mesh,
+void BKE_mesh_looptri_get_real_edges(const struct MEdge *edges,
+                                     const struct MLoop *loops,
                                      const struct MLoopTri *looptri,
                                      int r_edges[3]);
 
@@ -1119,6 +1120,18 @@ inline blender::Span<MDeformVert> Mesh::deform_verts() const
 inline blender::MutableSpan<MDeformVert> Mesh::deform_verts_for_write()
 {
   return {BKE_mesh_deform_verts_for_write(this), this->totvert};
+}
+
+inline blender::Span<blender::float3> Mesh::poly_normals() const
+{
+  return {reinterpret_cast<const blender::float3 *>(BKE_mesh_poly_normals_ensure(this)),
+          this->totpoly};
+}
+
+inline blender::Span<blender::float3> Mesh::vertex_normals() const
+{
+  return {reinterpret_cast<const blender::float3 *>(BKE_mesh_vertex_normals_ensure(this)),
+          this->totvert};
 }
 
 #endif

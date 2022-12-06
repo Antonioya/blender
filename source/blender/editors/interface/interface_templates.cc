@@ -401,7 +401,7 @@ static bool id_search_add(const bContext *C, TemplateID *template_ui, uiSearchIt
                           name_ui,
                           id,
                           iconid,
-                          has_sep_char ? UI_BUT_HAS_SEP_CHAR : 0,
+                          has_sep_char ? int(UI_BUT_HAS_SEP_CHAR) : 0,
                           name_prefix_offset)) {
     return false;
   }
@@ -516,7 +516,7 @@ static ARegion *template_ID_search_menu_item_tooltip(
   ID *active_id = static_cast<ID *>(active);
   StructRNA *type = RNA_property_pointer_type(&template_ui->ptr, template_ui->prop);
 
-  uiSearchItemTooltipData tooltip_data = {0};
+  uiSearchItemTooltipData tooltip_data = {{0}};
 
   tooltip_data.name = active_id->name + 2;
   BLI_snprintf(tooltip_data.description,

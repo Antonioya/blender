@@ -383,13 +383,37 @@ class CYCLES_RENDER_PT_sampling_advanced(CyclesButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(cscene, "min_light_bounces")
         col.prop(cscene, "min_transparent_bounces")
-        col.prop(cscene, "light_sampling_threshold", text="Light Threshold")
 
         for view_layer in scene.view_layers:
             if view_layer.samples > 0:
                 layout.separator()
                 layout.row().prop(cscene, "use_layer_samples")
                 break
+
+
+class CYCLES_RENDER_PT_sampling_lights(CyclesButtonsPanel, Panel):
+    bl_label = "Lights"
+    bl_parent_id = "CYCLES_RENDER_PT_sampling"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_header(self, context):
+        layout = self.layout
+        scene = context.scene
+        cscene = scene.cycles
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        scene = context.scene
+        cscene = scene.cycles
+
+        col = layout.column(align=True)
+        #col.prop(cscene, "use_light_tree")
+        sub = col.row()
+        sub.prop(cscene, "light_sampling_threshold", text="Light Threshold")
+        #sub.active = not cscene.use_light_tree
 
 
 class CYCLES_RENDER_PT_subdivision(CyclesButtonsPanel, Panel):
@@ -954,7 +978,6 @@ class CYCLES_RENDER_PT_passes_light(CyclesButtonsPanel, Panel):
         col = layout.column(heading="Other", align=True)
         col.prop(view_layer, "use_pass_emit", text="Emission")
         col.prop(view_layer, "use_pass_environment")
-        col.prop(view_layer, "use_pass_shadow")
         col.prop(view_layer, "use_pass_ambient_occlusion", text="Ambient Occlusion")
         col.prop(cycles_view_layer, "use_pass_shadow_catcher")
 
@@ -1832,9 +1855,9 @@ class CYCLES_MATERIAL_PT_settings_surface(CyclesButtonsPanel, Panel):
         cmat = mat.cycles
 
         col = layout.column()
-        col.prop(cmat, "sample_as_light", text="Multiple Importance")
-        col.prop(cmat, "use_transparent_shadow")
         col.prop(cmat, "displacement_method", text="Displacement")
+        col.prop(cmat, "emission_sampling")
+        col.prop(cmat, "use_transparent_shadow")
 
     def draw(self, context):
         self.draw_shared(self, context.material)
@@ -2366,6 +2389,7 @@ classes = (
     CYCLES_RENDER_PT_sampling_render_denoise,
     CYCLES_RENDER_PT_sampling_path_guiding,
     CYCLES_RENDER_PT_sampling_path_guiding_debug,
+    CYCLES_RENDER_PT_sampling_lights,
     CYCLES_RENDER_PT_sampling_advanced,
     CYCLES_RENDER_PT_light_paths,
     CYCLES_RENDER_PT_light_paths_max_bounces,

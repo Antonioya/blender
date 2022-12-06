@@ -53,10 +53,22 @@ This package provides Blender as a Python module for use in studio pipelines, we
 
 [System requirements](https://www.blender.org/download/requirements/) are the same as Blender.
 
-Each Blender release supports one Python version, and the package is only compatible with that version."""
+Each Blender release supports one Python version, and the package is only compatible with that version.
+
+## Source Code
+
+* [Releases](https://download.blender.org/source/)
+* Repository: [git.blender.org/blender.git](https://git.blender.org/gitweb/gitweb.cgi/blender.git)
+
+## Credits
+
+Created by the [Blender developer community](https://www.blender.org/about/credits/).
+
+Thanks to Tyler Alden Gubala for maintaining the original version of this package."""
 
 # ------------------------------------------------------------------------------
 # Generic Functions
+
 
 def find_dominating_file(
     path: str,
