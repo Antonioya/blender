@@ -668,6 +668,10 @@ void nodeUnlinkNode(struct bNodeTree *ntree, struct bNode *node);
  * Find the first available, non-duplicate name for a given node.
  */
 void nodeUniqueName(struct bNodeTree *ntree, struct bNode *node);
+/**
+ * Create a new unique integer identifier for the node. Also set the node's
+ * index in the tree, which is an eagerly maintained cache.
+ */
 void nodeUniqueID(struct bNodeTree *ntree, struct bNode *node);
 
 /**
@@ -1541,6 +1545,8 @@ struct TexResult;
 #define GEO_NODE_SAMPLE_UV_SURFACE 1187
 #define GEO_NODE_SET_CURVE_NORMAL 1188
 #define GEO_NODE_IMAGE_INFO 1189
+#define GEO_NODE_BLUR_ATTRIBUTE 1190
+#define GEO_NODE_IMAGE 1191
 
 /** \} */
 

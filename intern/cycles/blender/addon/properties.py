@@ -1206,7 +1206,7 @@ class CyclesWorldSettings(bpy.types.PropertyGroup):
     )
     homogeneous_volume: BoolProperty(
         name="Homogeneous Volume",
-        description="When using volume rendering, assume volume has the same density everywhere"
+        description="When using volume rendering, assume volume has the same density everywhere "
         "(not using any textures), for faster rendering",
         default=False,
     )
@@ -1670,7 +1670,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                     col.label(text="and Windows driver version 101.3430 or newer", icon='BLANK1')
                 elif sys.platform.startswith("linux"):
                     col.label(text="Requires Intel GPU with Xe-HPG architecture and", icon='BLANK1')
-                    col.label(text="  - Linux driver version xx.xx.23904 or newer", icon='BLANK1')
+                    col.label(text="  - intel-level-zero-gpu version 1.3.23904 or newer", icon='BLANK1')
                     col.label(text="  - oneAPI Level-Zero Loader", icon='BLANK1')
             elif device_type == 'METAL':
                 col.label(text="Requires Apple Silicon with macOS 12.2 or newer", icon='BLANK1')

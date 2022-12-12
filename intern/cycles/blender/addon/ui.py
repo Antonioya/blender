@@ -193,7 +193,7 @@ class CYCLES_RENDER_PT_sampling_viewport(CyclesButtonsPanel, Panel):
 
         if cscene.use_preview_adaptive_sampling:
             col = layout.column(align=True)
-            col.prop(cscene, "preview_samples", text=" Max Samples")
+            col.prop(cscene, "preview_samples", text="Max Samples")
             col.prop(cscene, "preview_adaptive_min_samples", text="Min Samples")
         else:
             layout.prop(cscene, "preview_samples", text="Samples")
@@ -255,7 +255,7 @@ class CYCLES_RENDER_PT_sampling_render(CyclesButtonsPanel, Panel):
 
         col = layout.column(align=True)
         if cscene.use_adaptive_sampling:
-            col.prop(cscene, "samples", text=" Max Samples")
+            col.prop(cscene, "samples", text="Max Samples")
             col.prop(cscene, "adaptive_min_samples", text="Min Samples")
         else:
             col.prop(cscene, "samples", text="Samples")
@@ -410,10 +410,10 @@ class CYCLES_RENDER_PT_sampling_lights(CyclesButtonsPanel, Panel):
         cscene = scene.cycles
 
         col = layout.column(align=True)
-        #col.prop(cscene, "use_light_tree")
+        col.prop(cscene, "use_light_tree")
         sub = col.row()
         sub.prop(cscene, "light_sampling_threshold", text="Light Threshold")
-        #sub.active = not cscene.use_light_tree
+        sub.active = not cscene.use_light_tree
 
 
 class CYCLES_RENDER_PT_subdivision(CyclesButtonsPanel, Panel):
