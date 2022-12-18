@@ -39,6 +39,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.h"
 #include "BKE_object.h"
+#include "BKE_type_conversions.hh"
 
 #include "DEG_depsgraph.h"
 
@@ -794,56 +795,79 @@ struct SocketTooltipData {
   const bNodeSocket *socket;
 };
 
-static void create_inspection_string_for_generic_value(const GPointer value, std::stringstream &ss)
+static void create_inspection_string_for_generic_value(const bNodeSocket &socket,
+                                                       const GPointer value,
+                                                       std::stringstream &ss)
 {
   auto id_to_inspection_string = [&](const ID *id, const short idcode) {
     ss << (id ? id->name + 2 : TIP_("None")) << " (" << TIP_(BKE_idtype_idcode_to_name(idcode))
        << ")";
   };
 
-  const CPPType &type = *value.type();
+  const CPPType &value_type = *value.type();
   const void *buffer = value.get();
-  if (type.is<Object *>()) {
+  if (value_type.is<Object *>()) {
     id_to_inspection_string(*static_cast<const ID *const *>(buffer), ID_OB);
+    return;
   }
-  else if (type.is<Material *>()) {
+  else if (value_type.is<Material *>()) {
     id_to_inspection_string(*static_cast<const ID *const *>(buffer), ID_MA);
+    return;
   }
-  else if (type.is<Tex *>()) {
+  else if (value_type.is<Tex *>()) {
     id_to_inspection_string(*static_cast<const ID *const *>(buffer), ID_TE);
+    return;
   }
-  else if (type.is<Image *>()) {
+  else if (value_type.is<Image *>()) {
     id_to_inspection_string(*static_cast<const ID *const *>(buffer), ID_IM);
+    return;
   }
-  else if (type.is<Collection *>()) {
+  else if (value_type.is<Collection *>()) {
     id_to_inspection_string(*static_cast<const ID *const *>(buffer), ID_GR);
+    return;
   }
-  else if (type.is<int>()) {
-    ss << *(int *)buffer << TIP_(" (Integer)");
+  else if (value_type.is<std::string>()) {
+    ss << *static_cast<const std::string *>(buffer) << TIP_(" (String)");
+    return;
   }
-  else if (type.is<float>()) {
-    ss << *(float *)buffer << TIP_(" (Float)");
+
+  const CPPType &socket_type = *socket.typeinfo->base_cpp_type;
+  const bke::DataTypeConversions &convert = bke::get_implicit_type_conversions();
+  if (value_type != socket_type) {
+    if (!convert.is_convertible(value_type, socket_type)) {
+      return;
+    }
   }
-  else if (type.is<blender::float3>()) {
-    ss << *(blender::float3 *)buffer << TIP_(" (Vector)");
+  BUFFER_FOR_CPP_TYPE_VALUE(socket_type, socket_value);
+  /* This will just copy the value if the types are equal. */
+  convert.convert_to_uninitialized(value_type, socket_type, buffer, socket_value);
+  BLI_SCOPED_DEFER([&]() { socket_type.destruct(socket_value); });
+
+  if (socket_type.is<int>()) {
+    ss << *static_cast<int *>(socket_value) << TIP_(" (Integer)");
   }
-  else if (type.is<blender::ColorGeometry4f>()) {
-    const blender::ColorGeometry4f &color = *(blender::ColorGeometry4f *)buffer;
+  else if (socket_type.is<float>()) {
+    ss << *static_cast<float *>(socket_value) << TIP_(" (Float)");
+  }
+  else if (socket_type.is<blender::float3>()) {
+    ss << *static_cast<blender::float3 *>(socket_value) << TIP_(" (Vector)");
+  }
+  else if (socket_type.is<blender::ColorGeometry4f>()) {
+    const blender::ColorGeometry4f &color = *static_cast<blender::ColorGeometry4f *>(socket_value);
     ss << "(" << color.r << ", " << color.g << ", " << color.b << ", " << color.a << ")"
        << TIP_(" (Color)");
   }
-  else if (type.is<bool>()) {
-    ss << ((*(bool *)buffer) ? TIP_("True") : TIP_("False")) << TIP_(" (Boolean)");
-  }
-  else if (type.is<std::string>()) {
-    ss << *(std::string *)buffer << TIP_(" (String)");
+  else if (socket_type.is<bool>()) {
+    ss << ((*static_cast<bool *>(socket_value)) ? TIP_("True") : TIP_("False"))
+       << TIP_(" (Boolean)");
   }
 }
 
-static void create_inspection_string_for_field_info(const geo_log::FieldInfoLog &value_log,
+static void create_inspection_string_for_field_info(const bNodeSocket &socket,
+                                                    const geo_log::FieldInfoLog &value_log,
                                                     std::stringstream &ss)
 {
-  const CPPType &type = value_log.type;
+  const CPPType &socket_type = *socket.typeinfo->base_cpp_type;
   const Span<std::string> input_tooltips = value_log.input_tooltips;
 
   if (input_tooltips.is_empty()) {
@@ -852,22 +876,22 @@ static void create_inspection_string_for_field_info(const geo_log::FieldInfoLog 
     ss << "Value has not been logged";
   }
   else {
-    if (type.is<int>()) {
+    if (socket_type.is<int>()) {
       ss << TIP_("Integer field");
     }
-    else if (type.is<float>()) {
+    else if (socket_type.is<float>()) {
       ss << TIP_("Float field");
     }
-    else if (type.is<blender::float3>()) {
+    else if (socket_type.is<blender::float3>()) {
       ss << TIP_("Vector field");
     }
-    else if (type.is<bool>()) {
+    else if (socket_type.is<bool>()) {
       ss << TIP_("Boolean field");
     }
-    else if (type.is<std::string>()) {
+    else if (socket_type.is<std::string>()) {
       ss << TIP_("String field");
     }
-    else if (type.is<blender::ColorGeometry4f>()) {
+    else if (socket_type.is<blender::ColorGeometry4f>()) {
       ss << TIP_("Color field");
     }
     ss << TIP_(" based on:\n");
@@ -1012,6 +1036,11 @@ static std::optional<std::string> create_socket_inspection_string(TreeDrawContex
                                                                   const bNodeSocket &socket)
 {
   using namespace blender::nodes::geo_eval_log;
+
+  if (socket.typeinfo->base_cpp_type == nullptr) {
+    return std::nullopt;
+  }
+
   tree_draw_ctx.geo_tree_log->ensure_socket_values();
   ValueLog *value_log = tree_draw_ctx.geo_tree_log->find_socket_value_log(socket);
   if (value_log == nullptr) {
@@ -1020,11 +1049,11 @@ static std::optional<std::string> create_socket_inspection_string(TreeDrawContex
   std::stringstream ss;
   if (const geo_log::GenericValueLog *generic_value_log =
           dynamic_cast<const geo_log::GenericValueLog *>(value_log)) {
-    create_inspection_string_for_generic_value(generic_value_log->value, ss);
+    create_inspection_string_for_generic_value(socket, generic_value_log->value, ss);
   }
   else if (const geo_log::FieldInfoLog *gfield_value_log =
                dynamic_cast<const geo_log::FieldInfoLog *>(value_log)) {
-    create_inspection_string_for_field_info(*gfield_value_log, ss);
+    create_inspection_string_for_field_info(socket, *gfield_value_log, ss);
   }
   else if (const geo_log::GeometryInfoLog *geo_value_log =
                dynamic_cast<const geo_log::GeometryInfoLog *>(value_log)) {
@@ -2813,9 +2842,9 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
     BLF_wordwrap(fontid, line_width);
 
     LISTBASE_FOREACH (const TextLine *, line, &text->lines) {
-      ResultBLF info;
       if (line->line[0]) {
         BLF_position(fontid, x, y, 0);
+        ResultBLF info;
         BLF_draw_ex(fontid, line->line, line->len, &info);
         y -= line_spacing * info.lines;
       }
@@ -2890,10 +2919,8 @@ static void frame_node_draw(const bContext &C,
 static void reroute_node_draw(
     const bContext &C, ARegion &region, bNodeTree &ntree, bNode &node, uiBlock &block)
 {
-  char showname[128]; /* 128 used below */
-  const rctf &rct = node.runtime->totr;
-
   /* skip if out of view */
+  const rctf &rct = node.runtime->totr;
   if (rct.xmax < region.v2d.cur.xmin || rct.xmin > region.v2d.cur.xmax ||
       rct.ymax < region.v2d.cur.ymin || node.runtime->totr.ymin > region.v2d.cur.ymax) {
     UI_block_end(&C, &block);
@@ -2902,6 +2929,7 @@ static void reroute_node_draw(
 
   if (node.label[0] != '\0') {
     /* draw title (node label) */
+    char showname[128]; /* 128 used below */
     BLI_strncpy(showname, node.label, sizeof(showname));
     const short width = 512;
     const int x = BLI_rctf_cent_x(&node.runtime->totr) - (width / 2);
@@ -2987,7 +3015,7 @@ static void node_draw_nodetree(const bContext &C,
       continue;
     }
 
-    bNodeInstanceKey key = BKE_node_instance_key(parent_key, &ntree, nodes[i]);
+    const bNodeInstanceKey key = BKE_node_instance_key(parent_key, &ntree, nodes[i]);
     node_draw(C, tree_draw_ctx, region, snode, ntree, *nodes[i], *blocks[i], key);
   }
 
@@ -3017,7 +3045,7 @@ static void node_draw_nodetree(const bContext &C,
       continue;
     }
 
-    bNodeInstanceKey key = BKE_node_instance_key(parent_key, &ntree, nodes[i]);
+    const bNodeInstanceKey key = BKE_node_instance_key(parent_key, &ntree, nodes[i]);
     node_draw(C, tree_draw_ctx, region, snode, ntree, *nodes[i], *blocks[i], key);
   }
 }
@@ -3025,8 +3053,6 @@ static void node_draw_nodetree(const bContext &C,
 /* Draw the breadcrumb on the top of the editor. */
 static void draw_tree_path(const bContext &C, ARegion &region)
 {
-  using namespace blender;
-
   GPU_matrix_push_projection();
   wmOrtho2_region_pixelspace(&region);
 
@@ -3042,7 +3068,7 @@ static void draw_tree_path(const bContext &C, ARegion &region)
   uiLayout *layout = UI_block_layout(
       block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, x, y, width, 1, 0, style);
 
-  Vector<ui::ContextPathItem> context_path = ed::space_node::context_path_for_space_node(C);
+  const Vector<ui::ContextPathItem> context_path = ed::space_node::context_path_for_space_node(C);
   ui::template_breadcrumbs(*layout, context_path);
 
   UI_block_layout_resolve(block, nullptr, nullptr);
@@ -3115,7 +3141,7 @@ static void draw_nodetree(const bContext &C,
   SpaceNode *snode = CTX_wm_space_node(&C);
   ntree.ensure_topology_cache();
 
-  Span<bNode *> nodes = ntree.all_nodes();
+  const Span<bNode *> nodes = ntree.all_nodes();
 
   Array<uiBlock *> blocks = node_uiblocks_init(C, nodes);
 
@@ -3126,7 +3152,7 @@ static void draw_nodetree(const bContext &C,
       tree_draw_ctx.geo_tree_log->ensure_node_warnings();
       tree_draw_ctx.geo_tree_log->ensure_node_run_time();
     }
-    WorkSpace *workspace = CTX_wm_workspace(&C);
+    const WorkSpace *workspace = CTX_wm_workspace(&C);
     tree_draw_ctx.active_geometry_nodes_viewer = viewer_path::find_geometry_nodes_viewer(
         workspace->viewer_path, *snode);
   }

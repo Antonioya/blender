@@ -504,6 +504,7 @@ set(SRC
   intern/multires_unsubdivide.h
   intern/ocean_intern.h
   intern/pbvh_intern.h
+  intern/pbvh_uv_islands.hh
   intern/subdiv_converter.h
   intern/subdiv_inline.h
 )

@@ -417,7 +417,7 @@ typedef struct bNode {
 /* node is always behind others */
 #define NODE_BACKGROUND (1 << 12)
 /* automatic flag for nodes included in transforms */
-#define NODE_TRANSFORM (1 << 13)
+// #define NODE_TRANSFORM (1 << 13) /* deprecated */
 /* node is active texture */
 
 /* NOTE: take care with this flag since its possible it gets
@@ -499,7 +499,6 @@ typedef struct bNodeLink {
 #define NODE_LINK_TEST (1 << 2)           /* free test flag, undefined */
 #define NODE_LINK_TEMP_HIGHLIGHT (1 << 3) /* Link is highlighted for picking. */
 #define NODE_LINK_MUTED (1 << 4)          /* Link is muted. */
-#define NODE_LINK_DRAGGED (1 << 5)        /* Node link is being dragged by the user. */
 
 /* tree->edit_quality/tree->render_quality */
 #define NTREE_QUALITY_HIGH 0
@@ -634,6 +633,11 @@ typedef struct bNodeTree {
   bool has_undefined_nodes_or_sockets() const;
   /** Get the active group output node. */
   const bNode *group_output_node() const;
+  /** Get all input nodes of the node group. */
+  blender::Span<const bNode *> group_input_nodes() const;
+  /** Inputs and outputs of the entire node group. */
+  blender::Span<const bNodeSocket *> interface_inputs() const;
+  blender::Span<const bNodeSocket *> interface_outputs() const;
 #endif
 } bNodeTree;
 
@@ -1752,6 +1756,7 @@ enum {
 #define SHD_IMAGE_EXTENSION_REPEAT 0
 #define SHD_IMAGE_EXTENSION_EXTEND 1
 #define SHD_IMAGE_EXTENSION_CLIP 2
+#define SHD_IMAGE_EXTENSION_MIRROR 3
 
 /* image texture */
 #define SHD_PROJ_FLAT 0

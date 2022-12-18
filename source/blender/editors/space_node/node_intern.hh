@@ -44,7 +44,6 @@ struct AssetItemTree;
 struct bNodeLinkDrag {
   /** Links dragged by the operator. */
   Vector<bNodeLink *> links;
-  bool from_multi_input_socket;
   eNodeSocketInOut in_out;
 
   /** Draw handler for the "+" icon when dragging a link in empty space. */
@@ -183,7 +182,6 @@ void node_keymap(wmKeyConfig *keyconf);
 rctf node_frame_rect_inside(const bNode &node);
 bool node_or_socket_isect_event(const bContext &C, const wmEvent &event);
 
-VectorSet<bNode *> get_selected_nodes(bNodeTree &node_tree);
 void node_deselect_all(SpaceNode &snode);
 void node_socket_select(bNode *node, bNodeSocket &sock);
 void node_socket_deselect(bNode *node, bNodeSocket &sock, bool deselect_node);

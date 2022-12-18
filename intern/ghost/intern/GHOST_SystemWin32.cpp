@@ -1061,11 +1061,16 @@ GHOST_EventCursor *GHOST_SystemWin32::processCursorEvent(GHOST_WindowWin32 *wind
 
   int32_t x_screen = screen_co[0], y_screen = screen_co[1];
   if (window->getCursorGrabModeIsWarp()) {
-    /* WORKAROUND:
-     * Sometimes Windows ignores `SetCursorPos()` or `SendInput()` calls or the mouse event is
-     * outdated. Identify these cases by checking if the cursor is not yet within bounds. */
-    static bool is_warping_x = false;
-    static bool is_warping_y = false;
+    static uint64_t last_warp_time = 0;
+    {
+      /* WORKAROUND: Check the mouse event timestamp so we can ignore mouse-move events that were
+       * already in the queue before we changed the cursor position. */
+      MOUSEMOVEPOINT mp = {x_screen, y_screen};
+      ::GetMouseMovePointsEx(sizeof(MOUSEMOVEPOINT), &mp, &mp, 1, GMMP_USE_DISPLAY_POINTS);
+      if (mp.time <= last_warp_time) {
+        return NULL;
+      }
+    }
 
     int32_t x_new = x_screen;
     int32_t y_new = y_screen;
@@ -1112,31 +1117,35 @@ GHOST_EventCursor *GHOST_SystemWin32::processCursorEvent(GHOST_WindowWin32 *wind
 
     window->getCursorGrabAccum(x_accum, y_accum);
     if (x_new != x_screen || y_new != y_screen) {
-      system->setCursorPosition(x_new, y_new); /* wrap */
+      /* WORKAROUND: Store the current time so that we ignore outdated mouse-move events. */
+      last_warp_time = ::GetTickCount64();
 
-      /* Do not update the accum values if we are an outdated or failed pos-warp event. */
-      if (!is_warping_x) {
-        is_warping_x = x_new != x_screen;
-        if (is_warping_x) {
-          x_accum += (x_screen - x_new);
-        }
-      }
+      /* For more control over which timestamp to store in the event, we use `SendInput` instead of
+       * `SetCursorPos` here.
+       * It is quite unlikely to happen, but still possible that some event between
+       * `last_warp_time` and `GHOST_SystemWin32::setCursorPosition` is sent. */
+      INPUT input[3] = {0};
+      input[0].type = INPUT_MOUSE;
+      input[0].mi.dx = (LONG)(x_new * (65535.0f / GetSystemMetrics(SM_CXSCREEN)));
+      input[0].mi.dy = (LONG)(y_new * (65535.0f / GetSystemMetrics(SM_CYSCREEN)));
+      input[0].mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
+      input[0].mi.time = last_warp_time;
 
-      if (!is_warping_y) {
-        is_warping_y = y_new != y_screen;
-        if (is_warping_y) {
-          y_accum += (y_screen - y_new);
-        }
-      }
+      /* Send 3 events with a jitter to make sure Windows does not occasionally and
+       * inexplicably ignore `SetCursorPos` or `SendInput`. */
+      input[2] = input[1] = input[0];
+      input[1].mi.dx += 1;
+      ::SendInput(3, input, sizeof(INPUT));
+
+      x_accum += (x_screen - x_new);
+      y_accum += (y_screen - y_new);
       window->setCursorGrabAccum(x_accum, y_accum);
 
-      /* When wrapping we don't need to add an event because the setCursorPosition call will cause
-       * a new event after. */
+      /* When wrapping we don't need to add an event because the `SendInput` call will cause new
+       * events after. */
       return NULL;
     }
 
-    is_warping_x = false;
-    is_warping_y = false;
     x_screen += x_accum;
     y_screen += y_accum;
   }
@@ -1210,16 +1219,16 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
     const bool ctrl_pressed = has_state && state[VK_CONTROL] & 0x80;
     const bool alt_pressed = has_state && state[VK_MENU] & 0x80;
 
-    if (!key_down) {
-      /* Pass. */
-    }
+    /* We can be here with !key_down if processing dead keys (diacritics). See T103119. */
+
     /* No text with control key pressed (Alt can be used to insert special characters though!). */
-    else if (ctrl_pressed && !alt_pressed) {
+    if (ctrl_pressed && !alt_pressed) {
       /* Pass. */
     }
     /* Don't call #ToUnicodeEx on dead keys as it clears the buffer and so won't allow diacritical
-     * composition. */
-    else if (MapVirtualKeyW(vk, 2) != 0) {
+     * composition. XXX: we are not checking return of MapVirtualKeyW for high bit set, which is
+     * what is supposed to indicate dead keys. But this is working now so approach cautiously. */
+    else if (MapVirtualKeyW(vk, MAPVK_VK_TO_CHAR) != 0) {
       wchar_t utf16[3] = {0};
       int r;
       /* TODO: #ToUnicodeEx can respond with up to 4 utf16 chars (only 2 here).
@@ -1233,6 +1242,10 @@ GHOST_EventKey *GHOST_SystemWin32::processKeyEvent(GHOST_WindowWin32 *window, RA
         else if (r == -1) {
           utf8_char[0] = '\0';
         }
+      }
+      if (!key_down) {
+        /* Clear or wm_event_add_ghostevent will warn of unexpected data on key up. */
+        utf8_char[0] = '\0';
       }
     }
 
