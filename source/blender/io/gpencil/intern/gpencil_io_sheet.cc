@@ -134,7 +134,7 @@ void ContactSheetPDF::load_and_draw_image(ContactSheetItem *item, const int row,
     opts.im_format.compress = ibuf->foptions.quality;
     opts.im_format.planes = ibuf->planes;
     opts.im_format.quality = scene_->r.im_format.quality;
-    BLI_join_dirfile(opts.filepath, sizeof(opts.filepath), BKE_tempdir_session(), "thumb.jpg");
+    BLI_path_join(opts.filepath, sizeof(opts.filepath), BKE_tempdir_session(), "thumb.jpg");
     if (BKE_image_save(nullptr, bmain_, ima, iuser, &opts)) {
       /* Load the temp image thumbnail in libharu.*/
       HPDF_Image pdf_image = HPDF_LoadJpegImageFromFile(pdf_, opts.filepath);
@@ -186,7 +186,7 @@ void ContactSheetPDF::load_and_draw_logo(void)
     opts.im_format.compress = ibuf->foptions.quality;
     opts.im_format.planes = ibuf->planes;
     opts.im_format.quality = scene_->r.im_format.quality;
-    BLI_join_dirfile(opts.filepath, sizeof(opts.filepath), BKE_tempdir_session(), "logo.jpg");
+    BLI_path_join(opts.filepath, sizeof(opts.filepath), BKE_tempdir_session(), "logo.jpg");
     if (BKE_image_save(nullptr, bmain_, ima, iuser, &opts)) {
       /* Load the temp image thumbnail in libharu.*/
       HPDF_Image pdf_image = HPDF_LoadJpegImageFromFile(pdf_, opts.filepath);
