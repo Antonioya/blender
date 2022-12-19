@@ -426,7 +426,7 @@ static void contact_sheet_pdf_load_files(bContext *C,
         char *token = strtok_s(filename, sep, &next_tokens);
 
         /* Image filepath. */
-        BLI_join_dirfile(
+        BLI_path_join(
             load_data->items[idx].path, sizeof(load_data->items[idx].path), directory, token);
 
         load_data->items[idx].name[0] = '\0';
