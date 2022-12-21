@@ -566,8 +566,8 @@ static void wm_contact_sheet_pdf_draw(bContext *UNUSED(C), wmOperator *op)
 void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
 {
   static const EnumPropertyItem prop_orientation_types[] = {
-      {0, "LANDSCAPE", 0, "Landscape", ""},
-      {1, "PORTRAIT", 0, "Portrait", ""},
+      {0, "HORIZONTAL", 0, "Setup the page in Landscape orientation", ""},
+      {1, "VERTICAL", 0, "Setup the page in Portrait orientation", ""},
       {0, NULL, 0, NULL, NULL},
   };
 
