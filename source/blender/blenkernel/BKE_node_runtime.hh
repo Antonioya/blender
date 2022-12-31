@@ -417,6 +417,12 @@ inline bool bNodeTree::has_undefined_nodes_or_sockets() const
   return this->runtime->has_undefined_nodes_or_sockets;
 }
 
+inline bNode *bNodeTree::group_output_node()
+{
+  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  return this->runtime->group_output_node;
+}
+
 inline const bNode *bNodeTree::group_output_node() const
 {
   BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
@@ -672,6 +678,11 @@ inline bool bNodeSocket::is_hidden() const
 inline bool bNodeSocket::is_available() const
 {
   return (this->flag & SOCK_UNAVAIL) == 0;
+}
+
+inline bool bNodeSocket::is_visible() const
+{
+  return !this->is_hidden() && this->is_available();
 }
 
 inline bNode &bNodeSocket::owner_node()

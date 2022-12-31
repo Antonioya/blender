@@ -77,7 +77,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const NodeDeclaration &declaration = *params.node_type().fixed_declaration;
-  search_link_ops_for_declarations(params, declaration.inputs().take_back(2));
+  search_link_ops_for_declarations(params, declaration.inputs.as_span().take_back(2));
 
   const bNodeType &node_type = params.node_type();
   const std::optional<eCustomDataType> type = node_data_type_to_custom_data_type(
@@ -278,11 +278,13 @@ static void blur_on_mesh(const Mesh &mesh,
   }
   attribute_math::convert_to_static_type(main_buffer.type(), [&](auto dummy) {
     using T = decltype(dummy);
-    blur_on_mesh_exec<T>(neighbor_weights,
-                         neighbors_map,
-                         iterations,
-                         main_buffer.typed<T>(),
-                         tmp_buffer.typed<T>());
+    if constexpr (!std::is_same_v<T, bool>) {
+      blur_on_mesh_exec<T>(neighbor_weights,
+                           neighbors_map,
+                           iterations,
+                           main_buffer.typed<T>(),
+                           tmp_buffer.typed<T>());
+    }
   });
 }
 
@@ -362,8 +364,10 @@ static void blur_on_curves(const bke::CurvesGeometry &curves,
 {
   attribute_math::convert_to_static_type(main_buffer.type(), [&](auto dummy) {
     using T = decltype(dummy);
-    blur_on_curve_exec<T>(
-        curves, neighbor_weights, iterations, main_buffer.typed<T>(), tmp_buffer.typed<T>());
+    if constexpr (!std::is_same_v<T, bool>) {
+      blur_on_curve_exec<T>(
+          curves, neighbor_weights, iterations, main_buffer.typed<T>(), tmp_buffer.typed<T>());
+    }
   });
 }
 

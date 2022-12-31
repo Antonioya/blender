@@ -40,7 +40,8 @@
 #include "RE_pipeline.h"
 
 #include "ED_image.h"
-#include "ED_node.h" /* own include */
+#include "ED_node.h"  /* own include */
+#include "ED_node.hh" /* own include */
 #include "ED_render.h"
 #include "ED_screen.h"
 #include "ED_select_utils.h"
@@ -1235,7 +1236,7 @@ bool node_find_indicated_socket(SpaceNode &snode,
 
     if (in_out & SOCK_IN) {
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-        if (!nodeSocketIsHidden(sock)) {
+        if (sock->is_visible()) {
           const float2 location(sock->runtime->locx, sock->runtime->locy);
           if (sock->flag & SOCK_MULTI_INPUT && !(node->flag & NODE_HIDDEN)) {
             if (cursor_isect_multi_input_socket(cursor, *sock)) {
@@ -1258,7 +1259,7 @@ bool node_find_indicated_socket(SpaceNode &snode,
     }
     if (in_out & SOCK_OUT) {
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-        if (!nodeSocketIsHidden(sock)) {
+        if (sock->is_visible()) {
           const float2 location(sock->runtime->locx, sock->runtime->locy);
           if (BLI_rctf_isect_pt(&rect, location.x, location.y)) {
             if (!socket_is_occluded(location, *node, snode)) {
@@ -1313,7 +1314,7 @@ bool node_link_is_hidden_or_dimmed(const View2D &v2d, const bNodeLink &link)
  * \{ */
 
 static void node_duplicate_reparent_recursive(bNodeTree *ntree,
-                                              const Map<const bNode *, bNode *> &node_map,
+                                              const Map<bNode *, bNode *> &node_map,
                                               bNode *node)
 {
   bNode *parent;
@@ -1344,42 +1345,32 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
   const bool keep_inputs = RNA_boolean_get(op->ptr, "keep_inputs");
   bool linked = RNA_boolean_get(op->ptr, "linked") || ((U.dupflag & USER_DUP_NTREE) == 0);
   const bool dupli_node_tree = !linked;
-  bool changed = false;
 
   ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
 
-  Map<const bNode *, bNode *> node_map;
+  Map<bNode *, bNode *> node_map;
   Map<const bNodeSocket *, bNodeSocket *> socket_map;
   Map<const ID *, ID *> duplicated_node_groups;
 
-  bNode *lastnode = (bNode *)ntree->nodes.last;
-  for (bNode *node : ntree->all_nodes()) {
-    if (node->flag & SELECT) {
-      bNode *new_node = bke::node_copy_with_mapping(
-          ntree, *node, LIB_ID_COPY_DEFAULT, true, socket_map);
-      node_map.add_new(node, new_node);
+  for (bNode *node : get_selected_nodes(*ntree)) {
+    bNode *new_node = bke::node_copy_with_mapping(
+        ntree, *node, LIB_ID_COPY_DEFAULT, true, socket_map);
+    node_map.add_new(node, new_node);
 
-      if (node->id && dupli_node_tree) {
-        ID *new_group = duplicated_node_groups.lookup_or_add_cb(node->id, [&]() {
-          ID *new_group = BKE_id_copy(bmain, node->id);
-          /* Remove user added by copying. */
-          id_us_min(new_group);
-          return new_group;
-        });
-        id_us_plus(new_group);
-        id_us_min(new_node->id);
-        new_node->id = new_group;
-      }
-      changed = true;
-    }
-
-    /* make sure we don't copy new nodes again! */
-    if (node == lastnode) {
-      break;
+    if (node->id && dupli_node_tree) {
+      ID *new_group = duplicated_node_groups.lookup_or_add_cb(node->id, [&]() {
+        ID *new_group = BKE_id_copy(bmain, node->id);
+        /* Remove user added by copying. */
+        id_us_min(new_group);
+        return new_group;
+      });
+      id_us_plus(new_group);
+      id_us_min(new_node->id);
+      new_node->id = new_group;
     }
   }
 
-  if (!changed) {
+  if (node_map.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1424,32 +1415,20 @@ static int node_duplicate_exec(bContext *C, wmOperator *op)
     node->flag &= ~NODE_TEST;
   }
   /* reparent copied nodes */
-  for (bNode *node : ntree->all_nodes()) {
-    if ((node->flag & SELECT) && !(node->flag & NODE_TEST)) {
+  for (bNode *node : node_map.keys()) {
+    if (!(node->flag & NODE_TEST)) {
       node_duplicate_reparent_recursive(ntree, node_map, node);
-    }
-
-    /* only has to check old nodes */
-    if (node == lastnode) {
-      break;
     }
   }
 
   /* deselect old nodes, select the copies instead */
-  for (bNode *node : ntree->all_nodes()) {
-    if (node->flag & SELECT) {
-      /* has been set during copy above */
-      bNode *newnode = node_map.lookup(node);
+  for (const auto item : node_map.items()) {
+    bNode *src_node = item.key;
+    bNode *dst_node = item.value;
 
-      nodeSetSelected(node, false);
-      node->flag &= ~(NODE_ACTIVE | NODE_ACTIVE_TEXTURE);
-      nodeSetSelected(newnode, true);
-    }
-
-    /* make sure we don't copy new nodes again! */
-    if (node == lastnode) {
-      break;
-    }
+    nodeSetSelected(src_node, false);
+    src_node->flag &= ~(NODE_ACTIVE | NODE_ACTIVE_TEXTURE);
+    nodeSetSelected(dst_node, true);
   }
 
   ED_node_tree_propagate_change(C, bmain, snode->edittree);
@@ -2216,216 +2195,6 @@ void NODE_OT_node_copy_color(wmOperatorType *ot)
 
   /* api callbacks */
   ot->exec = node_copy_color_exec;
-  ot->poll = ED_operator_node_editable;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Node Copy to Clipboard Operator
- * \{ */
-
-static int node_clipboard_copy_exec(bContext *C, wmOperator * /*op*/)
-{
-  SpaceNode *snode = CTX_wm_space_node(C);
-  bNodeTree *ntree = snode->edittree;
-
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
-
-  /* clear current clipboard */
-  BKE_node_clipboard_clear();
-
-  Map<const bNode *, bNode *> node_map;
-  Map<const bNodeSocket *, bNodeSocket *> socket_map;
-
-  for (bNode *node : ntree->all_nodes()) {
-    if (node->flag & SELECT) {
-      /* No ID refcounting, this node is virtual,
-       * detached from any actual Blender data currently. */
-      bNode *new_node = bke::node_copy_with_mapping(nullptr,
-                                                    *node,
-                                                    LIB_ID_CREATE_NO_USER_REFCOUNT |
-                                                        LIB_ID_CREATE_NO_MAIN,
-                                                    false,
-                                                    socket_map);
-      node_map.add_new(node, new_node);
-    }
-  }
-
-  for (bNode *new_node : node_map.values()) {
-    BKE_node_clipboard_add_node(new_node);
-
-    /* Parent pointer must be redirected to new node or detached if parent is not copied. */
-    if (new_node->parent) {
-      if (node_map.contains(new_node->parent)) {
-        new_node->parent = node_map.lookup(new_node->parent);
-      }
-      else {
-        nodeDetachNode(ntree, new_node);
-      }
-    }
-  }
-
-  /* Copy links between selected nodes. */
-  LISTBASE_FOREACH (bNodeLink *, link, &ntree->links) {
-    BLI_assert(link->tonode);
-    BLI_assert(link->fromnode);
-    if (link->tonode->flag & NODE_SELECT && link->fromnode->flag & NODE_SELECT) {
-      bNodeLink *newlink = MEM_cnew<bNodeLink>(__func__);
-      newlink->flag = link->flag;
-      newlink->tonode = node_map.lookup(link->tonode);
-      newlink->tosock = socket_map.lookup(link->tosock);
-      newlink->fromnode = node_map.lookup(link->fromnode);
-      newlink->fromsock = socket_map.lookup(link->fromsock);
-      newlink->multi_input_socket_index = link->multi_input_socket_index;
-
-      BKE_node_clipboard_add_link(newlink);
-    }
-  }
-
-  return OPERATOR_FINISHED;
-}
-
-void NODE_OT_clipboard_copy(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Copy to Clipboard";
-  ot->description = "Copies selected nodes to the clipboard";
-  ot->idname = "NODE_OT_clipboard_copy";
-
-  /* api callbacks */
-  ot->exec = node_clipboard_copy_exec;
-  ot->poll = ED_operator_node_active;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Node Paste from Clipboard
- * \{ */
-
-static int node_clipboard_paste_exec(bContext *C, wmOperator *op)
-{
-  SpaceNode *snode = CTX_wm_space_node(C);
-  bNodeTree *ntree = snode->edittree;
-
-  /* validate pointers in the clipboard */
-  bool is_clipboard_valid = BKE_node_clipboard_validate();
-  const ListBase *clipboard_nodes_lb = BKE_node_clipboard_get_nodes();
-  const ListBase *clipboard_links_lb = BKE_node_clipboard_get_links();
-
-  if (BLI_listbase_is_empty(clipboard_nodes_lb)) {
-    BKE_report(op->reports, RPT_ERROR, "Clipboard is empty");
-    return OPERATOR_CANCELLED;
-  }
-
-  /* only warn */
-  if (is_clipboard_valid == false) {
-    BKE_report(op->reports,
-               RPT_WARNING,
-               "Some nodes references could not be restored, will be left empty");
-  }
-
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
-
-  /* deselect old nodes */
-  node_deselect_all(*snode);
-
-  /* calculate "barycenter" for placing on mouse cursor */
-  float2 center = {0.0f, 0.0f};
-  int num_nodes = 0;
-  LISTBASE_FOREACH_INDEX (bNode *, node, clipboard_nodes_lb, num_nodes) {
-    center.x += BLI_rctf_cent_x(&node->runtime->totr);
-    center.y += BLI_rctf_cent_y(&node->runtime->totr);
-  }
-  mul_v2_fl(center, 1.0 / num_nodes);
-
-  Map<const bNode *, bNode *> node_map;
-  Map<const bNodeSocket *, bNodeSocket *> socket_map;
-
-  /* copy valid nodes from clipboard */
-  LISTBASE_FOREACH (bNode *, node, clipboard_nodes_lb) {
-    const char *disabled_hint = nullptr;
-    if (node->typeinfo->poll_instance &&
-        node->typeinfo->poll_instance(node, ntree, &disabled_hint)) {
-      bNode *new_node = bke::node_copy_with_mapping(
-          ntree, *node, LIB_ID_COPY_DEFAULT, true, socket_map);
-      node_map.add_new(node, new_node);
-    }
-    else {
-      if (disabled_hint) {
-        BKE_reportf(op->reports,
-                    RPT_ERROR,
-                    "Cannot add node %s into node tree %s: %s",
-                    node->name,
-                    ntree->id.name + 2,
-                    disabled_hint);
-      }
-      else {
-        BKE_reportf(op->reports,
-                    RPT_ERROR,
-                    "Cannot add node %s into node tree %s",
-                    node->name,
-                    ntree->id.name + 2);
-      }
-    }
-  }
-
-  for (bNode *new_node : node_map.values()) {
-    /* pasted nodes are selected */
-    nodeSetSelected(new_node, true);
-
-    /* The parent pointer must be redirected to new node. */
-    if (new_node->parent) {
-      if (node_map.contains(new_node->parent)) {
-        new_node->parent = node_map.lookup(new_node->parent);
-      }
-    }
-  }
-
-  /* Add links between existing nodes. */
-  LISTBASE_FOREACH (bNodeLink *, link, clipboard_links_lb) {
-    const bNode *fromnode = link->fromnode;
-    const bNode *tonode = link->tonode;
-    if (node_map.lookup_key_ptr(fromnode) && node_map.lookup_key_ptr(tonode)) {
-      bNodeLink *new_link = nodeAddLink(ntree,
-                                        node_map.lookup(fromnode),
-                                        socket_map.lookup(link->fromsock),
-                                        node_map.lookup(tonode),
-                                        socket_map.lookup(link->tosock));
-      new_link->multi_input_socket_index = link->multi_input_socket_index;
-    }
-  }
-  ntree->ensure_topology_cache();
-
-  for (bNode *new_node : node_map.values()) {
-    /* Update multi input socket indices in case all connected nodes weren't copied. */
-    update_multi_input_indices_for_removed_links(*new_node);
-  }
-
-  Main *bmain = CTX_data_main(C);
-  ED_node_tree_propagate_change(C, bmain, snode->edittree);
-  /* Pasting nodes can create arbitrary new relations, because nodes can reference IDs. */
-  DEG_relations_tag_update(bmain);
-
-  return OPERATOR_FINISHED;
-}
-
-void NODE_OT_clipboard_paste(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Paste from Clipboard";
-  ot->description = "Pastes nodes from the clipboard to the active node tree";
-  ot->idname = "NODE_OT_clipboard_paste";
-
-  /* api callbacks */
-  ot->exec = node_clipboard_paste_exec;
   ot->poll = ED_operator_node_editable;
 
   /* flags */
