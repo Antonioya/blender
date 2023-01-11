@@ -1961,6 +1961,21 @@ class VIEW3D_MT_paint_gpencil(Menu):
         layout.operator("gpencil.vertex_color_brightness_contrast", text="Bright/Contrast")
 
 
+class VIEW3D_MT_select_gpencil_similar(Menu):
+    bl_label = "Select Similar"
+
+    def draw(self, context):
+        layout = self.layout
+        ts = context.scene.tool_settings
+        if ts.gpencil_selectmode_edit == 'STROKE':
+            layout.operator("gpencil.select_grouped", text="Layer").action = 'LAYER'
+            layout.operator("gpencil.select_grouped", text="Material").action = 'MATERIAL'
+            layout.operator("gpencil.select_grouped", text="Number of Points").action = 'POINTNUM'
+        else:
+            layout.operator("gpencil.select_grouped", text="Opacity").action = 'OPACITY'
+            layout.operator("gpencil.select_grouped", text="Thickness").action = 'THICKNESS'
+
+
 class VIEW3D_MT_select_gpencil(Menu):
     bl_label = "Select"
 
@@ -1982,7 +1997,7 @@ class VIEW3D_MT_select_gpencil(Menu):
         layout.operator("gpencil.select_linked", text="Linked")
         layout.operator("gpencil.select_alternate")
         layout.operator("gpencil.select_random")
-        layout.operator_menu_enum("gpencil.select_grouped", "type", text="Grouped")
+        layout.menu("VIEW3D_MT_select_gpencil_similar")
 
         if context.mode == 'VERTEX_GPENCIL':
             layout.operator("gpencil.select_vertex_color", text="Color Attribute")
@@ -8028,6 +8043,7 @@ classes = (
     VIEW3D_MT_select_edit_lattice,
     VIEW3D_MT_select_edit_armature,
     VIEW3D_MT_select_gpencil,
+    VIEW3D_MT_select_gpencil_similar,
     VIEW3D_MT_select_paint_mask,
     VIEW3D_MT_select_paint_mask_vertex,
     VIEW3D_MT_select_edit_curves,
