@@ -837,6 +837,16 @@ static void gpencil_prepare_point_data(bGPdata *gpd,
   }
 }
 
+static bool is_similar(GSet *selected, int keyvalue, const int range)
+{
+  for (int i = keyvalue - range; i <= keyvalue + range; i++) {
+    if (BLI_gset_haskey(selected, POINTER_FROM_INT(i))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /* On each visible layer, check for selected strokes - if found, select all others. */
 static bool gpencil_select_same_layer(bContext *C)
 {
@@ -928,7 +938,6 @@ static bool gpencil_select_same_material(bContext *C)
 static bool gpencil_select_same_pointnum(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
-  const int threshold = RNA_int_get(op->ptr, "threshold");
   const bool is_curve_edit = (bool)GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd);
   GSet *selected = BLI_gset_int_new(__func__);
 
@@ -941,11 +950,12 @@ static bool gpencil_select_same_pointnum(bContext *C, wmOperator *op)
   }
   CTX_DATA_END;
 
+  const int threshold = RNA_int_get(op->ptr, "threshold");
   CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
     if (is_curve_edit && gps->editcurve == NULL) {
       continue;
     }
-    if (BLI_gset_haskey(selected, POINTER_FROM_INT(gps->totpoints))) {
+    if (is_similar(selected, gps->totpoints, threshold)) {
       gpencil_select_stroke(gpd, gps, is_curve_edit);
       changed = true;
     }
@@ -977,6 +987,9 @@ static bool gpencil_select_same_opacity(bContext *C, wmOperator *op)
   }
   CTX_DATA_END;
 
+  const float threshold_fac = RNA_float_get(op->ptr, "threshold_factor");
+  const int threshold = threshold_fac * SELECT_SIMILAR_PRECISION;
+
   CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
     if (is_curve_edit && gps->editcurve == NULL) {
       continue;
@@ -985,8 +998,7 @@ static bool gpencil_select_same_opacity(bContext *C, wmOperator *op)
       bGPDcurve *gpc = gps->editcurve;
       for (int i = 0; i < gpc->tot_curve_points; i++) {
         bGPDcurve_point *gpc_pt = &gpc->curve_points[i];
-        if (BLI_gset_haskey(selected,
-                            POINTER_FROM_INT(gpc_pt->strength * SELECT_SIMILAR_PRECISION))) {
+        if (is_similar(selected, gpc_pt->strength * SELECT_SIMILAR_PRECISION, threshold)) {
           gpencil_set_curve_point(gps, gpc_pt);
           BKE_gpencil_stroke_select_index_set(gpd, gps);
           changed = true;
@@ -997,7 +1009,7 @@ static bool gpencil_select_same_opacity(bContext *C, wmOperator *op)
       bGPDspoint *pt;
       int i;
       for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-        if (BLI_gset_haskey(selected, POINTER_FROM_INT(pt->strength * SELECT_SIMILAR_PRECISION))) {
+        if (is_similar(selected, pt->strength * SELECT_SIMILAR_PRECISION, threshold)) {
           gpencil_set_stroke_point(gps, pt);
           BKE_gpencil_stroke_select_index_set(gpd, gps);
           changed = true;
@@ -1032,6 +1044,7 @@ static bool gpencil_select_same_thickness(bContext *C, wmOperator *op)
   }
   CTX_DATA_END;
 
+  const int threshold = RNA_int_get(op->ptr, "threshold") * SELECT_SIMILAR_PRECISION;
   CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
     if (is_curve_edit && gps->editcurve == NULL) {
       continue;
@@ -1040,9 +1053,9 @@ static bool gpencil_select_same_thickness(bContext *C, wmOperator *op)
       bGPDcurve *gpc = gps->editcurve;
       for (int i = 0; i < gpc->tot_curve_points; i++) {
         bGPDcurve_point *gpc_pt = &gpc->curve_points[i];
-        if (BLI_gset_haskey(
-                selected,
-                POINTER_FROM_INT(gps->thickness * gpc_pt->pressure * SELECT_SIMILAR_PRECISION))) {
+        if (is_similar(selected,
+                       gps->thickness * gpc_pt->pressure * SELECT_SIMILAR_PRECISION,
+                       threshold)) {
           gpencil_set_curve_point(gps, gpc_pt);
           BKE_gpencil_stroke_select_index_set(gpd, gps);
           changed = true;
@@ -1053,9 +1066,8 @@ static bool gpencil_select_same_thickness(bContext *C, wmOperator *op)
       bGPDspoint *pt;
       int i;
       for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-        if (BLI_gset_haskey(
-                selected,
-                POINTER_FROM_INT(gps->thickness * pt->pressure * SELECT_SIMILAR_PRECISION))) {
+        if (is_similar(
+                selected, gps->thickness * pt->pressure * SELECT_SIMILAR_PRECISION, threshold)) {
           gpencil_set_stroke_point(gps, pt);
           BKE_gpencil_stroke_select_index_set(gpd, gps);
           changed = true;
