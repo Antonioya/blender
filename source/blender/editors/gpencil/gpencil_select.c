@@ -837,13 +837,26 @@ static void gpencil_prepare_point_data(bGPdata *gpd,
   }
 }
 
-static bool is_similar(GSet *selected, int keyvalue, const int range)
+static bool is_similar(GSet *selected, int keyvalue, const int threshold)
 {
-  for (int i = keyvalue - range; i <= keyvalue + range; i++) {
-    if (BLI_gset_haskey(selected, POINTER_FROM_INT(i))) {
+  /* If no range, just need check the value in the hash table. */
+  if (threshold == 0) {
+    return BLI_gset_haskey(selected, POINTER_FROM_INT(keyvalue));
+  }
+
+  /* If a threshold is added, need to check all values to verify if some of them is in the range.
+   */
+  const int from_value = keyvalue - threshold;
+  const int to_value = keyvalue + threshold;
+
+  GSetIterator gs_iter;
+  GSET_ITER (gs_iter, selected) {
+    int hash_value = POINTER_AS_INT(BLI_gsetIterator_getKey(&gs_iter));
+    if (from_value >= hash_value <= to_value) {
       return true;
     }
   }
+
   return false;
 }
 
