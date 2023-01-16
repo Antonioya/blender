@@ -813,7 +813,7 @@ static void gpencil_prepare_point_data(bGPdata *gpd,
           case GP_SEL_SAME_COLORATTR: {
             float hsv[3];
             rgb_to_hsv_compat_v(gpc_pt->vert_color, hsv);
-            value = hsv[0];
+            value = hsv[0] * SELECT_SIMILAR_PRECISION;
             break;
           }
           default:
@@ -1129,7 +1129,8 @@ static bool gpencil_select_same_colorattr(bContext *C, wmOperator *op)
   }
   CTX_DATA_END;
 
-  const int threshold = RNA_int_get(op->ptr, "threshold");
+  const float threshold_fac = RNA_float_get(op->ptr, "threshold_factor");
+  const int threshold = threshold_fac * SELECT_SIMILAR_PRECISION;
   float hsv[3];
   CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
     if (is_curve_edit && gps->editcurve == NULL) {
@@ -1140,7 +1141,7 @@ static bool gpencil_select_same_colorattr(bContext *C, wmOperator *op)
       for (int i = 0; i < gpc->tot_curve_points; i++) {
         bGPDcurve_point *gpc_pt = &gpc->curve_points[i];
         rgb_to_hsv_compat_v(gpc_pt->vert_color, hsv);
-        if (is_similar(selected, hsv[0], threshold)) {
+        if (is_similar(selected, hsv[0] * SELECT_SIMILAR_PRECISION, threshold)) {
           gpencil_set_curve_point(gps, gpc_pt);
           BKE_gpencil_stroke_select_index_set(gpd, gps);
           changed = true;
@@ -1237,7 +1238,7 @@ static void gpencil_select_grouped_ui(bContext *UNUSED(C), wmOperator *op)
     uiItemR(row, op->ptr, "threshold", 0, NULL, ICON_NONE);
   }
 
-  if (ELEM(action, GP_SEL_SAME_OPACITY)) {
+  if (ELEM(action, GP_SEL_SAME_OPACITY, GP_SEL_SAME_COLORATTR)) {
     row = uiLayoutRow(layout, true);
     uiItemR(row, op->ptr, "threshold_factor", 0, NULL, ICON_NONE);
   }
