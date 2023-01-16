@@ -748,6 +748,8 @@ typedef enum eGP_SelectGrouped {
   GP_SEL_SAME_OPACITY = 3,
   /* Select points with the same point thickness. */
   GP_SEL_SAME_THICKNESS = 4,
+  /* Select points with the same color attribute (Hue only). */
+  GP_SEL_SAME_COLORATTR = 5,
 } eGP_SelectGrouped;
 
 /* ----------------------------------- */
@@ -808,6 +810,12 @@ static void gpencil_prepare_point_data(bGPdata *gpd,
           case GP_SEL_SAME_THICKNESS:
             value = gps->thickness * gpc_pt->pressure * SELECT_SIMILAR_PRECISION;
             break;
+          case GP_SEL_SAME_COLORATTR: {
+            float hsv[3];
+            rgb_to_hsv_compat_v(gpc_pt->vert_color, hsv);
+            value = hsv[0];
+            break;
+          }
           default:
             break;
         }
@@ -828,6 +836,12 @@ static void gpencil_prepare_point_data(bGPdata *gpd,
           case GP_SEL_SAME_THICKNESS:
             value = gps->thickness * pt->pressure * SELECT_SIMILAR_PRECISION;
             break;
+          case GP_SEL_SAME_COLORATTR: {
+            float hsv[3];
+            rgb_to_hsv_compat_v(pt->vert_color, hsv);
+            value = hsv[0];
+            break;
+          }
           default:
             break;
         }
@@ -846,7 +860,7 @@ static bool is_similar(GSet *selected, int keyvalue, const int threshold)
 
   /* If a threshold is added, need to check all values to verify if some of them is in the range.
    */
-  const int from_value = keyvalue - threshold;
+  const int from_value = max_ii(keyvalue - threshold, 0);
   const int to_value = keyvalue + threshold;
 
   GSetIterator gs_iter;
@@ -1097,6 +1111,64 @@ static bool gpencil_select_same_thickness(bContext *C, wmOperator *op)
 
   return changed;
 }
+
+/* Select all points with same color attribute (hue) as selected ones. */
+static bool gpencil_select_same_colorattr(bContext *C, wmOperator *op)
+{
+  bGPdata *gpd = ED_gpencil_data_get_active(C);
+  const bool is_curve_edit = (bool)GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd);
+  const eGP_SelectGrouped action = RNA_enum_get(op->ptr, "action");
+  GSet *selected = BLI_gset_int_new(__func__);
+
+  bool changed = false;
+
+  CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
+    if (gps->flag & GP_STROKE_SELECT) {
+      gpencil_prepare_point_data(gpd, gps, action, selected);
+    }
+  }
+  CTX_DATA_END;
+
+  const int threshold = RNA_int_get(op->ptr, "threshold");
+  float hsv[3];
+  CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
+    if (is_curve_edit && gps->editcurve == NULL) {
+      continue;
+    }
+    if (is_curve_edit) {
+      bGPDcurve *gpc = gps->editcurve;
+      for (int i = 0; i < gpc->tot_curve_points; i++) {
+        bGPDcurve_point *gpc_pt = &gpc->curve_points[i];
+        rgb_to_hsv_compat_v(gpc_pt->vert_color, hsv);
+        if (is_similar(selected, hsv[0], threshold)) {
+          gpencil_set_curve_point(gps, gpc_pt);
+          BKE_gpencil_stroke_select_index_set(gpd, gps);
+          changed = true;
+        }
+      }
+    }
+    else {
+      bGPDspoint *pt;
+      int i;
+      for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+        rgb_to_hsv_compat_v(pt->vert_color, hsv);
+        if (is_similar(selected, hsv[0], threshold)) {
+          gpencil_set_stroke_point(gps, pt);
+          BKE_gpencil_stroke_select_index_set(gpd, gps);
+          changed = true;
+        }
+      }
+    }
+  }
+  CTX_DATA_END;
+
+  /* Free memory. */
+  if (selected != NULL) {
+    BLI_gset_free(selected, NULL);
+  }
+
+  return changed;
+}
 /* ----------------------------------- */
 
 static int gpencil_select_grouped_exec(bContext *C, wmOperator *op)
@@ -1125,6 +1197,9 @@ static int gpencil_select_grouped_exec(bContext *C, wmOperator *op)
       break;
     case GP_SEL_SAME_THICKNESS:
       changed = gpencil_select_same_thickness(C, op);
+      break;
+    case GP_SEL_SAME_COLORATTR:
+      changed = gpencil_select_same_colorattr(C, op);
       break;
 
     default:
@@ -1176,6 +1251,7 @@ void GPENCIL_OT_select_grouped(wmOperatorType *ot)
       {GP_SEL_SAME_POINTNUM, "POINTNUM", 0, "Number of Points", "Shared shame number of points"},
       {GP_SEL_SAME_OPACITY, "OPACITY", 0, "Opacity", "Shared shame opacity"},
       {GP_SEL_SAME_THICKNESS, "THICKNESS", 0, "Thickness", "Shared shame thickness"},
+      {GP_SEL_SAME_COLORATTR, "COLOR", 0, "Color Attribute", "Shared shame Hue color attribute"},
       {0, NULL, 0, NULL, NULL},
   };
 
