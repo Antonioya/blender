@@ -310,8 +310,13 @@ static void particle_calculate_parent_uvs(ParticleSystem *psys,
     }
   }
   if (!ELEM(num, DMCACHE_NOTFOUND, DMCACHE_ISCHILD)) {
-    MFace *mfaces = CustomData_get_layer(&psmd->mesh_final->fdata, CD_MFACE);
-    MFace *mface = &mfaces[num];
+    const MFace *mfaces = CustomData_get_layer(&psmd->mesh_final->fdata, CD_MFACE);
+    if (UNLIKELY(mfaces == NULL)) {
+      BLI_assert_msg(psmd->mesh_final->totpoly == 0,
+                     "A mesh with polygons should always have a generated 'CD_MFACE' layer!");
+      return;
+    }
+    const MFace *mface = &mfaces[num];
     for (int j = 0; j < num_uv_layers; j++) {
       psys_interpolate_uvs(mtfaces[j] + num, mface->v4, particle->fuv, r_uv[j]);
     }
@@ -340,8 +345,13 @@ static void particle_calculate_parent_mcol(ParticleSystem *psys,
     }
   }
   if (!ELEM(num, DMCACHE_NOTFOUND, DMCACHE_ISCHILD)) {
-    MFace *mfaces = CustomData_get_layer(&psmd->mesh_final->fdata, CD_MFACE);
-    MFace *mface = &mfaces[num];
+    const MFace *mfaces = CustomData_get_layer(&psmd->mesh_final->fdata, CD_MFACE);
+    if (UNLIKELY(mfaces == NULL)) {
+      BLI_assert_msg(psmd->mesh_final->totpoly == 0,
+                     "A mesh with polygons should always have a generated 'CD_MFACE' layer!");
+      return;
+    }
+    const MFace *mface = &mfaces[num];
     for (int j = 0; j < num_col_layers; j++) {
       /* CustomDataLayer CD_MCOL has 4 structs per face. */
       psys_interpolate_mcol(mcols[j] + num * 4, mface->v4, particle->fuv, &r_mcol[j]);
@@ -367,8 +377,8 @@ static void particle_interpolate_children_uvs(ParticleSystem *psys,
   ChildParticle *particle = &psys->child[child_index];
   int num = particle->num;
   if (num != DMCACHE_NOTFOUND) {
-    MFace *mfaces = CustomData_get_layer(&psmd->mesh_final->fdata, CD_MFACE);
-    MFace *mface = &mfaces[num];
+    const MFace *mfaces = CustomData_get_layer(&psmd->mesh_final->fdata, CD_MFACE);
+    const MFace *mface = &mfaces[num];
     for (int j = 0; j < num_uv_layers; j++) {
       psys_interpolate_uvs(mtfaces[j] + num, mface->v4, particle->fuv, r_uv[j]);
     }
@@ -392,8 +402,8 @@ static void particle_interpolate_children_mcol(ParticleSystem *psys,
   ChildParticle *particle = &psys->child[child_index];
   int num = particle->num;
   if (num != DMCACHE_NOTFOUND) {
-    MFace *mfaces = CustomData_get_layer(&psmd->mesh_final->fdata, CD_MFACE);
-    MFace *mface = &mfaces[num];
+    const MFace *mfaces = CustomData_get_layer(&psmd->mesh_final->fdata, CD_MFACE);
+    const MFace *mface = &mfaces[num];
     for (int j = 0; j < num_col_layers; j++) {
       /* CustomDataLayer CD_MCOL has 4 structs per face. */
       psys_interpolate_mcol(mcols[j] + num * 4, mface->v4, particle->fuv, &r_mcol[j]);

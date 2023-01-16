@@ -922,7 +922,8 @@ static Mesh *subdivide_base(const Mesh *orig)
 
   float(*out_vert_positions)[3] = BKE_mesh_vert_positions_for_write(result);
   MEdge *outedge = BKE_mesh_edges_for_write(result);
-  MVertSkin *outnode = CustomData_get_layer(&result->vdata, CD_MVERT_SKIN);
+  MVertSkin *outnode = CustomData_get_layer_for_write(
+      &result->vdata, CD_MVERT_SKIN, result->totvert);
   MDeformVert *outdvert = NULL;
   if (origdvert) {
     outdvert = BKE_mesh_deform_verts_for_write(result);
@@ -1909,7 +1910,7 @@ static void skin_set_orig_indices(Mesh *mesh)
 static Mesh *base_skin(Mesh *origmesh, SkinModifierData *smd, eSkinErrorFlag *r_error)
 {
   Mesh *result;
-  MVertSkin *nodes;
+  const MVertSkin *nodes;
   BMesh *bm;
   EMat *emat;
   SkinNode *skin_nodes;
@@ -2075,34 +2076,34 @@ static void panelRegister(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_Skin = {
-    /* name */ N_("Skin"),
-    /* structName */ "SkinModifierData",
-    /* structSize */ sizeof(SkinModifierData),
-    /* srna */ &RNA_SkinModifier,
-    /* type */ eModifierTypeType_Constructive,
-    /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
-    /* icon */ ICON_MOD_SKIN,
+    /*name*/ N_("Skin"),
+    /*structName*/ "SkinModifierData",
+    /*structSize*/ sizeof(SkinModifierData),
+    /*srna*/ &RNA_SkinModifier,
+    /*type*/ eModifierTypeType_Constructive,
+    /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
+    /*icon*/ ICON_MOD_SKIN,
 
-    /* copyData */ BKE_modifier_copydata_generic,
+    /*copyData*/ BKE_modifier_copydata_generic,
 
-    /* deformVerts */ NULL,
-    /* deformMatrices */ NULL,
-    /* deformVertsEM */ NULL,
-    /* deformMatricesEM */ NULL,
-    /* modifyMesh */ modifyMesh,
-    /* modifyGeometrySet */ NULL,
+    /*deformVerts*/ NULL,
+    /*deformMatrices*/ NULL,
+    /*deformVertsEM*/ NULL,
+    /*deformMatricesEM*/ NULL,
+    /*modifyMesh*/ modifyMesh,
+    /*modifyGeometrySet*/ NULL,
 
-    /* initData */ initData,
-    /* requiredDataMask */ requiredDataMask,
-    /* freeData */ NULL,
-    /* isDisabled */ NULL,
-    /* updateDepsgraph */ NULL,
-    /* dependsOnTime */ NULL,
-    /* dependsOnNormals */ NULL,
-    /* foreachIDLink */ NULL,
-    /* foreachTexLink */ NULL,
-    /* freeRuntimeData */ NULL,
-    /* panelRegister */ panelRegister,
-    /* blendWrite */ NULL,
-    /* blendRead */ NULL,
+    /*initData*/ initData,
+    /*requiredDataMask*/ requiredDataMask,
+    /*freeData*/ NULL,
+    /*isDisabled*/ NULL,
+    /*updateDepsgraph*/ NULL,
+    /*dependsOnTime*/ NULL,
+    /*dependsOnNormals*/ NULL,
+    /*foreachIDLink*/ NULL,
+    /*foreachTexLink*/ NULL,
+    /*freeRuntimeData*/ NULL,
+    /*panelRegister*/ panelRegister,
+    /*blendWrite*/ NULL,
+    /*blendRead*/ NULL,
 };

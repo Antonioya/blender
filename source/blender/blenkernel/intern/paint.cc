@@ -133,33 +133,33 @@ static void palette_undo_preserve(BlendLibReader * /*reader*/, ID *id_new, ID *i
 }
 
 IDTypeInfo IDType_ID_PAL = {
-    /* id_code */ ID_PAL,
-    /* id_filter */ FILTER_ID_PAL,
-    /* main_listbase_index */ INDEX_ID_PAL,
-    /* struct_size */ sizeof(Palette),
-    /* name */ "Palette",
-    /* name_plural */ "palettes",
-    /* translation_context */ BLT_I18NCONTEXT_ID_PALETTE,
-    /* flags */ IDTYPE_FLAGS_NO_ANIMDATA,
-    /* asset_type_info */ nullptr,
+    /*id_code*/ ID_PAL,
+    /*id_filter*/ FILTER_ID_PAL,
+    /*main_listbase_index*/ INDEX_ID_PAL,
+    /*struct_size*/ sizeof(Palette),
+    /*name*/ "Palette",
+    /*name_plural*/ "palettes",
+    /*translation_context*/ BLT_I18NCONTEXT_ID_PALETTE,
+    /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA,
+    /*asset_type_info*/ nullptr,
 
-    /* init_data */ palette_init_data,
-    /* copy_data */ palette_copy_data,
-    /* free_data */ palette_free_data,
-    /* make_local */ nullptr,
-    /* foreach_id */ nullptr,
-    /* foreach_cache */ nullptr,
-    /* foreach_path */ nullptr,
-    /* owner_pointer_get */ nullptr,
+    /*init_data*/ palette_init_data,
+    /*copy_data*/ palette_copy_data,
+    /*free_data*/ palette_free_data,
+    /*make_local*/ nullptr,
+    /*foreach_id*/ nullptr,
+    /*foreach_cache*/ nullptr,
+    /*foreach_path*/ nullptr,
+    /*owner_pointer_get*/ nullptr,
 
-    /* blend_write */ palette_blend_write,
-    /* blend_read_data */ palette_blend_read_data,
-    /* blend_read_lib */ nullptr,
-    /* blend_read_expand */ nullptr,
+    /*blend_write*/ palette_blend_write,
+    /*blend_read_data*/ palette_blend_read_data,
+    /*blend_read_lib*/ nullptr,
+    /*blend_read_expand*/ nullptr,
 
-    /* blend_read_undo_preserve */ palette_undo_preserve,
+    /*blend_read_undo_preserve*/ palette_undo_preserve,
 
-    /* lib_override_apply_post */ nullptr,
+    /*lib_override_apply_post*/ nullptr,
 };
 
 static void paint_curve_copy_data(Main * /*bmain*/,
@@ -201,33 +201,33 @@ static void paint_curve_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_PC = {
-    /* id_code */ ID_PC,
-    /* id_filter */ FILTER_ID_PC,
-    /* main_listbase_index */ INDEX_ID_PC,
-    /* struct_size */ sizeof(PaintCurve),
-    /* name */ "PaintCurve",
-    /* name_plural */ "paint_curves",
-    /* translation_context */ BLT_I18NCONTEXT_ID_PAINTCURVE,
-    /* flags */ IDTYPE_FLAGS_NO_ANIMDATA,
-    /* asset_type_info */ nullptr,
+    /*id_code*/ ID_PC,
+    /*id_filter*/ FILTER_ID_PC,
+    /*main_listbase_index*/ INDEX_ID_PC,
+    /*struct_size*/ sizeof(PaintCurve),
+    /*name*/ "PaintCurve",
+    /*name_plural*/ "paint_curves",
+    /*translation_context*/ BLT_I18NCONTEXT_ID_PAINTCURVE,
+    /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA,
+    /*asset_type_info*/ nullptr,
 
-    /* init_data */ nullptr,
-    /* copy_data */ paint_curve_copy_data,
-    /* free_data */ paint_curve_free_data,
-    /* make_local */ nullptr,
-    /* foreach_id */ nullptr,
-    /* foreach_cache */ nullptr,
-    /* foreach_path */ nullptr,
-    /* owner_pointer_get */ nullptr,
+    /*init_data*/ nullptr,
+    /*copy_data*/ paint_curve_copy_data,
+    /*free_data*/ paint_curve_free_data,
+    /*make_local*/ nullptr,
+    /*foreach_id*/ nullptr,
+    /*foreach_cache*/ nullptr,
+    /*foreach_path*/ nullptr,
+    /*owner_pointer_get*/ nullptr,
 
-    /* blend_write */ paint_curve_blend_write,
-    /* blend_read_data */ paint_curve_blend_read_data,
-    /* blend_read_lib */ nullptr,
-    /* blend_read_expand */ nullptr,
+    /*blend_write*/ paint_curve_blend_write,
+    /*blend_read_data*/ paint_curve_blend_read_data,
+    /*blend_read_lib*/ nullptr,
+    /*blend_read_expand*/ nullptr,
 
-    /* blend_read_undo_preserve */ nullptr,
+    /*blend_read_undo_preserve*/ nullptr,
 
-    /* lib_override_apply_post */ nullptr,
+    /*lib_override_apply_post*/ nullptr,
 };
 
 const uchar PAINT_CURSOR_SCULPT[3] = {255, 100, 100};
@@ -1709,7 +1709,8 @@ static void sculpt_update_object(
     ss->multires.active = false;
     ss->multires.modifier = nullptr;
     ss->multires.level = 0;
-    ss->vmask = static_cast<float *>(CustomData_get_layer(&me->vdata, CD_PAINT_MASK));
+    ss->vmask = static_cast<float *>(
+        CustomData_get_layer_for_write(&me->vdata, CD_PAINT_MASK, me->totvert));
 
     CustomDataLayer *layer;
     eAttrDomain domain;
@@ -1736,14 +1737,15 @@ static void sculpt_update_object(
 
   /* Sculpt Face Sets. */
   if (use_face_sets) {
-    ss->face_sets = static_cast<int *>(
-        CustomData_get_layer_named(&me->pdata, CD_PROP_INT32, ".sculpt_face_set"));
+    ss->face_sets = static_cast<int *>(CustomData_get_layer_named_for_write(
+        &me->pdata, CD_PROP_INT32, ".sculpt_face_set", me->totpoly));
   }
   else {
     ss->face_sets = nullptr;
   }
 
-  ss->hide_poly = (bool *)CustomData_get_layer_named(&me->pdata, CD_PROP_BOOL, ".hide_poly");
+  ss->hide_poly = (bool *)CustomData_get_layer_named_for_write(
+      &me->pdata, CD_PROP_BOOL, ".hide_poly", me->totpoly);
 
   ss->subdiv_ccg = me_eval->runtime->subdiv_ccg;
 
@@ -1962,14 +1964,14 @@ int *BKE_sculpt_face_sets_ensure(Mesh *mesh)
     face_sets.finish();
   }
 
-  return static_cast<int *>(
-      CustomData_get_layer_named(&mesh->pdata, CD_PROP_INT32, ".sculpt_face_set"));
+  return static_cast<int *>(CustomData_get_layer_named_for_write(
+      &mesh->pdata, CD_PROP_INT32, ".sculpt_face_set", mesh->totpoly));
 }
 
 bool *BKE_sculpt_hide_poly_ensure(Mesh *mesh)
 {
-  bool *hide_poly = static_cast<bool *>(
-      CustomData_get_layer_named(&mesh->pdata, CD_PROP_BOOL, ".hide_poly"));
+  bool *hide_poly = static_cast<bool *>(CustomData_get_layer_named_for_write(
+      &mesh->pdata, CD_PROP_BOOL, ".hide_poly", mesh->totpoly));
   if (hide_poly != nullptr) {
     return hide_poly;
   }

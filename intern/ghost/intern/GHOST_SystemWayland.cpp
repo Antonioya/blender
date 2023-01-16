@@ -280,41 +280,41 @@ struct GWL_ModifierInfo {
 };
 
 static const GWL_ModifierInfo g_modifier_info_table[MOD_INDEX_NUM] = {
-    /* MOD_INDEX_SHIFT */
+    /*MOD_INDEX_SHIFT*/
     {
-        /* display_name */ "Shift",
-        /* xkb_id */ XKB_MOD_NAME_SHIFT,
-        /* key_l */ GHOST_kKeyLeftShift,
-        /* key_r */ GHOST_kKeyRightShift,
-        /* mod_l */ GHOST_kModifierKeyLeftShift,
-        /* mod_r */ GHOST_kModifierKeyRightShift,
+        /*display_name*/ "Shift",
+        /*xkb_id*/ XKB_MOD_NAME_SHIFT,
+        /*key_l*/ GHOST_kKeyLeftShift,
+        /*key_r*/ GHOST_kKeyRightShift,
+        /*mod_l*/ GHOST_kModifierKeyLeftShift,
+        /*mod_r*/ GHOST_kModifierKeyRightShift,
     },
-    /* MOD_INDEX_ALT */
+    /*MOD_INDEX_ALT*/
     {
-        /* display_name */ "Alt",
-        /* xkb_id */ XKB_MOD_NAME_ALT,
-        /* key_l */ GHOST_kKeyLeftAlt,
-        /* key_r */ GHOST_kKeyRightAlt,
-        /* mod_l */ GHOST_kModifierKeyLeftAlt,
-        /* mod_r */ GHOST_kModifierKeyRightAlt,
+        /*display_name*/ "Alt",
+        /*xkb_id*/ XKB_MOD_NAME_ALT,
+        /*key_l*/ GHOST_kKeyLeftAlt,
+        /*key_r*/ GHOST_kKeyRightAlt,
+        /*mod_l*/ GHOST_kModifierKeyLeftAlt,
+        /*mod_r*/ GHOST_kModifierKeyRightAlt,
     },
-    /* MOD_INDEX_CTRL */
+    /*MOD_INDEX_CTRL*/
     {
-        /* display_name */ "Control",
-        /* xkb_id */ XKB_MOD_NAME_CTRL,
-        /* key_l */ GHOST_kKeyLeftControl,
-        /* key_r */ GHOST_kKeyRightControl,
-        /* mod_l */ GHOST_kModifierKeyLeftControl,
-        /* mod_r */ GHOST_kModifierKeyRightControl,
+        /*display_name*/ "Control",
+        /*xkb_id*/ XKB_MOD_NAME_CTRL,
+        /*key_l*/ GHOST_kKeyLeftControl,
+        /*key_r*/ GHOST_kKeyRightControl,
+        /*mod_l*/ GHOST_kModifierKeyLeftControl,
+        /*mod_r*/ GHOST_kModifierKeyRightControl,
     },
-    /* MOD_INDEX_OS */
+    /*MOD_INDEX_OS*/
     {
-        /* display_name */ "OS",
-        /* xkb_id */ XKB_MOD_NAME_LOGO,
-        /* key_l */ GHOST_kKeyLeftOS,
-        /* key_r */ GHOST_kKeyRightOS,
-        /* mod_l */ GHOST_kModifierKeyLeftOS,
-        /* mod_r */ GHOST_kModifierKeyRightOS,
+        /*display_name*/ "OS",
+        /*xkb_id*/ XKB_MOD_NAME_LOGO,
+        /*key_l*/ GHOST_kKeyLeftOS,
+        /*key_r*/ GHOST_kKeyRightOS,
+        /*mod_l*/ GHOST_kModifierKeyLeftOS,
+        /*mod_r*/ GHOST_kModifierKeyRightOS,
     },
 };
 
@@ -1662,31 +1662,39 @@ static int ghost_wl_display_event_pump_from_thread(struct wl_display *wl_display
   server_mutex->lock();
   int err = 0;
   if (wl_display_prepare_read(wl_display) == 0) {
+    bool wait_on_fd = false;
     /* Use #GWL_IOR_NO_RETRY to ensure #SIGINT will break us out of our wait. */
     if (file_descriptor_is_io_ready(fd, GWL_IOR_READ | GWL_IOR_NO_RETRY, 0) > 0) {
       err = wl_display_read_events(wl_display);
     }
     else {
       wl_display_cancel_read(wl_display);
+      /* Without this, the thread will loop continuously, 100% CPU. */
+      wait_on_fd = true;
+    }
+
+    server_mutex->unlock();
+
+    if (wait_on_fd) {
+      /* Important this runs after unlocking. */
+      file_descriptor_is_io_ready(fd, GWL_IOR_READ | GWL_IOR_NO_RETRY, INT32_MAX);
     }
   }
   else {
-    int state;
-    do {
-      server_mutex->unlock();
-      /* Wait for input (unlocked, so as not to block other threads). */
-      state = file_descriptor_is_io_ready(fd, GWL_IOR_READ | GWL_IOR_NO_RETRY, INT32_MAX);
+    server_mutex->unlock();
+
+    /* Wait for input (unlocked, so as not to block other threads). */
+    int state = file_descriptor_is_io_ready(fd, GWL_IOR_READ | GWL_IOR_NO_RETRY, INT32_MAX);
+    /* Re-check `state` with a lock held, needed to avoid holding the lock. */
+    if (state > 0) {
       server_mutex->lock();
-      /* Re-check `state` with a lock held, needed to avoid holding the lock. */
+      state = file_descriptor_is_io_ready(fd, GWL_IOR_READ | GWL_IOR_NO_RETRY, 0);
       if (state > 0) {
-        state = file_descriptor_is_io_ready(fd, GWL_IOR_READ | GWL_IOR_NO_RETRY, 0);
-        if (state > 0) {
-          err = wl_display_dispatch_pending(wl_display);
-        }
+        err = wl_display_dispatch_pending(wl_display);
       }
-    } while (state > 0);
+      server_mutex->unlock();
+    }
   }
-  server_mutex->unlock();
 
   return err;
 }
@@ -5320,7 +5328,7 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
   /* Connect to the Wayland server. */
   display_->wl_display = wl_display_connect(nullptr);
   if (!display_->wl_display) {
-    this->~GHOST_SystemWayland();
+    display_destroy_and_free_all();
     throw std::runtime_error("Wayland: unable to connect to display!");
   }
 
@@ -5364,7 +5372,7 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
               "WAYLAND found but libdecor was not, install libdecor for Wayland support, "
               "falling back to X11\n");
 #  endif
-      this->~GHOST_SystemWayland();
+      display_destroy_and_free_all();
       throw std::runtime_error("Wayland: unable to find libdecor!");
 
       use_libdecor = true;
@@ -5381,7 +5389,7 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
     GWL_LibDecor_System &decor = *display_->libdecor;
     decor.context = libdecor_new(display_->wl_display, &libdecor_interface);
     if (!decor.context) {
-      this->~GHOST_SystemWayland();
+      display_destroy_and_free_all();
       throw std::runtime_error("Wayland: unable to create window decorations!");
     }
   }
@@ -5392,7 +5400,7 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
   {
     GWL_XDG_Decor_System &decor = *display_->xdg_decor;
     if (!decor.shell) {
-      this->~GHOST_SystemWayland();
+      display_destroy_and_free_all();
       throw std::runtime_error("Wayland: unable to access xdg_shell!");
     }
   }
@@ -5402,7 +5410,7 @@ GHOST_SystemWayland::GHOST_SystemWayland(bool background)
 #endif
 }
 
-GHOST_SystemWayland::~GHOST_SystemWayland()
+void GHOST_SystemWayland::display_destroy_and_free_all()
 {
   gwl_display_destroy(display_);
 
@@ -5410,6 +5418,11 @@ GHOST_SystemWayland::~GHOST_SystemWayland()
   delete server_mutex;
   delete timer_mutex;
 #endif
+}
+
+GHOST_SystemWayland::~GHOST_SystemWayland()
+{
+  display_destroy_and_free_all();
 }
 
 GHOST_TSuccess GHOST_SystemWayland::init()

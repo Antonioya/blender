@@ -248,6 +248,7 @@ static void version_idproperty_ui_data(IDProperty *idprop_group)
       case IDP_UI_DATA_TYPE_FLOAT:
         version_idproperty_move_data_float((IDPropertyUIDataFloat *)ui_data, prop_ui_data);
         break;
+      case IDP_UI_DATA_TYPE_BOOLEAN:
       case IDP_UI_DATA_TYPE_UNSUPPORTED:
         BLI_assert_unreachable();
         break;
@@ -876,7 +877,7 @@ static void version_geometry_nodes_primitive_uv_maps(bNodeTree &ntree)
 
     bNodeSocket *store_attribute_geometry_input = static_cast<bNodeSocket *>(
         store_attribute_node->inputs.first);
-    bNodeSocket *store_attribute_name_input = store_attribute_geometry_input->next;
+    bNodeSocket *store_attribute_name_input = store_attribute_geometry_input->next->next;
     bNodeSocket *store_attribute_value_input = nullptr;
     LISTBASE_FOREACH (bNodeSocket *, socket, &store_attribute_node->inputs) {
       if (socket->type == SOCK_VECTOR) {
@@ -3842,8 +3843,8 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Light *, light, &bmain->lights) {
       light->radius = light->area_size;
     }
-    /* Grease Pencil Build modifier: Set default value for new natural drawspeed factor and maximum
-     * gap. */
+    /* Grease Pencil Build modifier:
+     * Set default value for new natural draw-speed factor and maximum gap. */
     if (!DNA_struct_elem_find(fd->filesdna, "BuildGpencilModifierData", "float", "speed_fac") ||
         !DNA_struct_elem_find(fd->filesdna, "BuildGpencilModifierData", "float", "speed_maxgap")) {
       LISTBASE_FOREACH (Object *, ob, &bmain->objects) {

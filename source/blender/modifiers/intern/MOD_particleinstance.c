@@ -322,10 +322,10 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *
   MPoly *mpoly = BKE_mesh_polys_for_write(result);
   MLoop *mloop = BKE_mesh_loops_for_write(result);
 
-  MLoopCol *mloopcols_index = CustomData_get_layer_named(
-      &result->ldata, CD_PROP_BYTE_COLOR, pimd->index_layer_name);
-  MLoopCol *mloopcols_value = CustomData_get_layer_named(
-      &result->ldata, CD_PROP_BYTE_COLOR, pimd->value_layer_name);
+  MLoopCol *mloopcols_index = CustomData_get_layer_named_for_write(
+      &result->ldata, CD_PROP_BYTE_COLOR, pimd->index_layer_name, result->totloop);
+  MLoopCol *mloopcols_value = CustomData_get_layer_named_for_write(
+      &result->ldata, CD_PROP_BYTE_COLOR, pimd->value_layer_name, result->totloop);
   int *vert_part_index = NULL;
   float *vert_part_value = NULL;
   if (mloopcols_index != NULL) {
@@ -633,35 +633,35 @@ static void panelRegister(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_ParticleInstance = {
-    /* name */ N_("ParticleInstance"),
-    /* structName */ "ParticleInstanceModifierData",
-    /* structSize */ sizeof(ParticleInstanceModifierData),
-    /* srna */ &RNA_ParticleInstanceModifier,
-    /* type */ eModifierTypeType_Constructive,
-    /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
+    /*name*/ N_("ParticleInstance"),
+    /*structName*/ "ParticleInstanceModifierData",
+    /*structSize*/ sizeof(ParticleInstanceModifierData),
+    /*srna*/ &RNA_ParticleInstanceModifier,
+    /*type*/ eModifierTypeType_Constructive,
+    /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode,
-    /* icon */ ICON_MOD_PARTICLE_INSTANCE,
+    /*icon*/ ICON_MOD_PARTICLE_INSTANCE,
 
-    /* copyData */ BKE_modifier_copydata_generic,
+    /*copyData*/ BKE_modifier_copydata_generic,
 
-    /* deformVerts */ NULL,
-    /* deformMatrices */ NULL,
-    /* deformVertsEM */ NULL,
-    /* deformMatricesEM */ NULL,
-    /* modifyMesh */ modifyMesh,
-    /* modifyGeometrySet */ NULL,
+    /*deformVerts*/ NULL,
+    /*deformMatrices*/ NULL,
+    /*deformVertsEM*/ NULL,
+    /*deformMatricesEM*/ NULL,
+    /*modifyMesh*/ modifyMesh,
+    /*modifyGeometrySet*/ NULL,
 
-    /* initData */ initData,
-    /* requiredDataMask */ requiredDataMask,
-    /* freeData */ NULL,
-    /* isDisabled */ isDisabled,
-    /* updateDepsgraph */ updateDepsgraph,
-    /* dependsOnTime */ NULL,
-    /* dependsOnNormals */ NULL,
-    /* foreachIDLink */ foreachIDLink,
-    /* foreachTexLink */ NULL,
-    /* freeRuntimeData */ NULL,
-    /* panelRegister */ panelRegister,
-    /* blendWrite */ NULL,
-    /* blendRead */ NULL,
+    /*initData*/ initData,
+    /*requiredDataMask*/ requiredDataMask,
+    /*freeData*/ NULL,
+    /*isDisabled*/ isDisabled,
+    /*updateDepsgraph*/ updateDepsgraph,
+    /*dependsOnTime*/ NULL,
+    /*dependsOnNormals*/ NULL,
+    /*foreachIDLink*/ foreachIDLink,
+    /*foreachTexLink*/ NULL,
+    /*freeRuntimeData*/ NULL,
+    /*panelRegister*/ panelRegister,
+    /*blendWrite*/ NULL,
+    /*blendRead*/ NULL,
 };

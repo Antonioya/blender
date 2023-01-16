@@ -448,9 +448,9 @@ struct IslandResult {
  *   This only concerns loops, currently (because of islands), and 'sampled' edges/polys norproj.
  */
 
-/* At most n raycasts per 'real' ray. */
+/** At most N ray-casts per 'real' ray. */
 #define MREMAP_RAYCAST_APPROXIMATE_NR 3
-/* Each approximated raycasts will have n times bigger radius than previous one. */
+/** Each approximated ray-casts will have n times bigger radius than previous one. */
 #define MREMAP_RAYCAST_APPROXIMATE_FAC 5.0f
 
 /* min 16 rays/face, max 400. */
@@ -1357,10 +1357,11 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
       }
       if (need_lnors_dst) {
         short(*custom_nors_dst)[2] = static_cast<short(*)[2]>(
-            CustomData_get_layer(ldata_dst, CD_CUSTOMLOOPNORMAL));
+            CustomData_get_layer_for_write(ldata_dst, CD_CUSTOMLOOPNORMAL, numloops_dst));
 
         /* Cache loop normals into a temporary custom data layer. */
-        loop_nors_dst = static_cast<float(*)[3]>(CustomData_get_layer(ldata_dst, CD_NORMAL));
+        loop_nors_dst = static_cast<float(*)[3]>(
+            CustomData_get_layer_for_write(ldata_dst, CD_NORMAL, numloops_dst));
         const bool do_loop_nors_dst = (loop_nors_dst == nullptr);
         if (!loop_nors_dst) {
           loop_nors_dst = static_cast<float(*)[3]>(

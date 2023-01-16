@@ -408,33 +408,33 @@ static void mesh_read_expand(BlendExpander *expander, ID *id)
 }
 
 IDTypeInfo IDType_ID_ME = {
-    /* id_code */ ID_ME,
-    /* id_filter */ FILTER_ID_ME,
-    /* main_listbase_index */ INDEX_ID_ME,
-    /* struct_size */ sizeof(Mesh),
-    /* name */ "Mesh",
-    /* name_plural */ "meshes",
-    /* translation_context */ BLT_I18NCONTEXT_ID_MESH,
-    /* flags */ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /* asset_type_info */ nullptr,
+    /*id_code*/ ID_ME,
+    /*id_filter*/ FILTER_ID_ME,
+    /*main_listbase_index*/ INDEX_ID_ME,
+    /*struct_size*/ sizeof(Mesh),
+    /*name*/ "Mesh",
+    /*name_plural*/ "meshes",
+    /*translation_context*/ BLT_I18NCONTEXT_ID_MESH,
+    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    /*asset_type_info*/ nullptr,
 
-    /* init_data */ mesh_init_data,
-    /* copy_data */ mesh_copy_data,
-    /* free_data */ mesh_free_data,
-    /* make_local */ nullptr,
-    /* foreach_id */ mesh_foreach_id,
-    /* foreach_cache */ nullptr,
-    /* foreach_path */ mesh_foreach_path,
-    /* owner_pointer_get */ nullptr,
+    /*init_data*/ mesh_init_data,
+    /*copy_data*/ mesh_copy_data,
+    /*free_data*/ mesh_free_data,
+    /*make_local*/ nullptr,
+    /*foreach_id*/ mesh_foreach_id,
+    /*foreach_cache*/ nullptr,
+    /*foreach_path*/ mesh_foreach_path,
+    /*owner_pointer_get*/ nullptr,
 
-    /* blend_write */ mesh_blend_write,
-    /* blend_read_data */ mesh_blend_read_data,
-    /* blend_read_lib */ mesh_blend_read_lib,
-    /* blend_read_expand */ mesh_read_expand,
+    /*blend_write*/ mesh_blend_write,
+    /*blend_read_data*/ mesh_blend_read_data,
+    /*blend_read_lib*/ mesh_blend_read_lib,
+    /*blend_read_expand*/ mesh_read_expand,
 
-    /* blend_read_undo_preserve */ nullptr,
+    /*blend_read_undo_preserve*/ nullptr,
 
-    /* lib_override_apply_post */ nullptr,
+    /*lib_override_apply_post*/ nullptr,
 };
 
 enum {
@@ -1601,7 +1601,7 @@ void BKE_mesh_transform(Mesh *me, const float mat[4][4], bool do_keys)
   /* don't update normals, caller can do this explicitly.
    * We do update loop normals though, those may not be auto-generated
    * (see e.g. STL import script)! */
-  float(*lnors)[3] = (float(*)[3])CustomData_duplicate_referenced_layer(
+  float(*lnors)[3] = (float(*)[3])CustomData_get_layer_for_write(
       &me->ldata, CD_NORMAL, me->totloop);
   if (lnors) {
     float m3[3][3];
@@ -1815,7 +1815,8 @@ static float (*ensure_corner_normal_layer(Mesh &mesh))[3]
 {
   float(*r_loop_normals)[3];
   if (CustomData_has_layer(&mesh.ldata, CD_NORMAL)) {
-    r_loop_normals = (float(*)[3])CustomData_get_layer(&mesh.ldata, CD_NORMAL);
+    r_loop_normals = (float(*)[3])CustomData_get_layer_for_write(
+        &mesh.ldata, CD_NORMAL, mesh.totloop);
     memset(r_loop_normals, 0, sizeof(float[3]) * mesh.totloop);
   }
   else {
@@ -1838,7 +1839,8 @@ void BKE_mesh_calc_normals_split_ex(Mesh *mesh,
   const float split_angle = (mesh->flag & ME_AUTOSMOOTH) != 0 ? mesh->smoothresh : float(M_PI);
 
   /* may be nullptr */
-  short(*clnors)[2] = (short(*)[2])CustomData_get_layer(&mesh->ldata, CD_CUSTOMLOOPNORMAL);
+  short(*clnors)[2] = (short(*)[2])CustomData_get_layer_for_write(
+      &mesh->ldata, CD_CUSTOMLOOPNORMAL, mesh->totloop);
   const bool *sharp_edges = static_cast<const bool *>(
       CustomData_get_layer_named(&mesh->edata, CD_PROP_BOOL, "sharp_edge"));
 
