@@ -442,8 +442,8 @@ id_property_create_from_socket(const bNodeSocket &socket)
       auto property = bke::idprop::create(socket.identifier, value->value);
       IDPropertyUIDataFloat *ui_data = (IDPropertyUIDataFloat *)IDP_ui_data_ensure(property.get());
       ui_data->base.rna_subtype = value->subtype;
-      ui_data->min = ui_data->soft_min = double(value->min);
-      ui_data->max = ui_data->soft_max = double(value->max);
+      ui_data->soft_min = double(value->min);
+      ui_data->soft_max = double(value->max);
       ui_data->default_value = value->value;
       return property;
     }
@@ -453,8 +453,8 @@ id_property_create_from_socket(const bNodeSocket &socket)
       auto property = bke::idprop::create(socket.identifier, value->value);
       IDPropertyUIDataInt *ui_data = (IDPropertyUIDataInt *)IDP_ui_data_ensure(property.get());
       ui_data->base.rna_subtype = value->subtype;
-      ui_data->min = ui_data->soft_min = value->min;
-      ui_data->max = ui_data->soft_max = value->max;
+      ui_data->soft_min = value->min;
+      ui_data->soft_max = value->max;
       ui_data->default_value = value->value;
       return property;
     }
@@ -465,8 +465,8 @@ id_property_create_from_socket(const bNodeSocket &socket)
           socket.identifier, Span<float>{value->value[0], value->value[1], value->value[2]});
       IDPropertyUIDataFloat *ui_data = (IDPropertyUIDataFloat *)IDP_ui_data_ensure(property.get());
       ui_data->base.rna_subtype = value->subtype;
-      ui_data->min = ui_data->soft_min = double(value->min);
-      ui_data->max = ui_data->soft_max = double(value->max);
+      ui_data->soft_min = double(value->min);
+      ui_data->soft_max = double(value->max);
       ui_data->default_array = (double *)MEM_mallocN(sizeof(double[3]), "mod_prop_default");
       ui_data->default_array_len = 3;
       for (const int i : IndexRange(3)) {
@@ -1907,38 +1907,38 @@ static void requiredDataMask(ModifierData * /*md*/, CustomData_MeshMasks *r_cdda
 }
 
 ModifierTypeInfo modifierType_Nodes = {
-    /* name */ N_("GeometryNodes"),
-    /* structName */ "NodesModifierData",
-    /* structSize */ sizeof(NodesModifierData),
-    /* srna */ &RNA_NodesModifier,
-    /* type */ eModifierTypeType_Constructive,
-    /* flags */
+    /*name*/ N_("GeometryNodes"),
+    /*structName*/ "NodesModifierData",
+    /*structSize*/ sizeof(NodesModifierData),
+    /*srna*/ &RNA_NodesModifier,
+    /*type*/ eModifierTypeType_Constructive,
+    /*flags*/
     static_cast<ModifierTypeFlag>(eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs |
                                   eModifierTypeFlag_SupportsEditmode |
                                   eModifierTypeFlag_EnableInEditmode |
                                   eModifierTypeFlag_SupportsMapping),
-    /* icon */ ICON_GEOMETRY_NODES,
+    /*icon*/ ICON_GEOMETRY_NODES,
 
-    /* copyData */ copyData,
+    /*copyData*/ copyData,
 
-    /* deformVerts */ nullptr,
-    /* deformMatrices */ nullptr,
-    /* deformVertsEM */ nullptr,
-    /* deformMatricesEM */ nullptr,
-    /* modifyMesh */ modifyMesh,
-    /* modifyGeometrySet */ modifyGeometrySet,
+    /*deformVerts*/ nullptr,
+    /*deformMatrices*/ nullptr,
+    /*deformVertsEM*/ nullptr,
+    /*deformMatricesEM*/ nullptr,
+    /*modifyMesh*/ modifyMesh,
+    /*modifyGeometrySet*/ modifyGeometrySet,
 
-    /* initData */ initData,
-    /* requiredDataMask */ requiredDataMask,
-    /* freeData */ freeData,
-    /* isDisabled */ isDisabled,
-    /* updateDepsgraph */ updateDepsgraph,
-    /* dependsOnTime */ dependsOnTime,
-    /* dependsOnNormals */ nullptr,
-    /* foreachIDLink */ foreachIDLink,
-    /* foreachTexLink */ foreachTexLink,
-    /* freeRuntimeData */ nullptr,
-    /* panelRegister */ panelRegister,
-    /* blendWrite */ blendWrite,
-    /* blendRead */ blendRead,
+    /*initData*/ initData,
+    /*requiredDataMask*/ requiredDataMask,
+    /*freeData*/ freeData,
+    /*isDisabled*/ isDisabled,
+    /*updateDepsgraph*/ updateDepsgraph,
+    /*dependsOnTime*/ dependsOnTime,
+    /*dependsOnNormals*/ nullptr,
+    /*foreachIDLink*/ foreachIDLink,
+    /*foreachTexLink*/ foreachTexLink,
+    /*freeRuntimeData*/ nullptr,
+    /*panelRegister*/ panelRegister,
+    /*blendWrite*/ blendWrite,
+    /*blendRead*/ blendRead,
 };

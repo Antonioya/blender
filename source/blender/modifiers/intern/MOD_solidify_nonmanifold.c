@@ -1966,10 +1966,13 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
   MPoly *mpoly = BKE_mesh_polys_for_write(result);
   MLoop *mloop = BKE_mesh_loops_for_write(result);
 
-  int *origindex_edge = CustomData_get_layer(&result->edata, CD_ORIGINDEX);
-  int *origindex_poly = CustomData_get_layer(&result->pdata, CD_ORIGINDEX);
+  int *origindex_edge = CustomData_get_layer_for_write(
+      &result->edata, CD_ORIGINDEX, result->totedge);
+  int *origindex_poly = CustomData_get_layer_for_write(
+      &result->pdata, CD_ORIGINDEX, result->totpoly);
 
-  float *result_edge_bweight = CustomData_get_layer(&result->edata, CD_BWEIGHT);
+  float *result_edge_bweight = CustomData_get_layer_for_write(
+      &result->edata, CD_BWEIGHT, result->totedge);
   if (bevel_convex != 0.0f || orig_vert_bweight != NULL) {
     result_edge_bweight = CustomData_add_layer(
         &result->edata, CD_BWEIGHT, CD_SET_DEFAULT, NULL, result->totedge);
@@ -2204,7 +2207,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
               }
               medge[edge_index].v1 = last_g->new_vert;
               medge[edge_index].v2 = g->new_vert;
-              medge[edge_index].flag = ME_EDGEDRAW | ((last_flag | flag) & (ME_SEAM | ME_SHARP));
+              medge[edge_index].flag = ME_EDGEDRAW | ((last_flag | flag) & ME_SEAM);
               if (result_edge_crease) {
                 result_edge_crease[edge_index] = max_ff(mv_crease,
                                                         min_ff(last_max_crease, max_crease));
@@ -2237,8 +2240,7 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
               last_g->open_face_edge = edge_index;
               medge[edge_index].v1 = last_g->new_vert;
               medge[edge_index].v2 = first_g->new_vert;
-              medge[edge_index].flag = ME_EDGEDRAW |
-                                       ((last_flag | first_flag) & (ME_SEAM | ME_SHARP));
+              medge[edge_index].flag = ME_EDGEDRAW | ((last_flag | first_flag) & ME_SEAM);
               if (result_edge_crease) {
                 result_edge_crease[edge_index] = max_ff(mv_crease,
                                                         min_ff(last_max_crease, first_max_crease));

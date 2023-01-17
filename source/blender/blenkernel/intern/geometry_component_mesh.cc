@@ -984,26 +984,26 @@ class VArrayImpl_For_VertexWeights final : public VMutableArrayImpl<float> {
     });
   }
 
-  void materialize(IndexMask mask, MutableSpan<float> r_span) const override
+  void materialize(IndexMask mask, float *dst) const override
   {
     if (dverts_ == nullptr) {
-      return r_span.fill_indices(mask, 0.0f);
+      mask.foreach_index([&](const int i) { dst[i] = 0.0f; });
     }
     threading::parallel_for(mask.index_range(), 4096, [&](const IndexRange range) {
       for (const int64_t i : mask.slice(range)) {
         if (const MDeformWeight *weight = this->find_weight_at_index(i)) {
-          r_span[i] = weight->weight;
+          dst[i] = weight->weight;
         }
         else {
-          r_span[i] = 0.0f;
+          dst[i] = 0.0f;
         }
       }
     });
   }
 
-  void materialize_to_uninitialized(IndexMask mask, MutableSpan<float> r_span) const override
+  void materialize_to_uninitialized(IndexMask mask, float *dst) const override
   {
-    this->materialize(mask, r_span);
+    this->materialize(mask, dst);
   }
 
  private:
@@ -1276,6 +1276,18 @@ static ComponentAttributeProviders create_attribute_providers_for_mesh()
       make_derived_write_attribute<MPoly, bool, get_shade_smooth, set_shade_smooth>,
       nullptr);
 
+  static BuiltinCustomDataLayerProvider sharp_edge("sharp_edge",
+                                                   ATTR_DOMAIN_EDGE,
+                                                   CD_PROP_BOOL,
+                                                   CD_PROP_BOOL,
+                                                   BuiltinAttributeProvider::Creatable,
+                                                   BuiltinAttributeProvider::Writable,
+                                                   BuiltinAttributeProvider::Deletable,
+                                                   edge_access,
+                                                   make_array_read_attribute<bool>,
+                                                   make_array_write_attribute<bool>,
+                                                   nullptr);
+
   static BuiltinCustomDataLayerProvider crease(
       "crease",
       ATTR_DOMAIN_EDGE,
@@ -1296,7 +1308,7 @@ static ComponentAttributeProviders create_attribute_providers_for_mesh()
   static CustomDataAttributeProvider face_custom_data(ATTR_DOMAIN_FACE, face_access);
 
   return ComponentAttributeProviders(
-      {&position, &id, &material_index, &shade_smooth, &normal, &crease},
+      {&position, &id, &material_index, &shade_smooth, &sharp_edge, &normal, &crease},
       {&corner_custom_data,
        &vertex_groups,
        &point_custom_data,

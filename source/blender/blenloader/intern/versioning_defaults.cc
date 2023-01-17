@@ -349,7 +349,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
     ts->sculpt->paint.symmetry_flags |= PAINT_SYMMETRY_FEATHER;
   }
 
-  /* Correct default startup UV's. */
+  /* Correct default startup UVs. */
   Mesh *me = static_cast<Mesh *>(BLI_findstring(&bmain->meshes, "Cube", offsetof(ID, name) + 2));
   if (me && (me->totloop == 24) && CustomData_has_layer(&me->ldata, CD_PROP_FLOAT2)) {
     const float uv_values[24][2] = {
@@ -359,7 +359,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
         {0.625, 0.75}, {0.375, 0.75}, {0.375, 0.25}, {0.625, 0.25}, {0.625, 0.50}, {0.375, 0.50},
     };
     float(*mloopuv)[2] = static_cast<float(*)[2]>(
-        CustomData_get_layer(&me->ldata, CD_PROP_FLOAT2));
+        CustomData_get_layer_for_write(&me->ldata, CD_PROP_FLOAT2, me->totloop));
     memcpy(mloopuv, uv_values, sizeof(float[2]) * me->totloop);
   }
 
@@ -494,7 +494,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     return;
   }
 
-  /* Workspaces. */
+  /* Work-spaces. */
   LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
     LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
       LISTBASE_FOREACH (WorkSpace *, workspace, &bmain->workspaces) {

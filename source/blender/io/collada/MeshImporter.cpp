@@ -654,8 +654,8 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
     if (collada_meshtype == COLLADAFW::MeshPrimitive::TRIANGLE_FANS) {
       uint grouped_vertex_count = mp->getGroupedVertexElementsCount();
       for (uint group_index = 0; group_index < grouped_vertex_count; group_index++) {
-        uint first_vertex = position_indices[0]; /* Store first trifan vertex */
-        uint first_normal = normal_indices[0];   /* Store first trifan vertex normal */
+        uint first_vertex = position_indices[0]; /* Store first triangle-fan vertex. */
+        uint first_normal = normal_indices[0];   /* Store first triangle-fan vertex normal. */
         uint vertex_count = mp->getGroupedVerticesVertexCount(group_index);
 
         for (uint vertex_index = 0; vertex_index < vertex_count - 2; vertex_index++) {
@@ -719,8 +719,9 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
              uvset_index++) {
           /* get mtface by face index and uv set index */
           COLLADAFW::IndexList &index_list = *index_list_array_uvcoord[uvset_index];
-          blender::float2 *mloopuv = static_cast<blender::float2 *>(CustomData_get_layer_named(
-              &me->ldata, CD_PROP_FLOAT2, index_list.getName().c_str()));
+          blender::float2 *mloopuv = static_cast<blender::float2 *>(
+              CustomData_get_layer_named_for_write(
+                  &me->ldata, CD_PROP_FLOAT2, index_list.getName().c_str(), me->totloop));
           if (mloopuv == nullptr) {
             fprintf(stderr,
                     "Collada import: Mesh [%s] : Unknown reference to TEXCOORD [#%s].\n",
@@ -762,8 +763,8 @@ void MeshImporter::read_polys(COLLADAFW::Mesh *collada_mesh,
 
             COLLADAFW::IndexList &color_index_list = *mp->getColorIndices(vcolor_index);
             COLLADAFW::String colname = extract_vcolname(color_index_list.getName());
-            MLoopCol *mloopcol = (MLoopCol *)CustomData_get_layer_named(
-                &me->ldata, CD_PROP_BYTE_COLOR, colname.c_str());
+            MLoopCol *mloopcol = (MLoopCol *)CustomData_get_layer_named_for_write(
+                &me->ldata, CD_PROP_BYTE_COLOR, colname.c_str(), me->totloop);
             if (mloopcol == nullptr) {
               fprintf(stderr,
                       "Collada import: Mesh [%s] : Unknown reference to VCOLOR [#%s].\n",

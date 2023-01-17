@@ -74,7 +74,8 @@ static Mesh *triangulate_mesh(Mesh *mesh,
   BM_mesh_free(bm);
 
   if (keep_clnors) {
-    float(*lnors)[3] = static_cast<float(*)[3]>(CustomData_get_layer(&result->ldata, CD_NORMAL));
+    float(*lnors)[3] = static_cast<float(*)[3]>(
+        CustomData_get_layer_for_write(&result->ldata, CD_NORMAL, result->totloop));
     BLI_assert(lnors != nullptr);
 
     BKE_mesh_set_custom_normals(result, lnors);
@@ -142,36 +143,36 @@ static void panelRegister(ARegionType *region_type)
 }
 
 ModifierTypeInfo modifierType_Triangulate = {
-    /* name */ N_("Triangulate"),
-    /* structName */ "TriangulateModifierData",
-    /* structSize */ sizeof(TriangulateModifierData),
-    /* srna */ &RNA_TriangulateModifier,
-    /* type */ eModifierTypeType_Constructive,
-    /* flags */ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode |
+    /*name*/ N_("Triangulate"),
+    /*structName*/ "TriangulateModifierData",
+    /*structSize*/ sizeof(TriangulateModifierData),
+    /*srna*/ &RNA_TriangulateModifier,
+    /*type*/ eModifierTypeType_Constructive,
+    /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode |
         eModifierTypeFlag_SupportsMapping | eModifierTypeFlag_EnableInEditmode |
         eModifierTypeFlag_AcceptsCVs,
-    /* icon */ ICON_MOD_TRIANGULATE,
+    /*icon*/ ICON_MOD_TRIANGULATE,
 
-    /* copyData */ BKE_modifier_copydata_generic,
+    /*copyData*/ BKE_modifier_copydata_generic,
 
-    /* deformVerts */ nullptr,
-    /* deformMatrices */ nullptr,
-    /* deformVertsEM */ nullptr,
-    /* deformMatricesEM */ nullptr,
-    /* modifyMesh */ modifyMesh,
-    /* modifyGeometrySet */ nullptr,
+    /*deformVerts*/ nullptr,
+    /*deformMatrices*/ nullptr,
+    /*deformVertsEM*/ nullptr,
+    /*deformMatricesEM*/ nullptr,
+    /*modifyMesh*/ modifyMesh,
+    /*modifyGeometrySet*/ nullptr,
 
-    /* initData */ initData,
-    /* requiredDataMask */ nullptr,  // requiredDataMask,
-    /* freeData */ nullptr,
-    /* isDisabled */ nullptr,
-    /* updateDepsgraph */ nullptr,
-    /* dependsOnTime */ nullptr,
-    /* dependsOnNormals */ nullptr,
-    /* foreachIDLink */ nullptr,
-    /* foreachTexLink */ nullptr,
-    /* freeRuntimeData */ nullptr,
-    /* panelRegister */ panelRegister,
-    /* blendWrite */ nullptr,
-    /* blendRead */ nullptr,
+    /*initData*/ initData,
+    /*requiredDataMask*/ nullptr,  // requiredDataMask,
+    /*freeData*/ nullptr,
+    /*isDisabled*/ nullptr,
+    /*updateDepsgraph*/ nullptr,
+    /*dependsOnTime*/ nullptr,
+    /*dependsOnNormals*/ nullptr,
+    /*foreachIDLink*/ nullptr,
+    /*foreachTexLink*/ nullptr,
+    /*freeRuntimeData*/ nullptr,
+    /*panelRegister*/ panelRegister,
+    /*blendWrite*/ nullptr,
+    /*blendRead*/ nullptr,
 };

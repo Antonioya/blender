@@ -216,8 +216,7 @@ static MutableSpan<T> get_mutable_attribute(CurvesGeometry &curves,
   const eCustomDataType type = cpp_type_to_custom_data_type(CPPType::get<T>());
   CustomData &custom_data = domain_custom_data(curves, domain);
 
-  T *data = (T *)CustomData_duplicate_referenced_layer_named(
-      &custom_data, type, name.c_str(), num);
+  T *data = (T *)CustomData_get_layer_named_for_write(&custom_data, type, name.c_str(), num);
   if (data != nullptr) {
     return {data, num};
   }
@@ -243,7 +242,14 @@ MutableSpan<int8_t> CurvesGeometry::curve_types_for_write()
 
 void CurvesGeometry::fill_curve_types(const CurveType type)
 {
-  this->curve_types_for_write().fill(type);
+  if (type == CURVE_TYPE_CATMULL_ROM) {
+    /* Avoid creating the attribute for Catmull Rom which is the default when the attribute doesn't
+     * exist anyway. */
+    this->attributes_for_write().remove("curve_type");
+  }
+  else {
+    this->curve_types_for_write().fill(type);
+  }
   this->runtime->type_counts.fill(0);
   this->runtime->type_counts[type] = this->curves_num();
   this->tag_topology_changed();

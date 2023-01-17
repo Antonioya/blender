@@ -298,7 +298,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
   totshape = CustomData_number_of_layers(&result->vdata, CD_SHAPEKEY);
   for (a = 0; a < totshape; a++) {
     float(*cos)[3] = static_cast<float(*)[3]>(
-        CustomData_get_layer_n(&result->vdata, CD_SHAPEKEY, a));
+        CustomData_get_layer_n_for_write(&result->vdata, CD_SHAPEKEY, a, result->totvert));
     for (i = maxVerts; i < result->totvert; i++) {
       mul_m4_v3(mtx, cos[i]);
     }
@@ -361,7 +361,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
 
     for (a = 0; a < totuv; a++) {
       float(*dmloopuv)[2] = static_cast<float(*)[2]>(
-          CustomData_get_layer_n(&result->ldata, CD_PROP_FLOAT2, a));
+          CustomData_get_layer_n_for_write(&result->ldata, CD_PROP_FLOAT2, a, result->totloop));
       int j = maxLoops;
       dmloopuv += j; /* second set of loops only */
       for (; j-- > 0; dmloopuv++) {
@@ -397,7 +397,8 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
     float(*loop_normals)[3] = static_cast<float(*)[3]>(
         MEM_calloc_arrayN(size_t(totloop), sizeof(*loop_normals), __func__));
     CustomData *ldata = &result->ldata;
-    short(*clnors)[2] = static_cast<short(*)[2]>(CustomData_get_layer(ldata, CD_CUSTOMLOOPNORMAL));
+    short(*clnors)[2] = static_cast<short(*)[2]>(
+        CustomData_get_layer_for_write(ldata, CD_CUSTOMLOOPNORMAL, totloop));
     MLoopNorSpaceArray lnors_spacearr = {nullptr};
 
     /* The transform matrix of a normal must be
@@ -408,6 +409,8 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
 
     /* calculate custom normals into loop_normals, then mirror first half into second half */
 
+    const bool *sharp_edges = static_cast<const bool *>(
+        CustomData_get_layer_named(&mesh->edata, CD_PROP_BOOL, "sharp_edge"));
     BKE_mesh_normals_loop_split(BKE_mesh_vert_positions(result),
                                 BKE_mesh_vertex_normals_ensure(result),
                                 result->totvert,
@@ -421,6 +424,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
                                 totpoly,
                                 true,
                                 mesh->smoothresh,
+                                sharp_edges,
                                 nullptr,
                                 &lnors_spacearr,
                                 clnors);

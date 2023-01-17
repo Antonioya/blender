@@ -899,18 +899,32 @@ static bool loop_uv_match(BMLoop *loop,
          compare_v2v2(luv_b, luv_d, STD_UV_CONNECT_LIMIT);
 }
 
-/* Given `anchor` and `edge`, return true if there are edges that fan between them that are
- * seam-free. */
-static bool seam_connected_recursive(BMVert *anchor,
-                                     BMEdge *edge,
-                                     float luv_anchor[2],
-                                     float luv_fan[2],
-                                     BMLoop *needle,
+/**
+ * Utility function to implement #seam_connected.
+ *
+ * Given `edge`, `luv_anchor` & `luv_fan` find if `needle` is connected without
+ * seams or disjoint UVs which would delimit causing them not to be considered connected.
+ *
+ * \note The term *anchor* is used for the vertex at the center of a face-fan
+ * which is being stepped over. Even though every connected face may have a different UV,
+ * loops are only stepped onto which match the initial `luv_anchor`.
+ *
+ * \param edge: Search for `needle` in all loops connected to `edge` (recursively).
+ * \param luv_anchor: The UV of the anchor (vertex that's being stepped around).
+ * \param luv_fan: The UV of the outer edge, this changes as the fan is stepped over.
+ * \param visited: A set of edges to prevent recursing down the same edge multiple times.
+ * \param cd_loop_uv_offset: The UV layer.
+ * \return true if there are edges that fan between them that are seam-free.
+ * */
+static bool seam_connected_recursive(BMEdge *edge,
+                                     const float luv_anchor[2],
+                                     const float luv_fan[2],
+                                     const BMLoop *needle,
                                      GSet *visited,
-                                     int cd_loop_uv_offset)
+                                     const int cd_loop_uv_offset)
 {
+  BMVert *anchor = needle->v;
   BLI_assert(edge->v1 == anchor || edge->v2 == anchor);
-  BLI_assert(needle->v == anchor || needle->next->v == anchor);
 
   if (BM_elem_flag_test(edge, BM_ELEM_SEAM)) {
     return false; /* Edge is a seam, don't traverse. */
@@ -928,13 +942,13 @@ static bool seam_connected_recursive(BMVert *anchor,
         continue; /* `loop` is disjoint in UV space. */
       }
 
-      if (loop->prev == needle) {
+      if (loop == needle) {
         return true; /* Success. */
       }
 
-      float *luv_far = BM_ELEM_CD_GET_FLOAT_P(loop->prev, cd_loop_uv_offset);
+      const float *luv_far = BM_ELEM_CD_GET_FLOAT_P(loop->prev, cd_loop_uv_offset);
       if (seam_connected_recursive(
-              anchor, loop->prev->e, luv_anchor, luv_far, needle, visited, cd_loop_uv_offset)) {
+              loop->prev->e, luv_anchor, luv_far, needle, visited, cd_loop_uv_offset)) {
         return true;
       }
     }
@@ -948,9 +962,9 @@ static bool seam_connected_recursive(BMVert *anchor,
         return true; /* Success. */
       }
 
-      float *luv_far = BM_ELEM_CD_GET_FLOAT_P(loop->next->next, cd_loop_uv_offset);
+      const float *luv_far = BM_ELEM_CD_GET_FLOAT_P(loop->next->next, cd_loop_uv_offset);
       if (seam_connected_recursive(
-              anchor, loop->next->e, luv_anchor, luv_far, needle, visited, cd_loop_uv_offset)) {
+              loop->next->e, luv_anchor, luv_far, needle, visited, cd_loop_uv_offset)) {
         return true;
       }
     }
@@ -959,8 +973,10 @@ static bool seam_connected_recursive(BMVert *anchor,
   return false;
 }
 
-/* Given `loop_a` and `loop_b` originate from the same vertex and share a UV,
- * return true if there are edges that fan between them that are seam-free.
+/**
+ * Given `loop_a` and `loop_b` originate from the same vertex and share a UV,
+ *
+ * \return true if there are edges that fan between them that are seam-free.
  * return false otherwise.
  */
 static bool seam_connected(BMLoop *loop_a, BMLoop *loop_b, GSet *visited, int cd_loop_uv_offset)
@@ -971,10 +987,18 @@ static bool seam_connected(BMLoop *loop_a, BMLoop *loop_b, GSet *visited, int cd
 
   BLI_gset_clear(visited, NULL);
 
-  float *luv_anchor = BM_ELEM_CD_GET_FLOAT_P(loop_a, cd_loop_uv_offset);
-  float *luv_fan = BM_ELEM_CD_GET_FLOAT_P(loop_a->next, cd_loop_uv_offset);
-  const bool result = seam_connected_recursive(
-      loop_a->v, loop_a->e, luv_anchor, luv_fan, loop_b, visited, cd_loop_uv_offset);
+  const float *luv_anchor = BM_ELEM_CD_GET_FLOAT_P(loop_a, cd_loop_uv_offset);
+  const float *luv_next_fan = BM_ELEM_CD_GET_FLOAT_P(loop_a->next, cd_loop_uv_offset);
+  bool result = seam_connected_recursive(
+      loop_a->e, luv_anchor, luv_next_fan, loop_b, visited, cd_loop_uv_offset);
+  if (!result) {
+    /* Search around `loop_a` in the opposite direction, as one of the edges may be delimited by
+     * a boundary, seam or disjoint UV, or itself be one of these. See: T103670, T103787. */
+    const float *luv_prev_fan = BM_ELEM_CD_GET_FLOAT_P(loop_a->prev, cd_loop_uv_offset);
+    result = seam_connected_recursive(
+        loop_a->prev->e, luv_anchor, luv_prev_fan, loop_b, visited, cd_loop_uv_offset);
+  }
+
   return result;
 }
 

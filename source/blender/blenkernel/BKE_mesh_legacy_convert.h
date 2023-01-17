@@ -26,9 +26,10 @@ struct MFace;
 
 #ifdef __cplusplus
 
-void BKE_mesh_legacy_convert_uvs_to_struct(Mesh *mesh,
-                                           blender::ResourceScope &temp_mloopuv_for_convert,
-                                           blender::Vector<CustomDataLayer, 16> &layers_to_write);
+void BKE_mesh_legacy_convert_uvs_to_struct(
+    Mesh *mesh,
+    blender::ResourceScope &temp_mloopuv_for_convert,
+    blender::Vector<CustomDataLayer, 16> &loop_layers_to_write);
 void BKE_mesh_legacy_convert_uvs_to_generic(Mesh *mesh);
 
 /**
@@ -94,6 +95,9 @@ void BKE_mesh_legacy_convert_loose_edges_to_flag(struct Mesh *mesh);
 
 void BKE_mesh_legacy_attribute_flags_to_strings(struct Mesh *mesh);
 void BKE_mesh_legacy_attribute_strings_to_flags(struct Mesh *mesh);
+
+void BKE_mesh_legacy_sharp_edges_to_flags(struct Mesh *mesh);
+void BKE_mesh_legacy_sharp_edges_from_flags(struct Mesh *mesh);
 
 struct MVert *BKE_mesh_legacy_convert_positions_to_verts(
     Mesh *mesh,

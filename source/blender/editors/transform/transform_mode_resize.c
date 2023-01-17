@@ -79,7 +79,7 @@ static void ApplySnapResize(TransInfo *t, float vec[3])
   float point[3];
   getSnapPoint(t, point);
 
-  float dist = ResizeBetween(t, t->tsnap.snapTarget, point);
+  float dist = ResizeBetween(t, t->tsnap.snap_source, point);
   if (dist != TRANSFORM_DIST_INVALID) {
     copy_v3_fl(vec, dist);
   }
@@ -268,10 +268,8 @@ static void applyResize(TransInfo *t, const int UNUSED(mval[2]))
         ElementResize(t, tc, td, mat);
       }
 
-      /* In proportional edit it can happen that */
-      /* vertices in the radius of the brush end */
-      /* outside the clipping area               */
-      /* XXX HACK - dg */
+      /* XXX(@dg): In proportional edit it can happen that vertices
+       * in the radius of the brush end outside the clipping area. */
       if (t->flag & T_PROP_EDIT) {
         clipUVData(t);
       }
@@ -287,8 +285,8 @@ void initResize(TransInfo *t, float mouse_dir_constraint[3])
 {
   t->mode = TFM_RESIZE;
   t->transform = applyResize;
-  t->tsnap.applySnap = ApplySnapResize;
-  t->tsnap.distance = ResizeBetween;
+  t->tsnap.snap_mode_apply_fn = ApplySnapResize;
+  t->tsnap.snap_mode_distance_fn = ResizeBetween;
 
   if (is_zero_v3(mouse_dir_constraint)) {
     initMouseInputMode(t, &t->mouse, INPUT_SPRING_FLIP);
