@@ -839,7 +839,7 @@ static void gpencil_prepare_point_data(bGPdata *gpd,
           case GP_SEL_SAME_COLORATTR: {
             float hsv[3];
             rgb_to_hsv_compat_v(pt->vert_color, hsv);
-            value = hsv[0];
+            value = hsv[0] * SELECT_SIMILAR_PRECISION;
             break;
           }
           default:
@@ -866,7 +866,7 @@ static bool is_similar(GSet *selected, int keyvalue, const int threshold)
   GSetIterator gs_iter;
   GSET_ITER (gs_iter, selected) {
     int hash_value = POINTER_AS_INT(BLI_gsetIterator_getKey(&gs_iter));
-    if (from_value >= hash_value <= to_value) {
+    if ((hash_value >= from_value) && (hash_value <= to_value)) {
       return true;
     }
   }
@@ -1153,7 +1153,7 @@ static bool gpencil_select_same_colorattr(bContext *C, wmOperator *op)
       int i;
       for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
         rgb_to_hsv_compat_v(pt->vert_color, hsv);
-        if (is_similar(selected, hsv[0], threshold)) {
+        if (is_similar(selected, hsv[0] * SELECT_SIMILAR_PRECISION, threshold)) {
           gpencil_set_stroke_point(gps, pt);
           BKE_gpencil_stroke_select_index_set(gpd, gps);
           changed = true;
