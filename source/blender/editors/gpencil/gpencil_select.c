@@ -853,13 +853,15 @@ static void gpencil_prepare_point_data(bGPdata *gpd,
           }
           case GP_SEL_SAME_VERTEXWEIGHT: {
             if (gps->dvert == NULL) {
-              continue;
+              value = 0;
             }
-            MDeformVert *dvert = &gps->dvert[i];
-            if ((dvert != NULL) && (def_nr != -1)) {
-              MDeformWeight *dw = BKE_defvert_find_index(dvert, def_nr);
-              float weight = dw ? dw->weight : 0.0f;
-              value = weight * SELECT_SIMILAR_PRECISION;
+            else {
+              MDeformVert *dvert = &gps->dvert[i];
+              if ((dvert != NULL) && (def_nr != -1)) {
+                MDeformWeight *dw = BKE_defvert_find_index(dvert, def_nr);
+                float weight = dw ? dw->weight : 0.0f;
+                value = weight * SELECT_SIMILAR_PRECISION;
+              }
             }
             break;
           }
@@ -1100,13 +1102,15 @@ static bool gpencil_select_same_by_point(bContext *C, wmOperator *op)
           }
           case GP_SEL_SAME_VERTEXWEIGHT: {
             if (gps->dvert == NULL) {
-              continue;
+              value = 0;
             }
-            MDeformVert *dvert = &gps->dvert[i];
-            if ((dvert != NULL) && (def_nr != -1)) {
-              MDeformWeight *dw = BKE_defvert_find_index(dvert, def_nr);
-              float weight = dw ? dw->weight : 0.0f;
-              value = weight * SELECT_SIMILAR_PRECISION;
+            else {
+              MDeformVert *dvert = &gps->dvert[i];
+              if ((dvert != NULL) && (def_nr != -1)) {
+                MDeformWeight *dw = BKE_defvert_find_index(dvert, def_nr);
+                float weight = dw ? dw->weight : 0.0f;
+                value = weight * SELECT_SIMILAR_PRECISION;
+              }
             }
             threshold_value = threshold_fac;
             break;
