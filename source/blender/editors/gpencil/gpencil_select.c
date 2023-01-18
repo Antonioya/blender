@@ -22,12 +22,14 @@
 
 #include "DNA_gpencil_types.h"
 #include "DNA_material_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
 #include "BKE_context.h"
+#include "BKE_deform.h"
 #include "BKE_gpencil.h"
 #include "BKE_gpencil_curve.h"
 #include "BKE_gpencil_geom.h"
@@ -750,6 +752,8 @@ typedef enum eGP_SelectGrouped {
   GP_SEL_SAME_THICKNESS = 4,
   /* Select points with the same color attribute (Hue only). */
   GP_SEL_SAME_COLORATTR = 5,
+  /* Select points with the same vertex weight. */
+  GP_SEL_SAME_VERTEXWEIGHT = 6,
 } eGP_SelectGrouped;
 
 /* ----------------------------------- */
@@ -797,6 +801,8 @@ static void gpencil_prepare_point_data(bGPdata *gpd,
                                        GSet *selected)
 {
   const bool is_curve_edit = (bool)GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd);
+  const int def_nr = gpd->vertex_group_active_index - 1;
+
   int value = 0;
   if (is_curve_edit) {
     bGPDcurve *gpc = gps->editcurve;
@@ -816,6 +822,9 @@ static void gpencil_prepare_point_data(bGPdata *gpd,
             value = hsv[0] * SELECT_SIMILAR_PRECISION;
             break;
           }
+          case GP_SEL_SAME_VERTEXWEIGHT:
+            /* No weight in curve mode. */
+            break;
           default:
             break;
         }
@@ -840,6 +849,15 @@ static void gpencil_prepare_point_data(bGPdata *gpd,
             float hsv[3];
             rgb_to_hsv_compat_v(pt->vert_color, hsv);
             value = hsv[0] * SELECT_SIMILAR_PRECISION;
+            break;
+          }
+          case GP_SEL_SAME_VERTEXWEIGHT: {
+            MDeformVert *dvert = gps->dvert != NULL ? &gps->dvert[i] : NULL;
+            if ((dvert != NULL) && (def_nr != -1)) {
+              MDeformWeight *dw = BKE_defvert_find_index(dvert, def_nr);
+              float weight = dw ? dw->weight : 0.0f;
+              value = weight * SELECT_SIMILAR_PRECISION;
+            }
             break;
           }
           default:
@@ -999,6 +1017,7 @@ static bool gpencil_select_same_by_point(bContext *C, wmOperator *op)
   bGPdata *gpd = ED_gpencil_data_get_active(C);
   const eGP_SelectGrouped action = RNA_enum_get(op->ptr, "action");
   const bool is_curve_edit = (bool)GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd);
+  const int def_nr = gpd->vertex_group_active_index - 1;
 
   GSet *selected = BLI_gset_int_new(__func__);
   bool changed = false;
@@ -1042,6 +1061,9 @@ static bool gpencil_select_same_by_point(bContext *C, wmOperator *op)
             threshold_value = threshold_fac;
             break;
           }
+          case GP_SEL_SAME_VERTEXWEIGHT:
+            continue;
+            break;
           default:
             continue;
             break;
@@ -1071,6 +1093,15 @@ static bool gpencil_select_same_by_point(bContext *C, wmOperator *op)
             rgb_to_hsv_compat_v(pt->vert_color, hsv);
             value = hsv[0] * SELECT_SIMILAR_PRECISION;
             threshold_value = threshold_fac;
+            break;
+          }
+          case GP_SEL_SAME_VERTEXWEIGHT: {
+            MDeformVert *dvert = gps->dvert != NULL ? &gps->dvert[i] : NULL;
+            if ((dvert != NULL) && (def_nr != -1)) {
+              MDeformWeight *dw = BKE_defvert_find_index(dvert, def_nr);
+              float weight = dw ? dw->weight : 0.0f;
+              value = weight * SELECT_SIMILAR_PRECISION;
+            }
             break;
           }
           default:
@@ -1121,6 +1152,7 @@ static int gpencil_select_grouped_exec(bContext *C, wmOperator *op)
     case GP_SEL_SAME_OPACITY:
     case GP_SEL_SAME_THICKNESS:
     case GP_SEL_SAME_COLORATTR:
+    case GP_SEL_SAME_VERTEXWEIGHT:
       changed = gpencil_select_same_by_point(C, op);
       break;
 
@@ -1159,7 +1191,7 @@ static void gpencil_select_grouped_ui(bContext *UNUSED(C), wmOperator *op)
     uiItemR(row, op->ptr, "threshold", 0, NULL, ICON_NONE);
   }
 
-  if (ELEM(action, GP_SEL_SAME_OPACITY, GP_SEL_SAME_COLORATTR)) {
+  if (ELEM(action, GP_SEL_SAME_OPACITY, GP_SEL_SAME_COLORATTR, GP_SEL_SAME_VERTEXWEIGHT)) {
     row = uiLayoutRow(layout, true);
     uiItemR(row, op->ptr, "threshold_factor", 0, NULL, ICON_NONE);
   }
@@ -1170,10 +1202,11 @@ void GPENCIL_OT_select_grouped(wmOperatorType *ot)
   static const EnumPropertyItem prop_select_grouped_types[] = {
       {GP_SEL_SAME_LAYER, "LAYER", 0, "Layer", "Shared layers"},
       {GP_SEL_SAME_MATERIAL, "MATERIAL", 0, "Material", "Shared materials"},
-      {GP_SEL_SAME_POINTNUM, "POINTNUM", 0, "Number of Points", "Shared shame number of points"},
-      {GP_SEL_SAME_OPACITY, "OPACITY", 0, "Opacity", "Shared shame opacity"},
-      {GP_SEL_SAME_THICKNESS, "THICKNESS", 0, "Thickness", "Shared shame thickness"},
-      {GP_SEL_SAME_COLORATTR, "COLOR", 0, "Color Attribute", "Shared shame Hue color attribute"},
+      {GP_SEL_SAME_POINTNUM, "POINTNUM", 0, "Number of Points", "Shared same number of points"},
+      {GP_SEL_SAME_OPACITY, "OPACITY", 0, "Opacity", "Shared same opacity"},
+      {GP_SEL_SAME_THICKNESS, "THICKNESS", 0, "Thickness", "Shared same thickness"},
+      {GP_SEL_SAME_COLORATTR, "COLOR", 0, "Color Attribute", "Shared same Hue color attribute"},
+      {GP_SEL_SAME_VERTEXWEIGHT, "VERTEXWEIGHT", 0, "Vertex Weight", "Shared same Vertex Weight"},
       {0, NULL, 0, NULL, NULL},
   };
 

@@ -1975,6 +1975,7 @@ class VIEW3D_MT_select_gpencil_similar(Menu):
             layout.operator("gpencil.select_grouped", text="Opacity").action = 'OPACITY'
             layout.operator("gpencil.select_grouped", text="Thickness").action = 'THICKNESS'
             layout.operator("gpencil.select_grouped", text="Color Attribute").action = 'COLOR'
+            layout.operator("gpencil.select_grouped", text="Vertex Weight").action = 'VERTEXWEIGHT'
 
 
 class VIEW3D_MT_select_gpencil(Menu):
