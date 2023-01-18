@@ -851,7 +851,7 @@ static void gpencil_prepare_point_data(bGPdata *gpd,
   }
 }
 
-static bool is_similar(GSet *selected, int keyvalue, const int threshold)
+static bool is_point_similar(GSet *selected, int keyvalue, const int threshold)
 {
   /* If no range, just need check the value in the hash table. */
   if (threshold == 0) {
@@ -933,9 +933,6 @@ static bool gpencil_select_same_material(bContext *C)
 
   CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
     if (gps->flag & GP_STROKE_SELECT) {
-      /* add instead of insert here, otherwise the uniqueness check gets skipped,
-       * and we get many duplicate entries...
-       */
       BLI_gset_add(selected, POINTER_FROM_INT(gps->mat_nr));
     }
   }
@@ -982,7 +979,7 @@ static bool gpencil_select_same_pointnum(bContext *C, wmOperator *op)
     if (is_curve_edit && gps->editcurve == NULL) {
       continue;
     }
-    if (is_similar(selected, gps->totpoints, threshold)) {
+    if (is_point_similar(selected, gps->totpoints, threshold)) {
       gpencil_select_stroke(gpd, gps, is_curve_edit);
       changed = true;
     }
@@ -997,16 +994,16 @@ static bool gpencil_select_same_pointnum(bContext *C, wmOperator *op)
   return changed;
 }
 
-/* Select all points with same opacity as selected ones. */
-static bool gpencil_select_same_opacity(bContext *C, wmOperator *op)
+static bool gpencil_select_same_by_point(bContext *C, wmOperator *op)
 {
   bGPdata *gpd = ED_gpencil_data_get_active(C);
-  const bool is_curve_edit = (bool)GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd);
   const eGP_SelectGrouped action = RNA_enum_get(op->ptr, "action");
-  GSet *selected = BLI_gset_int_new(__func__);
+  const bool is_curve_edit = (bool)GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd);
 
+  GSet *selected = BLI_gset_int_new(__func__);
   bool changed = false;
 
+  /* Prepare the actual selected data points. */
   CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
     if (gps->flag & GP_STROKE_SELECT) {
       gpencil_prepare_point_data(gpd, gps, action, selected);
@@ -1014,64 +1011,12 @@ static bool gpencil_select_same_opacity(bContext *C, wmOperator *op)
   }
   CTX_DATA_END;
 
-  const float threshold_fac = RNA_float_get(op->ptr, "threshold_factor");
-  const int threshold = threshold_fac * SELECT_SIMILAR_PRECISION;
-
-  CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
-    if (is_curve_edit && gps->editcurve == NULL) {
-      continue;
-    }
-    if (is_curve_edit) {
-      bGPDcurve *gpc = gps->editcurve;
-      for (int i = 0; i < gpc->tot_curve_points; i++) {
-        bGPDcurve_point *gpc_pt = &gpc->curve_points[i];
-        if (is_similar(selected, gpc_pt->strength * SELECT_SIMILAR_PRECISION, threshold)) {
-          gpencil_set_curve_point(gps, gpc_pt);
-          BKE_gpencil_stroke_select_index_set(gpd, gps);
-          changed = true;
-        }
-      }
-    }
-    else {
-      bGPDspoint *pt;
-      int i;
-      for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-        if (is_similar(selected, pt->strength * SELECT_SIMILAR_PRECISION, threshold)) {
-          gpencil_set_stroke_point(gps, pt);
-          BKE_gpencil_stroke_select_index_set(gpd, gps);
-          changed = true;
-        }
-      }
-    }
-  }
-  CTX_DATA_END;
-
-  /* Free memory. */
-  if (selected != NULL) {
-    BLI_gset_free(selected, NULL);
-  }
-
-  return changed;
-}
-
-/* Select all points with same thickness as selected ones. */
-static bool gpencil_select_same_thickness(bContext *C, wmOperator *op)
-{
-  bGPdata *gpd = ED_gpencil_data_get_active(C);
-  const bool is_curve_edit = (bool)GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd);
-  const eGP_SelectGrouped action = RNA_enum_get(op->ptr, "action");
-  GSet *selected = BLI_gset_int_new(__func__);
-
-  bool changed = false;
-
-  CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
-    if (gps->flag & GP_STROKE_SELECT) {
-      gpencil_prepare_point_data(gpd, gps, action, selected);
-    }
-  }
-  CTX_DATA_END;
-
+  /* Use two different threshold to be used for int or fractional values in the UI. */
   const int threshold = RNA_int_get(op->ptr, "threshold") * SELECT_SIMILAR_PRECISION;
+  const int threshold_fac = RNA_float_get(op->ptr, "threshold_factor") * SELECT_SIMILAR_PRECISION;
+  int threshold_value = 0;
+
+  int value = 0;
   CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
     if (is_curve_edit && gps->editcurve == NULL) {
       continue;
@@ -1080,9 +1025,28 @@ static bool gpencil_select_same_thickness(bContext *C, wmOperator *op)
       bGPDcurve *gpc = gps->editcurve;
       for (int i = 0; i < gpc->tot_curve_points; i++) {
         bGPDcurve_point *gpc_pt = &gpc->curve_points[i];
-        if (is_similar(selected,
-                       gps->thickness * gpc_pt->pressure * SELECT_SIMILAR_PRECISION,
-                       threshold)) {
+
+        switch (action) {
+          case GP_SEL_SAME_OPACITY:
+            value = gpc_pt->strength * SELECT_SIMILAR_PRECISION;
+            threshold_value = threshold_fac;
+            break;
+          case GP_SEL_SAME_THICKNESS:
+            value = gps->thickness * gpc_pt->pressure * SELECT_SIMILAR_PRECISION;
+            threshold_value = threshold;
+            break;
+          case GP_SEL_SAME_COLORATTR: {
+            float hsv[3];
+            rgb_to_hsv_compat_v(gpc_pt->vert_color, hsv);
+            value = hsv[0] * SELECT_SIMILAR_PRECISION;
+            threshold_value = threshold_fac;
+            break;
+          }
+          default:
+            continue;
+            break;
+        }
+        if (is_point_similar(selected, value, threshold_value)) {
           gpencil_set_curve_point(gps, gpc_pt);
           BKE_gpencil_stroke_select_index_set(gpd, gps);
           changed = true;
@@ -1093,8 +1057,27 @@ static bool gpencil_select_same_thickness(bContext *C, wmOperator *op)
       bGPDspoint *pt;
       int i;
       for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-        if (is_similar(
-                selected, gps->thickness * pt->pressure * SELECT_SIMILAR_PRECISION, threshold)) {
+        switch (action) {
+          case GP_SEL_SAME_OPACITY:
+            value = pt->strength * SELECT_SIMILAR_PRECISION;
+            threshold_value = threshold_fac;
+            break;
+          case GP_SEL_SAME_THICKNESS:
+            value = gps->thickness * pt->pressure * SELECT_SIMILAR_PRECISION;
+            threshold_value = threshold;
+            break;
+          case GP_SEL_SAME_COLORATTR: {
+            float hsv[3];
+            rgb_to_hsv_compat_v(pt->vert_color, hsv);
+            value = hsv[0] * SELECT_SIMILAR_PRECISION;
+            threshold_value = threshold_fac;
+            break;
+          }
+          default:
+            continue;
+            break;
+        }
+        if (is_point_similar(selected, value, threshold_value)) {
           gpencil_set_stroke_point(gps, pt);
           BKE_gpencil_stroke_select_index_set(gpd, gps);
           changed = true;
@@ -1112,64 +1095,6 @@ static bool gpencil_select_same_thickness(bContext *C, wmOperator *op)
   return changed;
 }
 
-/* Select all points with same color attribute (hue) as selected ones. */
-static bool gpencil_select_same_colorattr(bContext *C, wmOperator *op)
-{
-  bGPdata *gpd = ED_gpencil_data_get_active(C);
-  const bool is_curve_edit = (bool)GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd);
-  const eGP_SelectGrouped action = RNA_enum_get(op->ptr, "action");
-  GSet *selected = BLI_gset_int_new(__func__);
-
-  bool changed = false;
-
-  CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
-    if (gps->flag & GP_STROKE_SELECT) {
-      gpencil_prepare_point_data(gpd, gps, action, selected);
-    }
-  }
-  CTX_DATA_END;
-
-  const float threshold_fac = RNA_float_get(op->ptr, "threshold_factor");
-  const int threshold = threshold_fac * SELECT_SIMILAR_PRECISION;
-  float hsv[3];
-  CTX_DATA_BEGIN (C, bGPDstroke *, gps, editable_gpencil_strokes) {
-    if (is_curve_edit && gps->editcurve == NULL) {
-      continue;
-    }
-    if (is_curve_edit) {
-      bGPDcurve *gpc = gps->editcurve;
-      for (int i = 0; i < gpc->tot_curve_points; i++) {
-        bGPDcurve_point *gpc_pt = &gpc->curve_points[i];
-        rgb_to_hsv_compat_v(gpc_pt->vert_color, hsv);
-        if (is_similar(selected, hsv[0] * SELECT_SIMILAR_PRECISION, threshold)) {
-          gpencil_set_curve_point(gps, gpc_pt);
-          BKE_gpencil_stroke_select_index_set(gpd, gps);
-          changed = true;
-        }
-      }
-    }
-    else {
-      bGPDspoint *pt;
-      int i;
-      for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-        rgb_to_hsv_compat_v(pt->vert_color, hsv);
-        if (is_similar(selected, hsv[0] * SELECT_SIMILAR_PRECISION, threshold)) {
-          gpencil_set_stroke_point(gps, pt);
-          BKE_gpencil_stroke_select_index_set(gpd, gps);
-          changed = true;
-        }
-      }
-    }
-  }
-  CTX_DATA_END;
-
-  /* Free memory. */
-  if (selected != NULL) {
-    BLI_gset_free(selected, NULL);
-  }
-
-  return changed;
-}
 /* ----------------------------------- */
 
 static int gpencil_select_grouped_exec(bContext *C, wmOperator *op)
@@ -1194,13 +1119,9 @@ static int gpencil_select_grouped_exec(bContext *C, wmOperator *op)
       changed = gpencil_select_same_pointnum(C, op);
       break;
     case GP_SEL_SAME_OPACITY:
-      changed = gpencil_select_same_opacity(C, op);
-      break;
     case GP_SEL_SAME_THICKNESS:
-      changed = gpencil_select_same_thickness(C, op);
-      break;
     case GP_SEL_SAME_COLORATTR:
-      changed = gpencil_select_same_colorattr(C, op);
+      changed = gpencil_select_same_by_point(C, op);
       break;
 
     default:
