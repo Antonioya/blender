@@ -5,7 +5,7 @@
 /** \file
  * \ingroup bgpencil
  */
-#include "BLI_math_vec_types.hh"
+#include "BLI_math_vector_types.hh"
 
 #include "DNA_space_types.h" /* for FILE_MAX */
 
