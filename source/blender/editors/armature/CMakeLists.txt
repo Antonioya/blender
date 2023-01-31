@@ -31,8 +31,8 @@ set(SRC
   armature_select.c
   armature_skinning.c
   armature_utils.c
-  editarmature_undo.c
-  meshlaplacian.c
+  editarmature_undo.cc
+  meshlaplacian.cc
   pose_edit.c
   pose_group.c
   pose_lib_2.c
