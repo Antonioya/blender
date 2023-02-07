@@ -10,6 +10,7 @@ set(INC
   ../../bmesh
   ../../depsgraph
   ../../editors/include
+  ../../imbuf
   ../../makesdna
   ../../makesrna
   ../../windowmanager
@@ -27,12 +28,14 @@ set(SRC
   intern/gpencil_io_capi.cc
   intern/gpencil_io_import_base.cc
   intern/gpencil_io_import_svg.cc
+  intern/gpencil_io_sheet.cc
 
   gpencil_io.h
   intern/gpencil_io_base.hh
   intern/gpencil_io_export_base.hh
   intern/gpencil_io_import_base.hh
   intern/gpencil_io_import_svg.hh
+  intern/gpencil_io_sheet.hh
 
   # Only so this file is known by CMake.
   ../../../../extern/nanosvg/nanosvg.h

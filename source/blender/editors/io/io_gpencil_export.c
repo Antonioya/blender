@@ -6,12 +6,15 @@
  */
 
 #ifdef WITH_IO_GPENCIL
+#  include <string.h>
 
 #  include "BLI_path_util.h"
 #  include "BLI_string.h"
 
 #  include "DNA_gpencil_types.h"
 #  include "DNA_space_types.h"
+
+#  include "MEM_guardedalloc.h"
 
 #  include "BKE_gpencil.h"
 #  include "BKE_main.h"
@@ -391,6 +394,218 @@ void WM_OT_gpencil_export_pdf(wmOperatorType *ot)
                           GP_EXPORT_ACTIVE,
                           "Frames",
                           "Which frames to include in the export");
+}
+
+static void contact_sheet_pdf_load_files(bContext *C,
+                                         wmOperator *op,
+                                         ContactSheetParams *load_data)
+{
+  PropertyRNA *prop;
+  int idx = 0;
+  load_data->outpath[0] = '\0';
+
+  ED_fileselect_ensure_default_filepath(C, op, ".pdf");
+  if ((prop = RNA_struct_find_property(op->ptr, "filepath"))) {
+    RNA_property_string_get(op->ptr, prop, load_data->outpath);
+    if (!BLI_path_extension_check(load_data->outpath, ".pdf")) {
+      BLI_path_extension_ensure(load_data->outpath, FILE_MAX, ".pdf");
+      RNA_string_set(op->ptr, "filepath", load_data->outpath);
+    }
+  }
+
+  if ((prop = RNA_struct_find_property(op->ptr, "directory"))) {
+    char *directory = RNA_string_get_alloc(op->ptr, "directory", NULL, 0, NULL);
+
+    if ((prop = RNA_struct_find_property(op->ptr, "files"))) {
+      RNA_PROP_BEGIN (op->ptr, itemptr, prop) {
+        char *filename = RNA_string_get_alloc(&itemptr, "name", NULL, 0, NULL);
+
+        /* Split the tokens. */
+        const char sep[2] = "|";
+        char *next_tokens = NULL;
+        char *token = strtok_s(filename, sep, &next_tokens);
+
+        /* Image filepath. */
+        BLI_path_join(
+            load_data->items[idx].path, sizeof(load_data->items[idx].path), directory, token);
+
+        load_data->items[idx].name[0] = '\0';
+        load_data->items[idx].data[0] = '\0';
+
+        /* Check if more tokens. If not, use first token to determine name. */
+        if (next_tokens[0] == '\0') {
+          BLI_split_file_part(
+              filename, load_data->items[idx].name, sizeof(load_data->items[idx].name) - 1);
+          /* Remove extension from the file name. */
+          const char *ext = BLI_path_extension(load_data->items[idx].name);
+          if (ext != NULL) {
+            const int size = strlen(load_data->items[idx].name) - strlen(ext) + 1;
+            BLI_strncpy_rlen(load_data->items[idx].name, load_data->items[idx].name, size);
+          }
+        }
+        else {
+          /* More tokens, use first for `name` and save other data to be used later in the PDF
+           * generation. In this case, all info received is used as is and not converted or
+           * analyzed. */
+          token = strtok_s(next_tokens, sep, &next_tokens);
+          if (token) {
+            BLI_strncpy(load_data->items[idx].name, token, sizeof(load_data->items[idx].name) - 1);
+          }
+          if (next_tokens) {
+            BLI_strncpy(
+                load_data->items[idx].data, next_tokens, sizeof(load_data->items[idx].data) - 1);
+          }
+        }
+
+        MEM_SAFE_FREE(filename);
+        idx++;
+      }
+      RNA_PROP_END;
+    }
+    MEM_freeN(directory);
+  }
+}
+
+static void wm_contact_sheet_pdf_cancel(bContext *UNUSED(C), wmOperator *op)
+{
+  if (op->customdata) {
+    ContactSheetParams *load_data = (ContactSheetParams *)op->customdata;
+    MEM_SAFE_FREE(load_data->items);
+    MEM_SAFE_FREE(op->customdata);
+  }
+}
+
+static int wm_contact_sheet_pdf_exec(bContext *C, wmOperator *op)
+{
+  ContactSheetParams *load_data = MEM_callocN(sizeof(ContactSheetParams), __func__);
+  load_data->len = RNA_property_collection_length(op->ptr,
+                                                  RNA_struct_find_property(op->ptr, "files"));
+  load_data->items = NULL;
+
+  if (load_data->len == 0) {
+    wm_contact_sheet_pdf_cancel(C, op);
+    return OPERATOR_CANCELLED;
+  }
+
+  load_data->items = (ContactSheetItem *)MEM_malloc_arrayN(
+      load_data->len, sizeof(ContactSheetItem), __func__);
+
+  contact_sheet_pdf_load_files(C, op, load_data);
+
+  const int orientation = RNA_enum_get(op->ptr, "orientation");
+  load_data->page_size[0] = 3840;
+  load_data->page_size[1] = 2160;
+  if (orientation == 1) {
+    SWAP(int32_t, load_data->page_size[0], load_data->page_size[1]);
+  }
+
+  load_data->rows = RNA_int_get(op->ptr, "rows");
+  load_data->cols = RNA_int_get(op->ptr, "columns");
+
+  RNA_string_get(op->ptr, "title", load_data->title);
+  RNA_string_get(op->ptr, "logo_image", load_data->logo_image);
+
+  op->customdata = load_data;
+  WM_cursor_wait(true);
+  bool done = create_contact_sheet_pdf(C, load_data);
+  WM_cursor_wait(false);
+
+  /* Free custom data. */
+  wm_contact_sheet_pdf_cancel(C, op);
+
+  if (!done) {
+    BKE_report(op->reports, RPT_WARNING, "Unable to create Contact Sheet");
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static int wm_contact_sheet_pdf_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+  Scene *scene = CTX_data_scene(C);
+  ED_fileselect_ensure_default_filepath(C, op, ".pdf");
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "title");
+  if (!RNA_property_is_set(op->ptr, prop)) {
+    RNA_string_set(op->ptr, "title", scene->id.name + 2);
+  }
+
+  WM_event_add_fileselect(C, op);
+
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static bool wm_contact_sheet_pdf_poll(bContext *C)
+{
+  if (CTX_wm_window(C) == NULL) {
+    return false;
+  }
+
+  return true;
+}
+
+static void wm_contact_sheet_pdf_draw(bContext *UNUSED(C), wmOperator *op)
+{
+  uiLayout *layout = op->layout;
+  PointerRNA *imfptr = op->ptr;
+  uiLayout *row;
+
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+
+  row = uiLayoutRow(layout, false);
+  uiItemR(row, imfptr, "orientation", 0, NULL, ICON_NONE);
+
+  row = uiLayoutRow(layout, false);
+  uiItemR(row, imfptr, "columns", 0, NULL, ICON_NONE);
+  row = uiLayoutRow(layout, false);
+  uiItemR(row, imfptr, "rows", 0, NULL, ICON_NONE);
+  row = uiLayoutRow(layout, false);
+  uiItemR(row, imfptr, "title", 0, NULL, ICON_NONE);
+}
+
+void WM_OT_contact_sheet_pdf(struct wmOperatorType *ot)
+{
+  static const EnumPropertyItem prop_orientation_types[] = {
+      {0, "HORIZONTAL", 0, "Setup the page in Landscape orientation", ""},
+      {1, "VERTICAL", 0, "Setup the page in Portrait orientation", ""},
+      {0, NULL, 0, NULL, NULL},
+  };
+
+  /* Identifiers. */
+  ot->name = "Create Contact Sheet";
+  ot->idname = "WM_OT_contact_sheet_pdf";
+  ot->description = "Create a PDF with images as contact sheet";
+
+  /* Api callbacks. */
+  ot->invoke = wm_contact_sheet_pdf_invoke;
+  ot->exec = wm_contact_sheet_pdf_exec;
+  ot->cancel = wm_contact_sheet_pdf_cancel;
+  ot->ui = wm_contact_sheet_pdf_draw;
+  ot->poll = wm_contact_sheet_pdf_poll;
+
+  /* Flags. */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  WM_operator_properties_filesel(ot,
+                                 FILE_TYPE_FOLDER | FILE_TYPE_IMAGE,
+                                 FILE_SPECIAL,
+                                 FILE_OPENFILE,
+                                 WM_FILESEL_DIRECTORY | WM_FILESEL_FILES | WM_FILESEL_SHOW_PROPS |
+                                     WM_FILESEL_DIRECTORY | WM_FILESEL_FILEPATH,
+                                 FILE_DEFAULTDISPLAY,
+                                 FILE_SORT_DEFAULT);
+  /* Properties */
+  RNA_def_int(ot->srna, "rows", 2, 1, 20, "Rows", "Number of rows by page", 1, 20);
+  RNA_def_int(ot->srna, "columns", 3, 1, 20, "Columns", "Number of columns by page", 1, 20);
+  RNA_def_string(ot->srna, "title", NULL, 128 - 2, "Title", "Title of the contact sheet");
+  RNA_def_enum(ot->srna,
+               "orientation",
+               prop_orientation_types,
+               0,
+               "Orientation",
+               "Orientation of the PDF page");
+  RNA_def_string(
+      ot->srna, "logo_image", NULL, 256, "Logo Image", "Path for an optional logo image");
 }
 #  endif /* WITH_HARU */
 

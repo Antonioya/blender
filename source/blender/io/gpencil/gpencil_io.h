@@ -71,6 +71,28 @@ typedef enum eGpencilExportFrame {
   GP_EXPORT_FRAME_SCENE = 2,
 } eGpencilExportFrame;
 
+/** Contact Sheet load data. */
+typedef struct ContactSheetItem {
+  char name[64];   /* name. */
+  char path[1024]; /* 1024 = FILE_MAX */
+  /** Extra info data separated by pipes (|). */
+  char data[2048];
+} ContactSheetItem;
+
+typedef struct ContactSheetParams {
+
+  char outpath[1024]; /* 1024 = FILE_MAX */
+  uint32_t len;
+
+  uint32_t page_size[2];
+  uint32_t rows, cols;
+
+  char title[128];
+  char logo_image[256];
+
+  ContactSheetItem *items;
+} ContactSheetParams;
+
 /**
  * Main export entry point function.
  */
@@ -79,6 +101,11 @@ bool gpencil_io_export(const char *filepath, struct GpencilIOParams *iparams);
  * Main import entry point function.
  */
 bool gpencil_io_import(const char *filepath, struct GpencilIOParams *iparams);
+
+/**
+ * Create Contact Sheet in PDF.
+ */
+bool create_contact_sheet_pdf(bContext *C, ContactSheetParams *iparams);
 
 #ifdef __cplusplus
 }
