@@ -500,7 +500,6 @@ class TOPBAR_MT_file_export(Menu):
             # Haru lib dependency
             if bpy.app.build_options.haru:
                 self.layout.operator("wm.gpencil_export_pdf", text="Grease Pencil as PDF")
-                self.layout.operator("wm.contact_sheet_pdf", text="Contact Sheet as PDF")
 
         if bpy.app.build_options.io_wavefront_obj:
             self.layout.operator("wm.obj_export", text="Wavefront (.obj)")
