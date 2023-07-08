@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
@@ -366,6 +367,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_EDGE:
           cp = ts->edge;
           break;
+        case TH_EDGE_WIDTH:
+          cp = &ts->edge_width;
+          break;
         case TH_EDGE_SELECT:
           cp = ts->edge_select;
           break;
@@ -392,6 +396,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_FACE_SELECT:
           cp = ts->face_select;
+          break;
+        case TH_FACE_RETOPOLOGY:
+          cp = ts->face_retopology;
           break;
         case TH_FACE_BACK:
           cp = ts->face_back;
@@ -635,6 +642,12 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_NODE_GRID_LEVELS:
           cp = &ts->grid_levels;
           break;
+        case TH_NODE_ZONE_SIMULATION:
+          cp = ts->node_zone_simulation;
+          break;
+        case TH_SIMULATED_FRAMES:
+          cp = ts->simulated_frames;
+          break;
 
         case TH_SEQ_MOVIE:
           cp = ts->movie;
@@ -802,6 +815,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_CAMERA_PATH:
           cp = ts->camera_path;
+          break;
+        case TH_CAMERA_PASSEPARTOUT:
+          cp = ts->camera_passepartout;
           break;
         case TH_LOCK_MARKER:
           cp = ts->lock_marker;
@@ -1395,8 +1411,8 @@ bool UI_GetIconThemeColor4ubv(int colorid, uchar col[4])
               g_theme_state.regionid == RGN_TYPE_WINDOW) ||
              (g_theme_state.spacetype == SPACE_PROPERTIES &&
               g_theme_state.regionid == RGN_TYPE_NAV_BAR) ||
-             (g_theme_state.spacetype == SPACE_FILE &&
-              g_theme_state.regionid == RGN_TYPE_WINDOW))) {
+             (g_theme_state.spacetype == SPACE_FILE && g_theme_state.regionid == RGN_TYPE_WINDOW)))
+  {
     /* Only colored icons in specific places, overall UI is intended
      * to stay monochrome and out of the way except a few places where it
      * is important to communicate different data types. */
@@ -1459,7 +1475,7 @@ void UI_ThemeClearColor(int colorid)
 int UI_ThemeMenuShadowWidth()
 {
   bTheme *btheme = UI_GetTheme();
-  return int(btheme->tui.menu_shadow_width * UI_DPI_FAC);
+  return int(btheme->tui.menu_shadow_width * UI_SCALE_FAC);
 }
 
 void UI_make_axis_color(const uchar src_col[3], uchar dst_col[3], const char axis)

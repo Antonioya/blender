@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #ifndef KERNEL_STRUCT_BEGIN
 #  define KERNEL_STRUCT_BEGIN(name, parent)
@@ -20,6 +21,7 @@ KERNEL_STRUCT_BEGIN(KernelBackground, background)
 /* xyz store direction, w the angle. float4 instead of float3 is used
  * to ensure consistent padding/alignment across devices. */
 KERNEL_STRUCT_MEMBER(background, float4, sun)
+KERNEL_STRUCT_MEMBER(background, int, use_sun_guiding)
 /* Only shader index. */
 KERNEL_STRUCT_MEMBER(background, int, surface_shader)
 KERNEL_STRUCT_MEMBER(background, int, volume_shader)
@@ -35,10 +37,14 @@ KERNEL_STRUCT_MEMBER(background, int, map_res_x)
 KERNEL_STRUCT_MEMBER(background, int, map_res_y)
 /* Multiple importance sampling. */
 KERNEL_STRUCT_MEMBER(background, int, use_mis)
-/* Lightgroup. */
+/* Light-group. */
 KERNEL_STRUCT_MEMBER(background, int, lightgroup)
 /* Light Index. */
 KERNEL_STRUCT_MEMBER(background, int, light_index)
+/* Padding. */
+KERNEL_STRUCT_MEMBER(background, int, pad1)
+KERNEL_STRUCT_MEMBER(background, int, pad2)
+KERNEL_STRUCT_MEMBER(background, int, pad3)
 KERNEL_STRUCT_END(KernelBackground)
 
 /* BVH: own BVH2 if no native device acceleration struct used. */
@@ -202,6 +208,8 @@ KERNEL_STRUCT_MEMBER(integrator, int, direct_light_sampling_type)
 KERNEL_STRUCT_MEMBER(integrator, float, surface_guiding_probability)
 KERNEL_STRUCT_MEMBER(integrator, float, volume_guiding_probability)
 KERNEL_STRUCT_MEMBER(integrator, int, guiding_distribution_type)
+KERNEL_STRUCT_MEMBER(integrator, int, guiding_directional_sampling_type)
+KERNEL_STRUCT_MEMBER(integrator, float, guiding_roughness_threshold)
 KERNEL_STRUCT_MEMBER(integrator, int, use_guiding)
 KERNEL_STRUCT_MEMBER(integrator, int, train_guiding)
 KERNEL_STRUCT_MEMBER(integrator, int, use_surface_guiding)
@@ -211,6 +219,8 @@ KERNEL_STRUCT_MEMBER(integrator, int, use_guiding_mis_weights)
 
 /* Padding. */
 KERNEL_STRUCT_MEMBER(integrator, int, pad1)
+KERNEL_STRUCT_MEMBER(integrator, int, pad2)
+KERNEL_STRUCT_MEMBER(integrator, int, pad3)
 KERNEL_STRUCT_END(KernelIntegrator)
 
 /* SVM. For shader specialization. */

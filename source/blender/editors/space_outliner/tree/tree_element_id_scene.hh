@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
@@ -17,13 +19,12 @@ class TreeElementIDScene final : public TreeElementID {
   TreeElementIDScene(TreeElement &legacy_te, Scene &scene);
 
   void expand(SpaceOutliner &) const override;
-  bool isExpandValid() const override;
 
  private:
-  void expandViewLayers(SpaceOutliner &) const;
-  void expandWorld(SpaceOutliner &) const;
-  void expandCollections(SpaceOutliner &) const;
-  void expandObjects(SpaceOutliner &) const;
+  void expand_view_layers(SpaceOutliner &) const;
+  void expand_world(SpaceOutliner &) const;
+  void expand_collections(SpaceOutliner &) const;
+  void expand_objects(SpaceOutliner &) const;
 };
 
 }  // namespace blender::ed::outliner

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 Blender Foundation, Joshua Leung. All rights reserved. */
+/* SPDX-FileCopyrightText: 2009 Blender Foundation, Joshua Leung. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -64,7 +65,7 @@ static FModifierTypeInfo FMI_MODNAME = {
     /*type*/ FMODIFIER_TYPE_MODNAME,
     /*size*/ sizeof(FMod_ModName),
     /*acttype*/ FMI_TYPE_SOME_ACTION,
-    /*requires*/ FMI_REQUIRES_SOME_REQUIREMENT,
+    /*requires_flag*/ FMI_REQUIRES_SOME_REQUIREMENT,
     /*name*/ "Modifier Name",
     /*structName*/ "FMod_ModName",
     /*storage_size*/ 0,
@@ -228,7 +229,7 @@ static FModifierTypeInfo FMI_GENERATOR = {
     /*type*/ FMODIFIER_TYPE_GENERATOR,
     /*size*/ sizeof(FMod_Generator),
     /*acttype*/ FMI_TYPE_GENERATE_CURVE,
-    /*requires*/ FMI_REQUIRES_NOTHING,
+    /*requires_flag*/ FMI_REQUIRES_NOTHING,
     /*name*/ N_("Generator"),
     /*structName*/ "FMod_Generator",
     /*storage_size*/ 0,
@@ -358,7 +359,7 @@ static FModifierTypeInfo FMI_FN_GENERATOR = {
     /*type*/ FMODIFIER_TYPE_FN_GENERATOR,
     /*size*/ sizeof(FMod_FunctionGenerator),
     /*acttype*/ FMI_TYPE_GENERATE_CURVE,
-    /*requires*/ FMI_REQUIRES_NOTHING,
+    /*requires_flag*/ FMI_REQUIRES_NOTHING,
     /*name*/ N_("Built-In Function"),
     /*structName*/ "FMod_FunctionGenerator",
     /*storage_size*/ 0,
@@ -471,7 +472,7 @@ static FModifierTypeInfo FMI_ENVELOPE = {
     /*type*/ FMODIFIER_TYPE_ENVELOPE,
     /*size*/ sizeof(FMod_Envelope),
     /*acttype*/ FMI_TYPE_REPLACE_VALUES,
-    /*requires*/ 0,
+    /*requires_flag*/ 0,
     /*name*/ N_("Envelope"),
     /*structName*/ "FMod_Envelope",
     /*storage_size*/ 0,
@@ -770,7 +771,7 @@ static FModifierTypeInfo FMI_CYCLES = {
     /*type*/ FMODIFIER_TYPE_CYCLES,
     /*size*/ sizeof(FMod_Cycles),
     /*acttype*/ FMI_TYPE_EXTRAPOLATION,
-    /*requires*/ FMI_REQUIRES_ORIGINAL_DATA,
+    /*requires_flag*/ FMI_REQUIRES_ORIGINAL_DATA,
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Cycles"),
     /*structName*/ "FMod_Cycles",
     /*storage_size*/ sizeof(tFCMED_Cycles),
@@ -832,7 +833,7 @@ static FModifierTypeInfo FMI_NOISE = {
     /*type*/ FMODIFIER_TYPE_NOISE,
     /*size*/ sizeof(FMod_Noise),
     /*acttype*/ FMI_TYPE_REPLACE_VALUES,
-    /*requires*/ 0,
+    /*requires_flag*/ 0,
     /*name*/ N_("Noise"),
     /*structName*/ "FMod_Noise",
     /*storage_size*/ 0,
@@ -890,7 +891,7 @@ static FModifierTypeInfo FMI_PYTHON = {
     /*type*/ FMODIFIER_TYPE_PYTHON,
     /*size*/ sizeof(FMod_Python),
     /*acttype*/ FMI_TYPE_GENERATE_CURVE,
-    /*requires*/ FMI_REQUIRES_RUNTIME_CHECK,
+    /*requires_flag*/ FMI_REQUIRES_RUNTIME_CHECK,
     /*name*/ N_("Python"),
     /*structName*/ "FMod_Python",
     /*storage_size*/ 0,
@@ -945,7 +946,7 @@ static FModifierTypeInfo FMI_LIMITS = {
     /*type*/ FMODIFIER_TYPE_LIMITS,
     /*size*/ sizeof(FMod_Limits),
     /*acttype*/ FMI_TYPE_GENERATE_CURVE,
-    /*requires*/ FMI_REQUIRES_RUNTIME_CHECK, /* XXX... err... */
+    /*requires_flag*/ FMI_REQUIRES_RUNTIME_CHECK, /* XXX... err... */
     /*name*/ N_("Limits"),
     /*structName*/ "FMod_Limits",
     /*storage_size*/ 0,
@@ -1005,7 +1006,7 @@ static FModifierTypeInfo FMI_STEPPED = {
     /*type*/ FMODIFIER_TYPE_STEPPED,
     /*size*/ sizeof(FMod_Limits),
     /*acttype*/ FMI_TYPE_GENERATE_CURVE,
-    /*requires*/ FMI_REQUIRES_RUNTIME_CHECK, /* XXX... err... */
+    /*requires_flag*/ FMI_REQUIRES_RUNTIME_CHECK, /* XXX... err... */
     /*name*/ N_("Stepped"),
     /*structName*/ "FMod_Stepped",
     /*storage_size*/ 0,
@@ -1108,6 +1109,9 @@ FModifier *add_fmodifier(ListBase *modifiers, int type, FCurve *owner_fcu)
   fcm->curve = owner_fcu;
   fcm->influence = 1.0f;
   BLI_addtail(modifiers, fcm);
+
+  /* Set modifier name and make sure it is unique. */
+  BKE_fmodifier_name_set(fcm, "");
 
   /* tag modifier as "active" if no other modifiers exist in the stack yet */
   if (BLI_listbase_is_single(modifiers)) {
@@ -1426,7 +1430,8 @@ float evaluate_time_fmodifiers(FModifiersStackStorage *storage,
      * (whatever scale it is on, it won't affect the results)
      * hence we shouldn't bother seeing what it would do given the chance. */
     if ((fcm->flag & FMODIFIER_FLAG_RANGERESTRICT) == 0 ||
-        ((fcm->sfra <= evaltime) && (fcm->efra >= evaltime))) {
+        ((fcm->sfra <= evaltime) && (fcm->efra >= evaltime)))
+    {
       /* only evaluate if there's a callback for this */
       if (fmi->evaluate_modifier_time) {
         if ((fcm->flag & (FMODIFIER_FLAG_DISABLED | FMODIFIER_FLAG_MUTED)) == 0) {
@@ -1475,7 +1480,8 @@ void evaluate_value_fmodifiers(FModifiersStackStorage *storage,
     /* Only evaluate if there's a callback for this,
      * and if F-Modifier can be evaluated on this frame. */
     if ((fcm->flag & FMODIFIER_FLAG_RANGERESTRICT) == 0 ||
-        ((fcm->sfra <= evaltime) && (fcm->efra >= evaltime))) {
+        ((fcm->sfra <= evaltime) && (fcm->efra >= evaltime)))
+    {
       if (fmi->evaluate_modifier) {
         if ((fcm->flag & (FMODIFIER_FLAG_DISABLED | FMODIFIER_FLAG_MUTED)) == 0) {
           void *storage_ptr = POINTER_OFFSET(storage->buffer,

@@ -1,7 +1,15 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2021-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2021-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 // clang-format off
+
+#ifdef WITH_NANOVDB
+#  define NDEBUG /* Disable "assert" in device code */
+#  define NANOVDB_USE_INTRINSICS
+#  include "nanovdb/NanoVDB.h"
+#  include "nanovdb/util/SampleFromVoxels.h"
+#endif
 
 /* Open the Metal kernel context class
  * Necessary to access resource bindings */

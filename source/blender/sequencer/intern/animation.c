@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2022 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup sequencer
@@ -150,7 +151,7 @@ static void seq_animation_duplicate(Scene *scene, Sequence *seq, ListBase *dst, 
     return;
   }
 
-  GSET_FOREACH_BEGIN (FCurve *, fcu, fcurves) {
+  GSET_FOREACH_BEGIN (const FCurve *, fcu, fcurves) {
     FCurve *fcu_cpy = BKE_fcurve_copy(fcu);
     BLI_addtail(dst, fcu_cpy);
   }

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "workbench_private.hh"
 
@@ -8,7 +10,7 @@
 #include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_particle.h"
-#include "BKE_pbvh.h"
+#include "BKE_pbvh_api.hh"
 #include "DEG_depsgraph_query.h"
 #include "DNA_fluid_types.h"
 #include "ED_paint.h"
@@ -87,7 +89,8 @@ void SceneState::init(Object *camera_ob /*= nullptr*/)
     shading.flag &= ~(V3D_SHADING_SHADOW | V3D_SHADING_CAVITY | V3D_SHADING_DEPTH_OF_FIELD);
   }
   if (SHADING_XRAY_ENABLED(shading) != SHADING_XRAY_ENABLED(previous_shading) ||
-      shading.flag != previous_shading.flag) {
+      shading.flag != previous_shading.flag)
+  {
     reset_taa = true;
   }
 
@@ -170,7 +173,6 @@ void SceneState::init(Object *camera_ob /*= nullptr*/)
   draw_dof = camera && camera->dof.flag & CAM_DOF_ENABLED &&
              shading.flag & V3D_SHADING_DEPTH_OF_FIELD;
 
-  draw_transparent_depth = draw_outline || draw_dof;
   draw_object_id = draw_outline || draw_curvature;
 };
 
@@ -199,11 +201,10 @@ ObjectState::ObjectState(const SceneState &scene_state, Object *ob)
   sculpt_pbvh = false;
   texture_paint_mode = false;
   image_paint_override = nullptr;
-  override_sampler_state = GPU_SAMPLER_DEFAULT;
+  override_sampler_state = GPUSamplerState::default_sampler();
   draw_shadow = false;
 
   const DRWContextState *draw_ctx = DRW_context_state_get();
-  const Mesh *me = (ob->type == OB_MESH) ? static_cast<Mesh *>(ob->data) : nullptr;
   const bool is_active = (ob == draw_ctx->obact);
   /* TODO(@pragma37): Is the double check needed?
    * If it is, wouldn't be needed for sculpt_pbvh too? */
@@ -212,17 +213,6 @@ ObjectState::ObjectState(const SceneState &scene_state, Object *ob)
   color_type = (eV3DShadingColorType)scene_state.shading.color_type;
   if (!(is_active && DRW_object_use_hide_faces(ob))) {
     draw_shadow = (ob->dtx & OB_DRAW_NO_SHADOW_CAST) == 0 && scene_state.draw_shadows;
-  }
-  if (me == nullptr) {
-    if (color_type == V3D_SHADING_TEXTURE_COLOR) {
-      color_type = V3D_SHADING_MATERIAL_COLOR;
-    }
-    else if (color_type == V3D_SHADING_VERTEX_COLOR) {
-      color_type = V3D_SHADING_OBJECT_COLOR;
-    }
-    use_per_material_batches = color_type == V3D_SHADING_MATERIAL_COLOR;
-    /* Early return */
-    return;
   }
 
   sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob, draw_ctx->rv3d) &&
@@ -247,7 +237,8 @@ ObjectState::ObjectState(const SceneState &scene_state, Object *ob)
           C, &scene_state.scene->toolsettings->paint_mode, ob, color_type);
     }
   }
-  else {
+  else if (ob->type == OB_MESH) {
+    const Mesh *me = static_cast<Mesh *>(ob->data);
     const CustomData *cd_vdata = get_vert_custom_data(me);
     const CustomData *cd_ldata = get_loop_custom_data(me);
 
@@ -283,12 +274,21 @@ ObjectState::ObjectState(const SceneState &scene_state, Object *ob)
         const ImagePaintSettings *imapaint = &scene_state.scene->toolsettings->imapaint;
         if (imapaint->mode == IMAGEPAINT_MODE_IMAGE) {
           image_paint_override = imapaint->canvas;
-          override_sampler_state = GPU_SAMPLER_REPEAT;
-          SET_FLAG_FROM_TEST(override_sampler_state,
-                             imapaint->interp == IMAGEPAINT_INTERP_LINEAR,
-                             GPU_SAMPLER_FILTER);
+          override_sampler_state.extend_x = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+          override_sampler_state.extend_yz = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+          const bool use_linear_filter = imapaint->interp == IMAGEPAINT_INTERP_LINEAR;
+          override_sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_LINEAR,
+                                                              use_linear_filter);
         }
       }
+    }
+  }
+  else {
+    if (color_type == V3D_SHADING_TEXTURE_COLOR) {
+      color_type = V3D_SHADING_MATERIAL_COLOR;
+    }
+    else if (color_type == V3D_SHADING_VERTEX_COLOR) {
+      color_type = V3D_SHADING_OBJECT_COLOR;
     }
   }
 

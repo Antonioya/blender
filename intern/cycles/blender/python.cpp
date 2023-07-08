@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include <Python.h>
 
@@ -94,7 +95,7 @@ void python_thread_state_restore(void **python_thread_state)
   *python_thread_state = NULL;
 }
 
-static const char *PyC_UnicodeAsByte(PyObject *py_str, PyObject **coerce)
+static const char *PyC_UnicodeAsBytes(PyObject *py_str, PyObject **coerce)
 {
   const char *result = PyUnicode_AsUTF8(py_str);
   if (result) {
@@ -131,8 +132,8 @@ static PyObject *init_func(PyObject * /*self*/, PyObject *args)
   }
 
   PyObject *path_coerce = nullptr, *user_path_coerce = nullptr;
-  path_init(PyC_UnicodeAsByte(path, &path_coerce),
-            PyC_UnicodeAsByte(user_path, &user_path_coerce));
+  path_init(PyC_UnicodeAsBytes(path, &path_coerce),
+            PyC_UnicodeAsBytes(user_path, &user_path_coerce));
   Py_XDECREF(path_coerce);
   Py_XDECREF(user_path_coerce);
 
@@ -163,7 +164,8 @@ static PyObject *create_func(PyObject * /*self*/, PyObject *args)
                         &pyregion,
                         &pyv3d,
                         &pyrv3d,
-                        &preview_osl)) {
+                        &preview_osl))
+  {
     return NULL;
   }
 
@@ -522,7 +524,8 @@ static PyObject *osl_update_node_func(PyObject * /*self*/, PyObject *args)
     }
     else if (param->type.vecsemantics == TypeDesc::POINT ||
              param->type.vecsemantics == TypeDesc::VECTOR ||
-             param->type.vecsemantics == TypeDesc::NORMAL) {
+             param->type.vecsemantics == TypeDesc::NORMAL)
+    {
       socket_type = "NodeSocketVector";
       data_type = BL::NodeSocket::type_VECTOR;
 
@@ -738,7 +741,8 @@ static PyObject *denoise_func(PyObject * /*self*/, PyObject *args, PyObject *key
                                    &pyscene,
                                    &pyviewlayer,
                                    &pyinput,
-                                   &pyoutput)) {
+                                   &pyoutput))
+  {
     return NULL;
   }
 
@@ -876,20 +880,23 @@ static PyObject *enable_print_stats_func(PyObject * /*self*/, PyObject * /*args*
 static PyObject *get_device_types_func(PyObject * /*self*/, PyObject * /*args*/)
 {
   vector<DeviceType> device_types = Device::available_types();
-  bool has_cuda = false, has_optix = false, has_hip = false, has_metal = false, has_oneapi = false;
+  bool has_cuda = false, has_optix = false, has_hip = false, has_metal = false, has_oneapi = false,
+       has_hiprt = false;
   foreach (DeviceType device_type, device_types) {
     has_cuda |= (device_type == DEVICE_CUDA);
     has_optix |= (device_type == DEVICE_OPTIX);
     has_hip |= (device_type == DEVICE_HIP);
     has_metal |= (device_type == DEVICE_METAL);
     has_oneapi |= (device_type == DEVICE_ONEAPI);
+    has_hiprt |= (device_type == DEVICE_HIPRT);
   }
-  PyObject *list = PyTuple_New(5);
+  PyObject *list = PyTuple_New(6);
   PyTuple_SET_ITEM(list, 0, PyBool_FromLong(has_cuda));
   PyTuple_SET_ITEM(list, 1, PyBool_FromLong(has_optix));
   PyTuple_SET_ITEM(list, 2, PyBool_FromLong(has_hip));
   PyTuple_SET_ITEM(list, 3, PyBool_FromLong(has_metal));
   PyTuple_SET_ITEM(list, 4, PyBool_FromLong(has_oneapi));
+  PyTuple_SET_ITEM(list, 5, PyBool_FromLong(has_hiprt));
   return list;
 }
 
@@ -1033,6 +1040,14 @@ void *CCL_python_module_init()
   PyModule_AddObject(mod, "with_embree", Py_False);
   Py_INCREF(Py_False);
 #endif /* WITH_EMBREE */
+
+#ifdef WITH_EMBREE_GPU
+  PyModule_AddObject(mod, "with_embree_gpu", Py_True);
+  Py_INCREF(Py_True);
+#else  /* WITH_EMBREE_GPU */
+  PyModule_AddObject(mod, "with_embree_gpu", Py_False);
+  Py_INCREF(Py_False);
+#endif /* WITH_EMBREE_GPU */
 
   if (ccl::openimagedenoise_supported()) {
     PyModule_AddObject(mod, "with_openimagedenoise", Py_True);

@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2022 NVIDIA Corporation
- * Copyright 2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2022 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "hydra/light.h"
 #include "hydra/session.h"
@@ -29,9 +30,7 @@ HdCyclesLight::HdCyclesLight(const SdfPath &sprimId, const TfToken &lightType)
 {
 }
 
-HdCyclesLight::~HdCyclesLight()
-{
-}
+HdCyclesLight::~HdCyclesLight() {}
 
 HdDirtyBits HdCyclesLight::GetInitialDirtyBitsMask() const
 {
@@ -95,9 +94,17 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
       strength *= value.Get<float>();
     }
 
-    // Cycles lights are normalized by default, so need to scale intensity if Hydra light is not
+    if (_lightType == HdPrimTypeTokens->distantLight) {
+      /* Unclear why, but approximately matches Karma. */
+      strength *= 4.0f;
+    }
+    else {
+      /* Convert from intensity to radiant flux. */
+      strength *= M_PI;
+    }
+
     value = sceneDelegate->GetLightParamValue(id, HdLightTokens->normalize);
-    const bool normalize = value.IsHolding<bool>() && value.UncheckedGet<bool>();
+    _light->set_normalize(value.IsHolding<bool>() && value.UncheckedGet<bool>());
 
     value = sceneDelegate->GetLightParamValue(id, _tokens->visibleInPrimaryRay);
     if (!value.IsEmpty()) {
@@ -122,11 +129,6 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
         _light->set_sizeu(size);
         _light->set_sizev(size);
       }
-
-      if (!normalize) {
-        const float radius = _light->get_sizeu() * 0.5f;
-        strength *= M_PI * radius * radius;
-      }
     }
     else if (_lightType == HdPrimTypeTokens->rectLight) {
       value = sceneDelegate->GetLightParamValue(id, HdLightTokens->width);
@@ -138,15 +140,17 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
       if (!value.IsEmpty()) {
         _light->set_sizev(value.Get<float>());
       }
-
-      if (!normalize) {
-        strength *= _light->get_sizeu() * _light->get_sizeu();
-      }
     }
     else if (_lightType == HdPrimTypeTokens->sphereLight) {
-      value = sceneDelegate->GetLightParamValue(id, HdLightTokens->radius);
-      if (!value.IsEmpty()) {
-        _light->set_size(value.Get<float>());
+      value = sceneDelegate->GetLightParamValue(id, TfToken("treatAsPoint"));
+      if (!value.IsEmpty() && value.Get<bool>()) {
+        _light->set_size(0.0f);
+      }
+      else {
+        value = sceneDelegate->GetLightParamValue(id, HdLightTokens->radius);
+        if (!value.IsEmpty()) {
+          _light->set_size(value.Get<float>());
+        }
       }
 
       bool shaping = false;
@@ -164,11 +168,6 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
       }
 
       _light->set_light_type(shaping ? LIGHT_SPOT : LIGHT_POINT);
-
-      if (!normalize) {
-        const float radius = _light->get_size();
-        strength *= M_PI * radius * radius * 4.0f;
-      }
     }
 
     const bool visible = sceneDelegate->GetVisible(id);
@@ -185,7 +184,8 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
   }
   // Need to update shader graph when transform changes in case transform was baked into it
   else if (_light->tfm_is_modified() && (_lightType == HdPrimTypeTokens->domeLight ||
-                                         _light->get_shader()->has_surface_spatial_varying)) {
+                                         _light->get_shader()->has_surface_spatial_varying))
+  {
     PopulateShaderGraph(sceneDelegate);
   }
 

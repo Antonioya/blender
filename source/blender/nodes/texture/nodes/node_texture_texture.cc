@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup texnodes
@@ -73,12 +74,12 @@ static void exec(void *data,
   tex_output(node, execdata, in, out[0], &colorfn, static_cast<TexCallData *>(data));
 }
 
-void register_node_type_tex_texture(void)
+void register_node_type_tex_texture()
 {
   static bNodeType ntype;
 
   tex_node_type_base(&ntype, TEX_NODE_TEXTURE, "Texture", NODE_CLASS_INPUT);
-  node_type_socket_templates(&ntype, inputs, outputs);
+  blender::bke::node_type_socket_templates(&ntype, inputs, outputs);
   ntype.exec_fn = exec;
   ntype.flag |= NODE_PREVIEW;
 

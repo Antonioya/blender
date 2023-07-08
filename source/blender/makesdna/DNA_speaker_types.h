@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -43,10 +45,12 @@ typedef struct Speaker {
 
 /* **************** SPEAKER ********************* */
 
-/* flag */
-#define SPK_DS_EXPAND (1 << 0)
-#define SPK_MUTED (1 << 1)
-// #define SPK_RELATIVE    (1 << 2)  /* UNUSED */
+/** #Speaker::flag */
+enum {
+  SPK_DS_EXPAND = 1 << 0,
+  SPK_MUTED = 1 << 1,
+  // SPK_RELATIVE = 1 << 2, /* UNUSED */
+};
 
 #ifdef __cplusplus
 }

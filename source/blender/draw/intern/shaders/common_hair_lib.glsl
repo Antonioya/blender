@@ -53,7 +53,7 @@ uniform usamplerBuffer hairStrandSegBuffer; /* R16UI */
 // uniform samplerBuffer hairColBuffer; /* RGBA16 linear color */
 #  else
 #    ifndef DRW_HAIR_INFO
-#      error Ensure createInfo includes `draw_hair` for general use or `eevee_legacy_hair_lib` for EEVEE.
+#      error Ensure createInfo includes draw_hair for general use or eevee_legacy_hair_lib for EEVEE.
 #    endif
 #  endif /* !USE_GPU_SHADER_CREATE_INFO */
 
@@ -190,7 +190,7 @@ void hair_get_center_pos_tan_binor_time(bool is_persp,
 
 #    if defined(OS_MAC) && defined(GPU_OPENGL)
   /* Generate a dummy read to avoid the driver bug with shaders having no
-   * vertex reads on macOS (T60171) */
+   * vertex reads on macOS (#60171) */
   wpos.y += dummy * 0.0;
 #    endif
 

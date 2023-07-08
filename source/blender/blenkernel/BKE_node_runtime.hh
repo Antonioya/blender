@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -6,6 +8,7 @@
 #include <mutex>
 
 #include "BLI_cache_mutex.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_resource_scope.hh"
 #include "BLI_utility_mixins.hh"
@@ -14,7 +17,7 @@
 
 #include "DNA_node_types.h"
 
-#include "BKE_node.h"
+#include "BKE_node.hh"
 
 struct bNode;
 struct bNodeSocket;
@@ -30,6 +33,12 @@ struct RelationsInNode;
 }
 namespace aal = anonymous_attribute_lifetime;
 }  // namespace blender::nodes
+namespace blender::bke {
+class bNodeTreeZones;
+}
+namespace blender::bke::anonymous_attribute_inferencing {
+struct AnonymousAttributeInferencingResult;
+};
 
 namespace blender {
 
@@ -63,6 +72,8 @@ struct NodeIDEquality {
 
 namespace blender::bke {
 
+using NodeIDVectorSet = VectorSet<bNode *, DefaultProbingStrategy, NodeIDHash, NodeIDEquality>;
+
 class bNodeTreeRuntime : NonCopyable, NonMovable {
  public:
   /**
@@ -88,9 +99,10 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * allow simpler and more cache friendly iteration. Supports lookup by integer or by node.
    * Unlike other caches, this is maintained eagerly while changing the tree.
    */
-  VectorSet<bNode *, DefaultProbingStrategy, NodeIDHash, NodeIDEquality> nodes_by_id;
+  NodeIDVectorSet nodes_by_id;
 
-  /** Execution data.
+  /**
+   * Execution data.
    *
    * XXX It would be preferable to completely move this data out of the underlying node tree,
    * so node tree execution could finally run independent of the tree itself.
@@ -112,7 +124,8 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   /** Information about how inputs and outputs of the node group interact with fields. */
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;
   /** Information about usage of anonymous attributes within the group. */
-  std::unique_ptr<nodes::aal::RelationsInNode> anonymous_attribute_relations;
+  std::unique_ptr<anonymous_attribute_inferencing::AnonymousAttributeInferencingResult>
+      anonymous_attribute_inferencing;
 
   /**
    * For geometry nodes, a lazy function graph with some additional info is cached. This is used to
@@ -134,6 +147,9 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * #bNodeTree. By default, this is protected against using an assert.
    */
   mutable std::atomic<int> allow_use_dirty_topology_cache = 0;
+
+  CacheMutex tree_zones_cache_mutex;
+  std::unique_ptr<bNodeTreeZones> tree_zones;
 
   /** Only valid when #topology_cache_is_dirty is false. */
   Vector<bNodeLink *> links;
@@ -174,6 +190,13 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
    * including dragged node links that aren't actually in the tree.
    */
   short total_inputs = 0;
+
+  /**
+   * The location of the socket in the tree, calculated while drawing the nodes and invalid if the
+   * node tree hasn't been drawn yet. In the node tree's "world space" (the same as
+   * #bNode::runtime::totr).
+   */
+  float2 location;
 
   /** Only valid when #topology_cache_is_dirty is false. */
   Vector<bNodeLink *> directly_linked_links;
@@ -268,6 +291,9 @@ class bNodeRuntime : NonCopyable, NonMovable {
   bool has_available_linked_outputs = false;
   Vector<bNode *> direct_children_in_frame;
   bNodeTree *owner_tree = nullptr;
+  /** Can be used to toposort a subset of nodes. */
+  int toposort_left_to_right_index = -1;
+  int toposort_right_to_left_index = -1;
 };
 
 namespace node_tree_runtime {
@@ -330,11 +356,6 @@ inline bool topology_cache_is_available(const bNodeSocket &socket)
 namespace node_field_inferencing {
 bool update_field_inferencing(const bNodeTree &tree);
 }
-namespace anonymous_attribute_inferencing {
-Array<const nodes::aal::RelationsInNode *> get_relations_by_node(const bNodeTree &tree,
-                                                                 ResourceScope &scope);
-bool update_anonymous_attribute_relations(bNodeTree &tree);
-}  // namespace anonymous_attribute_inferencing
 }  // namespace blender::bke
 
 /* -------------------------------------------------------------------- */
@@ -353,12 +374,14 @@ inline blender::Span<bNode *> bNodeTree::all_nodes()
 
 inline bNode *bNodeTree::node_by_id(const int32_t identifier)
 {
+  BLI_assert(identifier >= 0);
   bNode *const *node = this->runtime->nodes_by_id.lookup_key_ptr_as(identifier);
   return node ? *node : nullptr;
 }
 
 inline const bNode *bNodeTree::node_by_id(const int32_t identifier) const
 {
+  BLI_assert(identifier >= 0);
   const bNode *const *node = this->runtime->nodes_by_id.lookup_key_ptr_as(identifier);
   return node ? *node : nullptr;
 }
@@ -493,6 +516,38 @@ inline blender::Span<bNode *> bNodeTree::root_frames() const
 {
   BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
   return this->runtime->root_frames;
+}
+
+inline blender::Span<bNodeLink *> bNodeTree::all_links()
+{
+  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  return this->runtime->links;
+}
+
+inline blender::Span<const bNodeLink *> bNodeTree::all_links() const
+{
+  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  return this->runtime->links;
+}
+
+inline blender::Span<const bNodePanel *> bNodeTree::panels() const
+{
+  return blender::Span(panels_array, panels_num);
+}
+
+inline blender::MutableSpan<bNodePanel *> bNodeTree::panels_for_write()
+{
+  return blender::MutableSpan(panels_array, panels_num);
+}
+
+inline blender::MutableSpan<bNestedNodeRef> bNodeTree::nested_node_refs_span()
+{
+  return {this->nested_node_refs, this->nested_node_refs_num};
+}
+
+inline blender::Span<bNestedNodeRef> bNodeTree::nested_node_refs_span() const
+{
+  return {this->nested_node_refs, this->nested_node_refs_num};
 }
 
 /** \} */
@@ -768,6 +823,11 @@ inline const bNodeSocket *bNodeSocket::internal_link_input() const
   BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
   BLI_assert(this->in_out == SOCK_OUT);
   return this->runtime->internal_link_input;
+}
+
+template<typename T> T *bNodeSocket::default_value_typed()
+{
+  return static_cast<T *>(this->default_value);
 }
 
 template<typename T> const T *bNodeSocket::default_value_typed() const

@@ -1,11 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_attribute_math.hh"
 #include "BKE_brush.h"
 #include "BKE_bvhutils.h"
 #include "BKE_context.h"
 #include "BKE_crazyspace.hh"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.h"
 
 #include "ED_screen.h"
@@ -34,8 +36,8 @@ class PuffOperation : public CurvesSculptStrokeOperation {
   /** Only used when a 3D brush is used. */
   CurvesBrush3D brush_3d_;
 
-  /** Length of each segment indexed by the index of the first point in the segment. */
-  Array<float> segment_lengths_cu_;
+  /** Solver for length and collision constraints. */
+  CurvesConstraintSolver constraint_solver_;
 
   friend struct PuffOperationExecutor;
 
@@ -56,7 +58,7 @@ struct PuffOperationExecutor {
   CurvesGeometry *curves_ = nullptr;
 
   VArray<float> point_factors_;
-  Vector<int64_t> selected_curve_indices_;
+  IndexMaskMemory selected_curve_memory_;
   IndexMask curve_selection_;
 
   const CurvesSculpt *curves_sculpt_ = nullptr;
@@ -73,14 +75,12 @@ struct PuffOperationExecutor {
   Object *surface_ob_ = nullptr;
   Mesh *surface_ = nullptr;
   Span<float3> surface_positions_;
-  Span<MLoop> surface_loops_;
+  Span<int> surface_corner_verts_;
   Span<MLoopTri> surface_looptris_;
   Span<float3> corner_normals_su_;
   BVHTreeFromMesh surface_bvh_;
 
-  PuffOperationExecutor(const bContext &C) : ctx_(C)
-  {
-  }
+  PuffOperationExecutor(const bContext &C) : ctx_(C) {}
 
   void execute(PuffOperation &self, const bContext &C, const StrokeExtension &stroke_extension)
   {
@@ -105,9 +105,9 @@ struct PuffOperationExecutor {
     brush_strength_ = brush_strength_get(*ctx_.scene, *brush_, stroke_extension);
     brush_pos_re_ = stroke_extension.mouse_position;
 
-    point_factors_ = curves_->attributes().lookup_or_default<float>(
+    point_factors_ = *curves_->attributes().lookup_or_default<float>(
         ".selection", ATTR_DOMAIN_POINT, 1.0f);
-    curve_selection_ = curves::retrieve_selected_curves(*curves_id_, selected_curve_indices_);
+    curve_selection_ = curves::retrieve_selected_curves(*curves_id_, selected_curve_memory_);
 
     falloff_shape_ = static_cast<eBrushFalloffShape>(brush_->falloff_shape);
 
@@ -124,13 +124,12 @@ struct PuffOperationExecutor {
         surface_->totloop};
 
     surface_positions_ = surface_->vert_positions();
-    surface_loops_ = surface_->loops();
+    surface_corner_verts_ = surface_->corner_verts();
     surface_looptris_ = surface_->looptris();
     BKE_bvhtree_from_mesh_get(&surface_bvh_, surface_, BVHTREE_FROM_LOOPTRI, 2);
     BLI_SCOPED_DEFER([&]() { free_bvhtree_from_mesh(&surface_bvh_); });
 
     if (stroke_extension.is_first) {
-      this->initialize_segment_lengths();
       if (falloff_shape_ == PAINT_FALLOFF_SHAPE_SPHERE) {
         self.brush_3d_ = *sample_curves_3d_brush(*ctx_.depsgraph,
                                                  *ctx_.region,
@@ -140,9 +139,12 @@ struct PuffOperationExecutor {
                                                  brush_pos_re_,
                                                  brush_radius_base_re_);
       }
+
+      self_->constraint_solver_.initialize(
+          *curves_, curve_selection_, curves_id_->flag & CV_SCULPT_COLLISION_ENABLED);
     }
 
-    Array<float> curve_weights(curve_selection_.size(), 0.0f);
+    Array<float> curve_weights(curves_->curves_num());
 
     if (falloff_shape_ == PAINT_FALLOFF_SHAPE_TUBE) {
       this->find_curve_weights_projected_with_symmetry(curve_weights);
@@ -154,8 +156,15 @@ struct PuffOperationExecutor {
       BLI_assert_unreachable();
     }
 
-    this->puff(curve_weights);
-    this->restore_segment_lengths();
+    IndexMaskMemory memory;
+    const IndexMask curves_mask = IndexMask::from_predicate(
+        curve_selection_, GrainSize(4096), memory, [&](const int64_t curve_i) {
+          return curve_weights[curve_i] > 0.0f;
+        });
+
+    this->puff(curves_mask, curve_weights);
+
+    self_->constraint_solver_.solve_step(*curves_, curves_mask, surface_, transforms_);
 
     curves_->tag_positions_changed();
     DEG_id_tag_update(&curves_id_->id, ID_RECALC_GEOMETRY);
@@ -187,34 +196,32 @@ struct PuffOperationExecutor {
         bke::crazyspace::get_evaluated_curves_deformation(*ctx_.depsgraph, *object_);
     const OffsetIndices points_by_curve = curves_->points_by_curve();
 
-    threading::parallel_for(curve_selection_.index_range(), 256, [&](const IndexRange range) {
-      for (const int curve_selection_i : range) {
-        const int curve_i = curve_selection_[curve_selection_i];
-        const IndexRange points = points_by_curve[curve_i];
-        const float3 first_pos_cu = math::transform_point(brush_transform_inv,
-                                                          deformation.positions[points[0]]);
-        float2 prev_pos_re;
-        ED_view3d_project_float_v2_m4(ctx_.region, first_pos_cu, prev_pos_re, projection.ptr());
-        for (const int point_i : points.drop_front(1)) {
-          const float3 pos_cu = math::transform_point(brush_transform_inv,
-                                                      deformation.positions[point_i]);
-          float2 pos_re;
-          ED_view3d_project_float_v2_m4(ctx_.region, pos_cu, pos_re, projection.ptr());
-          BLI_SCOPED_DEFER([&]() { prev_pos_re = pos_re; });
+    curve_selection_.foreach_index(GrainSize(256), [&](const int64_t curve_i) {
+      const IndexRange points = points_by_curve[curve_i];
+      const float3 first_pos_cu = math::transform_point(brush_transform_inv,
+                                                        deformation.positions[points[0]]);
+      float2 prev_pos_re;
+      ED_view3d_project_float_v2_m4(ctx_.region, first_pos_cu, prev_pos_re, projection.ptr());
+      float max_weight = 0.0f;
+      for (const int point_i : points.drop_front(1)) {
+        const float3 pos_cu = math::transform_point(brush_transform_inv,
+                                                    deformation.positions[point_i]);
+        float2 pos_re;
+        ED_view3d_project_float_v2_m4(ctx_.region, pos_cu, pos_re, projection.ptr());
+        BLI_SCOPED_DEFER([&]() { prev_pos_re = pos_re; });
 
-          const float dist_to_brush_sq_re = dist_squared_to_line_segment_v2(
-              brush_pos_re_, prev_pos_re, pos_re);
-          if (dist_to_brush_sq_re > brush_radius_sq_re) {
-            continue;
-          }
-
-          const float dist_to_brush_re = std::sqrt(dist_to_brush_sq_re);
-          const float radius_falloff = BKE_brush_curve_strength(
-              brush_, dist_to_brush_re, brush_radius_re);
-          const float weight = radius_falloff;
-          math::max_inplace(r_curve_weights[curve_selection_i], weight);
+        const float dist_to_brush_sq_re = dist_squared_to_line_segment_v2(
+            brush_pos_re_, prev_pos_re, pos_re);
+        if (dist_to_brush_sq_re > brush_radius_sq_re) {
+          continue;
         }
+
+        const float dist_to_brush_re = std::sqrt(dist_to_brush_sq_re);
+        const float radius_falloff = BKE_brush_curve_strength(
+            brush_, dist_to_brush_re, brush_radius_re);
+        math::max_inplace(max_weight, radius_falloff);
       }
+      r_curve_weights[curve_i] = max_weight;
     });
   }
 
@@ -251,39 +258,35 @@ struct PuffOperationExecutor {
         bke::crazyspace::get_evaluated_curves_deformation(*ctx_.depsgraph, *object_);
     const OffsetIndices points_by_curve = curves_->points_by_curve();
 
-    threading::parallel_for(curve_selection_.index_range(), 256, [&](const IndexRange range) {
-      for (const int curve_selection_i : range) {
-        const int curve_i = curve_selection_[curve_selection_i];
-        const IndexRange points = points_by_curve[curve_i];
-        for (const int point_i : points.drop_front(1)) {
-          const float3 &prev_pos_cu = deformation.positions[point_i - 1];
-          const float3 &pos_cu = deformation.positions[point_i];
-          const float dist_to_brush_sq_cu = dist_squared_to_line_segment_v3(
-              brush_pos_cu, prev_pos_cu, pos_cu);
-          if (dist_to_brush_sq_cu > brush_radius_sq_cu) {
-            continue;
-          }
-
-          const float dist_to_brush_cu = std::sqrt(dist_to_brush_sq_cu);
-          const float radius_falloff = BKE_brush_curve_strength(
-              brush_, dist_to_brush_cu, brush_radius_cu);
-          const float weight = radius_falloff;
-          math::max_inplace(r_curve_weights[curve_selection_i], weight);
+    curve_selection_.foreach_index(GrainSize(256), [&](const int64_t curve_i) {
+      const IndexRange points = points_by_curve[curve_i];
+      float max_weight = 0.0f;
+      for (const int point_i : points.drop_front(1)) {
+        const float3 &prev_pos_cu = deformation.positions[point_i - 1];
+        const float3 &pos_cu = deformation.positions[point_i];
+        const float dist_to_brush_sq_cu = dist_squared_to_line_segment_v3(
+            brush_pos_cu, prev_pos_cu, pos_cu);
+        if (dist_to_brush_sq_cu > brush_radius_sq_cu) {
+          continue;
         }
+
+        const float dist_to_brush_cu = std::sqrt(dist_to_brush_sq_cu);
+        const float radius_falloff = BKE_brush_curve_strength(
+            brush_, dist_to_brush_cu, brush_radius_cu);
+        math::max_inplace(max_weight, radius_falloff);
       }
+      r_curve_weights[curve_i] = max_weight;
     });
   }
 
-  void puff(const Span<float> curve_weights)
+  void puff(const IndexMask &selection, const Span<float> curve_weights)
   {
-    BLI_assert(curve_weights.size() == curve_selection_.size());
     const OffsetIndices points_by_curve = curves_->points_by_curve();
     MutableSpan<float3> positions_cu = curves_->positions_for_write();
 
-    threading::parallel_for(curve_selection_.index_range(), 256, [&](const IndexRange range) {
+    selection.foreach_segment(GrainSize(256), [&](IndexMaskSegment segment) {
       Vector<float> accumulated_lengths_cu;
-      for (const int curve_selection_i : range) {
-        const int curve_i = curve_selection_[curve_selection_i];
+      for (const int curve_i : segment) {
         const IndexRange points = points_by_curve[curve_i];
         const int first_point_i = points[0];
         const float3 first_pos_cu = positions_cu[first_point_i];
@@ -302,9 +305,9 @@ struct PuffOperationExecutor {
 
         const MLoopTri &looptri = surface_looptris_[nearest.index];
         const float3 closest_pos_su = nearest.co;
-        const float3 &v0_su = surface_positions_[surface_loops_[looptri.tri[0]].v];
-        const float3 &v1_su = surface_positions_[surface_loops_[looptri.tri[1]].v];
-        const float3 &v2_su = surface_positions_[surface_loops_[looptri.tri[2]].v];
+        const float3 &v0_su = surface_positions_[surface_corner_verts_[looptri.tri[0]]];
+        const float3 &v1_su = surface_positions_[surface_corner_verts_[looptri.tri[1]]];
+        const float3 &v2_su = surface_positions_[surface_corner_verts_[looptri.tri[2]]];
         float3 bary_coords;
         interp_weights_tri_v3(bary_coords, v0_su, v1_su, v2_su, closest_pos_su);
         const float3 normal_su = geometry::compute_surface_point_normal(
@@ -327,7 +330,7 @@ struct PuffOperationExecutor {
           const float3 goal_pos_cu = first_pos_cu + length_param_cu * normal_cu;
 
           const float weight = 0.01f * brush_strength_ * point_factors_[point_i] *
-                               curve_weights[curve_selection_i];
+                               curve_weights[curve_i];
           float3 new_pos_cu = math::interpolate(old_pos_cu, goal_pos_cu, weight);
 
           /* Make sure the point does not move closer to the root point than it was initially. This
@@ -340,44 +343,6 @@ struct PuffOperationExecutor {
           }
 
           positions_cu[point_i] = new_pos_cu;
-        }
-      }
-    });
-  }
-
-  void initialize_segment_lengths()
-  {
-    const OffsetIndices points_by_curve = curves_->points_by_curve();
-    const Span<float3> positions_cu = curves_->positions();
-    self_->segment_lengths_cu_.reinitialize(curves_->points_num());
-    threading::parallel_for(curves_->curves_range(), 128, [&](const IndexRange range) {
-      for (const int curve_i : range) {
-        const IndexRange points = points_by_curve[curve_i];
-        for (const int point_i : points.drop_back(1)) {
-          const float3 &p1_cu = positions_cu[point_i];
-          const float3 &p2_cu = positions_cu[point_i + 1];
-          const float length_cu = math::distance(p1_cu, p2_cu);
-          self_->segment_lengths_cu_[point_i] = length_cu;
-        }
-      }
-    });
-  }
-
-  void restore_segment_lengths()
-  {
-    const Span<float> expected_lengths_cu = self_->segment_lengths_cu_;
-    const OffsetIndices points_by_curve = curves_->points_by_curve();
-    MutableSpan<float3> positions_cu = curves_->positions_for_write();
-
-    threading::parallel_for(curves_->curves_range(), 256, [&](const IndexRange range) {
-      for (const int curve_i : range) {
-        const IndexRange points = points_by_curve[curve_i];
-        for (const int segment_i : points.drop_back(1)) {
-          const float3 &p1_cu = positions_cu[segment_i];
-          float3 &p2_cu = positions_cu[segment_i + 1];
-          const float3 direction = math::normalize(p2_cu - p1_cu);
-          const float expected_length_cu = expected_lengths_cu[segment_i];
-          p2_cu = p1_cu + direction * expected_length_cu;
         }
       }
     });

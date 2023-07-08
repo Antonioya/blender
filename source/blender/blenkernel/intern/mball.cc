@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -48,7 +49,7 @@
 #include "BKE_material.h"
 #include "BKE_mball.h"
 #include "BKE_mball_tessellate.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_object.h"
 #include "BKE_scene.h"
 
@@ -141,10 +142,10 @@ static void metaball_blend_read_lib(BlendLibReader *reader, ID *id)
 {
   MetaBall *mb = (MetaBall *)id;
   for (int a = 0; a < mb->totcol; a++) {
-    BLO_read_id_address(reader, mb->id.lib, &mb->mat[a]);
+    BLO_read_id_address(reader, id, &mb->mat[a]);
   }
 
-  BLO_read_id_address(reader, mb->id.lib, &mb->ipo);  // XXX deprecated - old animation system
+  BLO_read_id_address(reader, id, &mb->ipo);  // XXX deprecated - old animation system
 }
 
 static void metaball_blend_read_expand(BlendExpander *expander, ID *id)
@@ -243,32 +244,7 @@ MetaElem *BKE_mball_element_add(MetaBall *mb, const int type)
 BoundBox *BKE_mball_boundbox_get(Object *ob)
 {
   BLI_assert(ob->type == OB_MBALL);
-  if (ob->runtime.bb != nullptr && (ob->runtime.bb->flag & BOUNDBOX_DIRTY) == 0) {
-    return ob->runtime.bb;
-  }
-  if (ob->runtime.bb == nullptr) {
-    ob->runtime.bb = MEM_cnew<BoundBox>(__func__);
-  }
-
-  /* Expect that this function is only called for evaluated objects. */
-  const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob);
-  float min[3];
-  float max[3];
-  if (mesh_eval) {
-    INIT_MINMAX(min, max);
-    if (!BKE_mesh_minmax(mesh_eval, min, max)) {
-      copy_v3_fl(min, -1.0f);
-      copy_v3_fl(max, 1.0f);
-    }
-  }
-  else {
-    copy_v3_fl(min, 0.0f);
-    copy_v3_fl(max, 0.0f);
-  }
-
-  BKE_boundbox_init_from_minmax(ob->runtime.bb, min, max);
-  ob->runtime.bb->flag &= ~BOUNDBOX_DIRTY;
-
+  BKE_object_boundbox_calc_from_evaluated_geometry(ob);
   return ob->runtime.bb;
 }
 
@@ -305,8 +281,8 @@ bool BKE_mball_is_same_group(const Object *ob1, const Object *ob2)
     return false;
   }
 
-  BLI_split_name_num(basis1name, &basis1nr, ob1->id.name + 2, '.');
-  BLI_split_name_num(basis2name, &basis2nr, ob2->id.name + 2, '.');
+  BLI_string_split_name_number(ob1->id.name + 2, '.', basis1name, &basis1nr);
+  BLI_string_split_name_number(ob2->id.name + 2, '.', basis2name, &basis2nr);
 
   return STREQ(basis1name, basis2name);
 }
@@ -377,7 +353,8 @@ void BKE_mball_properties_copy(Main *bmain, MetaBall *metaball_src)
    * think it would be worth it.
    */
   for (Object *ob_src = static_cast<Object *>(bmain->objects.first);
-       ob_src != nullptr && !ID_IS_LINKED(ob_src);) {
+       ob_src != nullptr && !ID_IS_LINKED(ob_src);)
+  {
     if (ob_src->data != metaball_src) {
       ob_src = static_cast<Object *>(ob_src->id.next);
       continue;
@@ -395,17 +372,18 @@ void BKE_mball_properties_copy(Main *bmain, MetaBall *metaball_src)
     Object *ob_iter = nullptr;
     int obactive_nr, ob_nr;
     char obactive_name[MAX_ID_NAME], ob_name[MAX_ID_NAME];
-    BLI_split_name_num(obactive_name, &obactive_nr, ob_src->id.name + 2, '.');
+    BLI_string_split_name_number(ob_src->id.name + 2, '.', obactive_name, &obactive_nr);
 
     for (ob_iter = static_cast<Object *>(ob_src->id.prev); ob_iter != nullptr;
-         ob_iter = static_cast<Object *>(ob_iter->id.prev)) {
+         ob_iter = static_cast<Object *>(ob_iter->id.prev))
+    {
       if (ob_iter->id.name[2] != obactive_name[0]) {
         break;
       }
       if (ob_iter->type != OB_MBALL || ob_iter->data == metaball_src) {
         continue;
       }
-      BLI_split_name_num(ob_name, &ob_nr, ob_iter->id.name + 2, '.');
+      BLI_string_split_name_number(ob_iter->id.name + 2, '.', ob_name, &ob_nr);
       if (!STREQ(obactive_name, ob_name)) {
         break;
       }
@@ -414,14 +392,15 @@ void BKE_mball_properties_copy(Main *bmain, MetaBall *metaball_src)
     }
 
     for (ob_iter = static_cast<Object *>(ob_src->id.next); ob_iter != nullptr;
-         ob_iter = static_cast<Object *>(ob_iter->id.next)) {
+         ob_iter = static_cast<Object *>(ob_iter->id.next))
+    {
       if (ob_iter->id.name[2] != obactive_name[0] || ID_IS_LINKED(ob_iter)) {
         break;
       }
       if (ob_iter->type != OB_MBALL || ob_iter->data == metaball_src) {
         continue;
       }
-      BLI_split_name_num(ob_name, &ob_nr, ob_iter->id.name + 2, '.');
+      BLI_string_split_name_number(ob_iter->id.name + 2, '.', ob_name, &ob_nr);
       if (!STREQ(obactive_name, ob_name)) {
         break;
       }
@@ -439,7 +418,7 @@ Object *BKE_mball_basis_find(Scene *scene, Object *object)
   int basisnr, obnr;
   char basisname[MAX_ID_NAME], obname[MAX_ID_NAME];
 
-  BLI_split_name_num(basisname, &basisnr, object->id.name + 2, '.');
+  BLI_string_split_name_number(object->id.name + 2, '.', basisname, &basisnr);
 
   LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
     BKE_view_layer_synced_ensure(scene, view_layer);
@@ -447,7 +426,7 @@ Object *BKE_mball_basis_find(Scene *scene, Object *object)
       Object *ob = base->object;
       if ((ob->type == OB_MBALL) && !(base->flag & BASE_FROM_DUPLI)) {
         if (ob != bob) {
-          BLI_split_name_num(obname, &obnr, ob->id.name + 2, '.');
+          BLI_string_split_name_number(ob->id.name + 2, '.', obname, &obnr);
 
           /* Object ob has to be in same "group" ... it means,
            * that it has to have same base of its name. */
@@ -666,6 +645,8 @@ bool BKE_mball_select_swap_multi_ex(Base **bases, int bases_len)
 
 void BKE_mball_data_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
+  using namespace blender;
+  using namespace blender::bke;
   BLI_assert(ob->type == OB_MBALL);
 
   BKE_object_free_derived_caches(ob);
@@ -685,23 +666,18 @@ void BKE_mball_data_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
   mesh->totcol = mball->totcol;
 
   if (ob->parent && ob->parent->type == OB_LATTICE && ob->partype == PARSKEL) {
-    int verts_num;
-    float(*positions)[3] = BKE_mesh_vert_coords_alloc(mesh, &verts_num);
-    BKE_lattice_deform_coords(ob->parent, ob, positions, verts_num, 0, nullptr, 1.0f);
-    BKE_mesh_vert_coords_apply(mesh, positions);
-    MEM_freeN(positions);
+    BKE_lattice_deform_coords(
+        ob->parent,
+        ob,
+        reinterpret_cast<float(*)[3]>(mesh->vert_positions_for_write().data()),
+        mesh->totvert,
+        0,
+        nullptr,
+        1.0f);
+    BKE_mesh_tag_positions_changed(mesh);
   }
 
   ob->runtime.geometry_set_eval = new GeometrySet(GeometrySet::create_with_mesh(mesh));
 
-  if (ob->runtime.bb == nullptr) {
-    ob->runtime.bb = MEM_cnew<BoundBox>(__func__);
-  }
-  blender::float3 min(std::numeric_limits<float>::max());
-  blender::float3 max(-std::numeric_limits<float>::max());
-  if (!ob->runtime.geometry_set_eval->compute_boundbox_without_instances(&min, &max)) {
-    min = blender::float3(0);
-    max = blender::float3(0);
-  }
-  BKE_boundbox_init_from_minmax(ob->runtime.bb, min, max);
+  BKE_object_boundbox_calc_from_evaluated_geometry(ob);
 };

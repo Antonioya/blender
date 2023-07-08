@@ -1,7 +1,8 @@
+# SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2022 Blender Foundation
 
-if(WITH_GTESTS)
+if(WITH_GTESTS AND WITH_CYCLES_LOGGING)
   Include(GTestTesting)
 
   # Otherwise we get warnings here that we can't fix in external projects
@@ -53,6 +54,7 @@ if(NOT APPLE)
   endif()
 endif()
 
-if(WITH_GTESTS)
-  blender_src_gtest(cycles "${SRC}" "${LIB}")
+if(WITH_GTESTS AND WITH_CYCLES_LOGGING)
+  set(INC_SYS )
+  blender_add_test_executable(cycles "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 endif()

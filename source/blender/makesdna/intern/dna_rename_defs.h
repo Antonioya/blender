@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -10,7 +11,7 @@
  * - When renaming the member of a struct which has itself been renamed
  *   refer to the newer name, not the original.
  *
- * - Changes here only change generated code for `makesdna.c` and `makesrna.c`
+ * - Changes here only change generated code for `makesdna.cc` and `makesrna.c`
  *   without impacting Blender's run-time, besides allowing us to use the new names.
  *
  * - Renaming something that has already been renamed can be done
@@ -79,8 +80,13 @@ DNA_STRUCT_RENAME_ELEM(FluidDomainSettings, guiding_parent, guide_parent)
 DNA_STRUCT_RENAME_ELEM(FluidDomainSettings, guiding_source, guide_source)
 DNA_STRUCT_RENAME_ELEM(FluidDomainSettings, guiding_vel_factor, guide_vel_factor)
 DNA_STRUCT_RENAME_ELEM(FluidEffectorSettings, guiding_mode, guide_mode)
+DNA_STRUCT_RENAME_ELEM(GreasePencil, drawing_array_size, drawing_array_num)
+DNA_STRUCT_RENAME_ELEM(GreasePencil, material_array_size, material_array_num)
+DNA_STRUCT_RENAME_ELEM(GreasePencilLayerFramesMapStorage, size, num)
 DNA_STRUCT_RENAME_ELEM(HookModifierData, totindex, indexar_num)
 DNA_STRUCT_RENAME_ELEM(Image, name, filepath)
+DNA_STRUCT_RENAME_ELEM(Light, energy_new, energy)
+DNA_STRUCT_RENAME_ELEM(Light, energy, energy_deprecated)
 DNA_STRUCT_RENAME_ELEM(LaplacianDeformModifierData, total_verts, verts_num)
 DNA_STRUCT_RENAME_ELEM(Library, name, filepath)
 DNA_STRUCT_RENAME_ELEM(LineartGpencilModifierData, line_types, edge_types)
@@ -89,6 +95,8 @@ DNA_STRUCT_RENAME_ELEM(LineartGpencilModifierData, transparency_mask, material_m
 DNA_STRUCT_RENAME_ELEM(MDefCell, totinfluence, influences_num)
 DNA_STRUCT_RENAME_ELEM(MEdge, bweight, bweight_legacy)
 DNA_STRUCT_RENAME_ELEM(MEdge, crease, crease_legacy)
+DNA_STRUCT_RENAME_ELEM(MEdge, flag, flag_legacy)
+DNA_STRUCT_RENAME_ELEM(MPoly, flag, flag_legacy)
 DNA_STRUCT_RENAME_ELEM(MPoly, mat_nr, mat_nr_legacy)
 DNA_STRUCT_RENAME_ELEM(MVert, bweight, bweight_legacy)
 DNA_STRUCT_RENAME_ELEM(MVert, co, co_legacy)
@@ -110,6 +118,13 @@ DNA_STRUCT_RENAME_ELEM(MovieTracking, act_track, act_track_legacy)
 DNA_STRUCT_RENAME_ELEM(MovieTracking, plane_tracks, plane_tracks_legacy)
 DNA_STRUCT_RENAME_ELEM(MovieTracking, reconstruction, reconstruction_legacy)
 DNA_STRUCT_RENAME_ELEM(MovieTracking, tracks, tracks_legacy)
+DNA_STRUCT_RENAME_ELEM(MovieTrackingTrack, pat_min, pat_min_legacy)
+DNA_STRUCT_RENAME_ELEM(MovieTrackingTrack, pat_max, pat_max_legacy)
+DNA_STRUCT_RENAME_ELEM(MovieTrackingTrack, search_min, search_min_legacy)
+DNA_STRUCT_RENAME_ELEM(MovieTrackingTrack, search_max, search_max_legacy)
+DNA_STRUCT_RENAME_ELEM(MovieTrackingSettings, keyframe1, keyframe1_legacy)
+DNA_STRUCT_RENAME_ELEM(MovieTrackingSettings, keyframe2, keyframe2_legacy)
+DNA_STRUCT_RENAME_ELEM(MovieTrackingStabilization, rot_track, rot_track_legacy)
 DNA_STRUCT_RENAME_ELEM(MovieTrackingCamera, principal, principal_legacy)
 DNA_STRUCT_RENAME_ELEM(NodeCryptomatte, num_inputs, inputs_num)
 DNA_STRUCT_RENAME_ELEM(Object, col, color)
@@ -131,6 +146,10 @@ DNA_STRUCT_RENAME_ELEM(SDefBind, numverts, verts_num)
 DNA_STRUCT_RENAME_ELEM(SDefVert, numbinds, binds_num)
 DNA_STRUCT_RENAME_ELEM(SpaceImage, pixel_snap_mode, pixel_round_mode)
 DNA_STRUCT_RENAME_ELEM(SpaceSeq, overlay_type, overlay_frame_type)
+DNA_STRUCT_RENAME_ELEM(Strip, dir, dirpath)
+DNA_STRUCT_RENAME_ELEM(StripElem, name, filename)
+DNA_STRUCT_RENAME_ELEM(StripProxy, dir, dirpath)
+DNA_STRUCT_RENAME_ELEM(StripProxy, file, filename)
 DNA_STRUCT_RENAME_ELEM(SurfaceDeformModifierData, num_mesh_verts, mesh_verts_num)
 DNA_STRUCT_RENAME_ELEM(SurfaceDeformModifierData, numpoly, target_polys_num)
 DNA_STRUCT_RENAME_ELEM(SurfaceDeformModifierData, numverts, bind_verts_num)
@@ -139,6 +158,7 @@ DNA_STRUCT_RENAME_ELEM(ThemeSpace, scrubbing_background, time_scrub_background)
 DNA_STRUCT_RENAME_ELEM(ThemeSpace, show_back_grad, background_type)
 DNA_STRUCT_RENAME_ELEM(UVProjectModifierData, num_projectors, projectors_num)
 DNA_STRUCT_RENAME_ELEM(UserDef, gp_manhattendist, gp_manhattandist)
+DNA_STRUCT_RENAME_ELEM(UserDef, pythondir, pythondir_legacy)
 DNA_STRUCT_RENAME_ELEM(VFont, name, filepath)
 DNA_STRUCT_RENAME_ELEM(View3D, far, clip_end)
 DNA_STRUCT_RENAME_ELEM(View3D, near, clip_start)
@@ -174,6 +194,7 @@ DNA_STRUCT_RENAME_ELEM(bTheme, tstatusbar, space_statusbar)
 DNA_STRUCT_RENAME_ELEM(bTheme, ttopbar, space_topbar)
 DNA_STRUCT_RENAME_ELEM(bTheme, tuserpref, space_preferences)
 DNA_STRUCT_RENAME_ELEM(bTheme, tv3d, space_view3d)
+DNA_STRUCT_RENAME_ELEM(bUserAssetLibrary, path, dirpath)
 /* Write with a different name, old Blender versions crash loading files with non-NULL
  * global_areas. See D9442. */
 DNA_STRUCT_RENAME_ELEM(wmWindow, global_area_map, global_areas)

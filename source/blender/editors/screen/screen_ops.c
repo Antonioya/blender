@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2008 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edscr
@@ -30,6 +31,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_workspace_types.h"
 
+#include "BKE_callbacks.h"
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
 #include "BKE_fcurve.h"
@@ -213,6 +215,17 @@ bool ED_operator_objectmode_poll_msg(bContext *C)
   return true;
 }
 
+bool ED_operator_objectmode_with_view3d_poll_msg(bContext *C)
+{
+  if (!ED_operator_objectmode_poll_msg(C)) {
+    return false;
+  }
+  if (!ED_operator_region_view3d_active(C)) {
+    return false;
+  }
+  return true;
+}
+
 static bool ed_spacetype_test(bContext *C, int type)
 {
   if (ED_operator_areaactive(C)) {
@@ -235,6 +248,19 @@ bool ED_operator_region_view3d_active(bContext *C)
 
   CTX_wm_operator_poll_msg_set(C, "expected a view3d region");
   return false;
+}
+
+bool ED_operator_region_gizmo_active(bContext *C)
+{
+  ARegion *region = CTX_wm_region(C);
+  if (region == NULL) {
+    return false;
+  }
+  wmGizmoMap *gzmap = region->gizmo_map;
+  if (gzmap == NULL) {
+    return false;
+  }
+  return true;
 }
 
 bool ED_operator_animview_active(bContext *C)
@@ -754,7 +780,8 @@ static bool azone_clipped_rect_calc(const AZone *az, rcti *r_rect_clip)
   if (az->type == AZONE_REGION) {
     if (region->overlap && (region->v2d.keeptot != V2D_KEEPTOT_STRICT) &&
         /* Only when this isn't hidden (where it's displayed as an button that expands). */
-        ((az->region->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL)) == 0)) {
+        ((az->region->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL)) == 0))
+    {
       /* A floating region to be resized, clip by the visible region. */
       switch (az->edge) {
         case AE_TOP_TO_BOTTOMRIGHT:
@@ -791,15 +818,36 @@ static bool azone_clipped_rect_calc(const AZone *az, rcti *r_rect_clip)
   return false;
 }
 
+/* Return the azone's calculated rect. */
+static void area_actionzone_get_rect(AZone *az, rcti *rect)
+{
+  if (az->type == AZONE_REGION_SCROLL) {
+    /* For scroll azones use the area around the region's scroll-bar location. */
+    rcti scroller_vert = (az->direction == AZ_SCROLL_HOR) ? az->region->v2d.hor :
+                                                            az->region->v2d.vert;
+    BLI_rcti_translate(&scroller_vert, az->region->winrct.xmin, az->region->winrct.ymin);
+    rect->xmin = scroller_vert.xmin -
+                 ((az->direction == AZ_SCROLL_VERT) ? V2D_SCROLL_HIDE_HEIGHT : 0);
+    rect->ymin = scroller_vert.ymin -
+                 ((az->direction == AZ_SCROLL_HOR) ? V2D_SCROLL_HIDE_WIDTH : 0);
+    rect->xmax = scroller_vert.xmax +
+                 ((az->direction == AZ_SCROLL_VERT) ? V2D_SCROLL_HIDE_HEIGHT : 0);
+    rect->ymax = scroller_vert.ymax +
+                 ((az->direction == AZ_SCROLL_HOR) ? V2D_SCROLL_HIDE_WIDTH : 0);
+  }
+  else {
+    azone_clipped_rect_calc(az, rect);
+  }
+}
+
 static AZone *area_actionzone_refresh_xy(ScrArea *area, const int xy[2], const bool test_only)
 {
   AZone *az = NULL;
 
   for (az = area->actionzones.first; az; az = az->next) {
-    rcti az_rect_clip;
-    if (BLI_rcti_isect_pt_v(&az->rect, xy) &&
-        /* Check clipping if this is clipped */
-        (!azone_clipped_rect_calc(az, &az_rect_clip) || BLI_rcti_isect_pt_v(&az_rect_clip, xy))) {
+    rcti az_rect;
+    area_actionzone_get_rect(az, &az_rect);
+    if (BLI_rcti_isect_pt_v(&az_rect, xy)) {
 
       if (az->type == AZONE_AREA) {
         break;
@@ -857,7 +905,8 @@ static AZone *area_actionzone_refresh_xy(ScrArea *area, const int xy[2], const b
 
         /* Check if we even have scroll bars. */
         if (((az->direction == AZ_SCROLL_HOR) && !(scroll_flag & V2D_SCROLL_HORIZONTAL)) ||
-            ((az->direction == AZ_SCROLL_VERT) && !(scroll_flag & V2D_SCROLL_VERTICAL))) {
+            ((az->direction == AZ_SCROLL_VERT) && !(scroll_flag & V2D_SCROLL_VERTICAL)))
+        {
           /* No scroll-bars, do nothing. */
         }
         else if (test_only) {
@@ -887,16 +936,14 @@ static AZone *area_actionzone_refresh_xy(ScrArea *area, const int xy[2], const b
             float dist_fac = 0.0f, alpha = 0.0f;
 
             if (az->direction == AZ_SCROLL_HOR) {
-              float hide_width = (az->y2 - az->y1) / 2.0f;
-              dist_fac = BLI_rcti_length_y(&v2d->hor, local_xy[1]) / hide_width;
+              dist_fac = BLI_rcti_length_y(&v2d->hor, local_xy[1]) / V2D_SCROLL_HIDE_WIDTH;
               CLAMP(dist_fac, 0.0f, 1.0f);
               alpha = 1.0f - dist_fac;
 
               v2d->alpha_hor = alpha * 255;
             }
             else if (az->direction == AZ_SCROLL_VERT) {
-              float hide_width = (az->x2 - az->x1) / 2.0f;
-              dist_fac = BLI_rcti_length_x(&v2d->vert, local_xy[0]) / hide_width;
+              dist_fac = BLI_rcti_length_x(&v2d->vert, local_xy[0]) / V2D_SCROLL_HIDE_HEIGHT;
               CLAMP(dist_fac, 0.0f, 1.0f);
               alpha = 1.0f - dist_fac;
 
@@ -1085,7 +1132,8 @@ static int actionzone_modal(bContext *C, wmOperator *op, const wmEvent *event)
         /* Have we dragged off the zone and are not on an edge? */
         if ((ED_area_actionzone_find_xy(sad->sa1, event->xy) != sad->az) &&
             (screen_geom_area_map_find_active_scredge(
-                 AREAMAP_FROM_SCREEN(screen), &screen_rect, event->xy[0], event->xy[1]) == NULL)) {
+                 AREAMAP_FROM_SCREEN(screen), &screen_rect, event->xy[0], event->xy[1]) == NULL))
+        {
 
           /* What area are we now in? */
           ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
@@ -1207,7 +1255,7 @@ static ScrEdge *screen_area_edge_from_cursor(const bContext *C,
   if (actedge == NULL) {
     return NULL;
   }
-  int borderwidth = (4 * UI_DPI_FAC);
+  int borderwidth = (4 * UI_SCALE_FAC);
   ScrArea *sa1, *sa2;
   if (screen_geom_edge_is_horizontal(actedge)) {
     sa1 = BKE_screen_find_area_xy(
@@ -1638,7 +1686,7 @@ static void area_move_set_limits(wmWindow *win,
       }
     }
     else {
-      int areamin = AREAMINX * U.dpi_fac;
+      int areamin = AREAMINX * UI_SCALE_FAC;
 
       if (area->v1->vec.x > window_rect.xmin) {
         areamin += U.pixelsize;
@@ -1847,7 +1895,7 @@ static void area_move_apply_do(const bContext *C,
       if (area->v1->editflag || area->v2->editflag || area->v3->editflag || area->v4->editflag) {
         if (ED_area_is_global(area)) {
           /* Snap to minimum or maximum for global areas. */
-          int height = round_fl_to_int(screen_geom_area_height(area) / UI_DPI_FAC);
+          int height = round_fl_to_int(screen_geom_area_height(area) / UI_SCALE_FAC);
           if (abs(height - area->global->size_min) < abs(height - area->global->size_max)) {
             area->global->cur_fixed_height = area->global->size_min;
           }
@@ -2061,8 +2109,9 @@ static bool area_split_allowed(const ScrArea *area, const eScreenAxis dir_axis)
     return false;
   }
 
-  if ((dir_axis == SCREEN_AXIS_V && area->winx <= 2 * AREAMINX * U.dpi_fac) ||
-      (dir_axis == SCREEN_AXIS_H && area->winy <= 2 * ED_area_headersize())) {
+  if ((dir_axis == SCREEN_AXIS_V && area->winx <= 2 * AREAMINX * UI_SCALE_FAC) ||
+      (dir_axis == SCREEN_AXIS_H && area->winy <= 2 * ED_area_headersize()))
+  {
     /* Must be at least double minimum sizes to split into two. */
     return false;
   }
@@ -2070,7 +2119,7 @@ static bool area_split_allowed(const ScrArea *area, const eScreenAxis dir_axis)
   return true;
 }
 
-static void area_split_draw_cb(const struct wmWindow *UNUSED(win), void *userdata)
+static void area_split_draw_cb(const wmWindow *UNUSED(win), void *userdata)
 {
   const wmOperator *op = userdata;
 
@@ -2626,20 +2675,20 @@ static int area_max_regionsize(ScrArea *area, ARegion *scale_region, AZEdge edge
       }
       else if (scale_region->alignment == RGN_ALIGN_TOP &&
                (region->alignment == RGN_ALIGN_BOTTOM ||
-                ELEM(
-                    region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER, RGN_TYPE_FOOTER))) {
+                ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER, RGN_TYPE_FOOTER)))
+      {
         dist -= region->winy;
       }
       else if (scale_region->alignment == RGN_ALIGN_BOTTOM &&
                (region->alignment == RGN_ALIGN_TOP ||
-                ELEM(
-                    region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER, RGN_TYPE_FOOTER))) {
+                ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER, RGN_TYPE_FOOTER)))
+      {
         dist -= region->winy;
       }
     }
   }
 
-  dist /= UI_DPI_FAC;
+  dist /= UI_SCALE_FAC;
   return dist;
 }
 
@@ -2680,7 +2729,8 @@ static int region_scale_invoke(bContext *C, wmOperator *op, const wmEvent *event
      * the parent region if the azone edge is not the edge splitting
      * both regions */
     if ((az->region->alignment & RGN_SPLIT_PREV) && az->region->prev &&
-        !is_split_edge(RGN_ALIGN_ENUM_FROM_MASK(az->region->alignment), az->edge)) {
+        !is_split_edge(RGN_ALIGN_ENUM_FROM_MASK(az->region->alignment), az->edge))
+    {
       rmd->region = az->region->prev;
     }
     else {
@@ -2731,7 +2781,7 @@ static void region_scale_validate_size(RegionMoveData *rmd)
       size = &rmd->region->sizey;
     }
 
-    maxsize = rmd->maxsize - (UI_UNIT_Y / UI_DPI_FAC);
+    maxsize = rmd->maxsize - (UI_UNIT_Y / UI_SCALE_FAC);
 
     if (*size > maxsize && maxsize > 0) {
       *size = maxsize;
@@ -2742,7 +2792,7 @@ static void region_scale_validate_size(RegionMoveData *rmd)
 static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
 {
   /* hidden areas may have bad 'View2D.cur' value,
-   * correct before displaying. see T45156 */
+   * correct before displaying. see #45156 */
   if (rmd->region->flag & RGN_FLAG_HIDDEN) {
     UI_view2d_curRect_validate(&rmd->region->v2d);
   }
@@ -2755,7 +2805,8 @@ static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
       ARegion *region_tool_header = BKE_area_find_region_type(rmd->area, RGN_TYPE_TOOL_HEADER);
       if (region_tool_header != NULL) {
         if ((region_tool_header->flag & RGN_FLAG_HIDDEN_BY_USER) == 0 &&
-            (region_tool_header->flag & RGN_FLAG_HIDDEN) != 0) {
+            (region_tool_header->flag & RGN_FLAG_HIDDEN) != 0)
+        {
           region_toggle_hidden(C, region_tool_header, 0);
         }
       }
@@ -2781,18 +2832,24 @@ static int region_scale_modal(bContext *C, wmOperator *op, const wmEvent *event)
         }
 
         /* region sizes now get multiplied */
-        delta /= UI_DPI_FAC;
+        delta /= UI_SCALE_FAC;
 
         const int size_no_snap = rmd->origval + delta;
         rmd->region->sizex = size_no_snap;
+        /* Clamp before snapping, so the snapping doesn't use a size that's invalid anyway. It will
+         * check for and respect the max-width too. */
+        CLAMP(rmd->region->sizex, 0, rmd->maxsize);
 
         if (rmd->region->type->snap_size) {
           short sizex_test = rmd->region->type->snap_size(rmd->region, rmd->region->sizex, 0);
-          if (abs(rmd->region->sizex - sizex_test) < snap_size_threshold) {
+          if ((abs(rmd->region->sizex - sizex_test) < snap_size_threshold) &&
+              /* Don't snap to a new size if that would exceed the maximum width. */
+              sizex_test <= rmd->maxsize)
+          {
             rmd->region->sizex = sizex_test;
           }
         }
-        CLAMP(rmd->region->sizex, 0, rmd->maxsize);
+        BLI_assert(rmd->region->sizex <= rmd->maxsize);
 
         if (size_no_snap < UI_UNIT_X / aspect) {
           rmd->region->sizex = rmd->origval;
@@ -2814,18 +2871,24 @@ static int region_scale_modal(bContext *C, wmOperator *op, const wmEvent *event)
         }
 
         /* region sizes now get multiplied */
-        delta /= UI_DPI_FAC;
+        delta /= UI_SCALE_FAC;
 
         const int size_no_snap = rmd->origval + delta;
         rmd->region->sizey = size_no_snap;
+        /* Clamp before snapping, so the snapping doesn't use a size that's invalid anyway. It will
+         * check for and respect the max-height too. */
+        CLAMP(rmd->region->sizey, 0, rmd->maxsize);
 
         if (rmd->region->type->snap_size) {
           short sizey_test = rmd->region->type->snap_size(rmd->region, rmd->region->sizey, 1);
-          if (abs(rmd->region->sizey - sizey_test) < snap_size_threshold) {
+          if ((abs(rmd->region->sizey - sizey_test) < snap_size_threshold) &&
+              /* Don't snap to a new size if that would exceed the maximum height. */
+              (sizey_test <= rmd->maxsize))
+          {
             rmd->region->sizey = sizey_test;
           }
         }
-        CLAMP(rmd->region->sizey, 0, rmd->maxsize);
+        BLI_assert(rmd->region->sizey <= rmd->maxsize);
 
         /* NOTE: `UI_UNIT_Y / 4` means you need to drag the footer and execute region
          * almost all the way down for it to become hidden, this is done
@@ -2917,12 +2980,13 @@ static void areas_do_frame_follow(bContext *C, bool middle)
         if (screen_ctx->redraws_flag & TIME_FOLLOW) {
           if ((region->regiontype == RGN_TYPE_WINDOW &&
                ELEM(area->spacetype, SPACE_SEQ, SPACE_GRAPH, SPACE_ACTION, SPACE_NLA)) ||
-              (area->spacetype == SPACE_CLIP && region->regiontype == RGN_TYPE_PREVIEW)) {
+              (area->spacetype == SPACE_CLIP && region->regiontype == RGN_TYPE_PREVIEW))
+          {
             float w = BLI_rctf_size_x(&region->v2d.cur);
 
             if (middle) {
-              if ((scene->r.cfra < region->v2d.cur.xmin) ||
-                  (scene->r.cfra > region->v2d.cur.xmax)) {
+              if ((scene->r.cfra < region->v2d.cur.xmin) || (scene->r.cfra > region->v2d.cur.xmax))
+              {
                 region->v2d.cur.xmax = scene->r.cfra + (w / 2);
                 region->v2d.cur.xmin = scene->r.cfra - (w / 2);
               }
@@ -3084,7 +3148,7 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
   if (ob) {
     ob_to_keylist(&ads, ob, keylist, 0);
 
-    if (ob->type == OB_GPENCIL) {
+    if (ob->type == OB_GPENCIL_LEGACY) {
       const bool active = !(scene->flag & SCE_KEYS_NO_SELONLY);
       gpencil_to_keylist(&ads, ob->data, keylist, active);
     }
@@ -3147,6 +3211,12 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static bool keyframe_jump_poll(bContext *C)
+{
+  /* There is a keyframe jump operator specifically for the Graph Editor. */
+  return ED_operator_screenactive_norender(C) && CTX_wm_area(C)->spacetype != SPACE_GRAPH;
+}
+
 static void SCREEN_OT_keyframe_jump(wmOperatorType *ot)
 {
   ot->name = "Jump to Keyframe";
@@ -3155,7 +3225,7 @@ static void SCREEN_OT_keyframe_jump(wmOperatorType *ot)
 
   ot->exec = keyframe_jump_exec;
 
-  ot->poll = ED_operator_screenactive_norender;
+  ot->poll = keyframe_jump_poll;
   ot->flag = OPTYPE_UNDO_GROUPED;
   ot->undo_group = "Frame Change";
 
@@ -3308,11 +3378,14 @@ static bool screen_maximize_area_poll(bContext *C)
   const wmWindow *win = CTX_wm_window(C);
   const bScreen *screen = CTX_wm_screen(C);
   const ScrArea *area = CTX_wm_area(C);
+  const wmWindowManager *wm = CTX_wm_manager(C);
   return ED_operator_areaactive(C) &&
          /* Don't allow maximizing global areas but allow minimizing from them. */
          ((screen->state != SCREENNORMAL) || !ED_area_is_global(area)) &&
          /* Don't change temporary screens. */
-         !WM_window_is_temp_screen(win);
+         !WM_window_is_temp_screen(win) &&
+         /* Don't maximize when dragging. */
+         BLI_listbase_is_empty(&wm->drags);
 }
 
 static void SCREEN_OT_screen_full_area(wmOperatorType *ot)
@@ -3372,7 +3445,7 @@ typedef struct sAreaJoinData {
 
 } sAreaJoinData;
 
-static void area_join_draw_cb(const struct wmWindow *UNUSED(win), void *userdata)
+static void area_join_draw_cb(const wmWindow *UNUSED(win), void *userdata)
 {
   const wmOperator *op = userdata;
 
@@ -3880,7 +3953,7 @@ static void SCREEN_OT_redo_last(wmOperatorType *ot)
 /** \name Region Quad-View Operator
  * \{ */
 
-static void view3d_localview_update_rv3d(struct RegionView3D *rv3d)
+static void view3d_localview_update_rv3d(RegionView3D *rv3d)
 {
   if (rv3d->localvd) {
     rv3d->localvd->view = rv3d->view;
@@ -3946,7 +4019,7 @@ static int region_quadview_exec(bContext *C, wmOperator *op)
       rv3d->viewlock_quad = RV3D_VIEWLOCK_INIT;
       rv3d->viewlock = 0;
 
-      /* FIXME: This fixes missing update to workbench TAA. (see T76216)
+      /* FIXME: This fixes missing update to workbench TAA. (see #76216)
        * However, it would be nice if the tagging should be done in a more conventional way. */
       rv3d->rflag |= RV3D_GPULIGHT_UPDATE;
 
@@ -3988,7 +4061,7 @@ static int region_quadview_exec(bContext *C, wmOperator *op)
 
       /* run ED_view3d_lock() so the correct 'rv3d->viewquat' is set,
        * otherwise when restoring rv3d->localvd the 'viewquat' won't
-       * match the 'view', set on entering localview See: T26315,
+       * match the 'view', set on entering localview See: #26315,
        *
        * We could avoid manipulating rv3d->localvd here if exiting
        * localview with a 4-split would assign these view locks */
@@ -4265,10 +4338,6 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
 void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void *UNUSED(arg))
 {
   ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-  const char *but_flip_str = (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) ?
-                                 IFACE_("Flip to Bottom") :
-                                 IFACE_("Flip to Top");
   {
     PointerRNA ptr;
     RNA_pointer_create((ID *)CTX_wm_screen(C), &RNA_Space, area->spacedata.first, &ptr);
@@ -4290,12 +4359,9 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void *UN
             "SCREEN_OT_header_toggle_menus");
   }
 
-  /* default is WM_OP_INVOKE_REGION_WIN, which we don't want here. */
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
-
   if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
     uiItemS(layout);
-    uiItemO(layout, but_flip_str, ICON_NONE, "SCREEN_OT_region_flip");
+    ED_screens_region_flip_menu_create(C, layout, NULL);
     uiItemS(layout);
     screen_area_menu_items(area, layout);
   }
@@ -4304,31 +4370,26 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void *UN
 void ED_screens_footer_tools_menu_create(bContext *C, uiLayout *layout, void *UNUSED(arg))
 {
   ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-  const char *but_flip_str = (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) ?
-                                 IFACE_("Flip to Bottom") :
-                                 IFACE_("Flip to Top");
+
   {
     PointerRNA ptr;
     RNA_pointer_create((ID *)CTX_wm_screen(C), &RNA_Space, area->spacedata.first, &ptr);
     uiItemR(layout, &ptr, "show_region_footer", 0, IFACE_("Show Footer"), ICON_NONE);
   }
 
-  /* default is WM_OP_INVOKE_REGION_WIN, which we don't want here. */
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
-
-  uiItemO(layout, but_flip_str, ICON_NONE, "SCREEN_OT_region_flip");
-
+  ED_screens_region_flip_menu_create(C, layout, NULL);
   uiItemS(layout);
   screen_area_menu_items(area, layout);
 }
 
-void ED_screens_navigation_bar_tools_menu_create(bContext *C, uiLayout *layout, void *UNUSED(arg))
+void ED_screens_region_flip_menu_create(bContext *C, uiLayout *layout, void *UNUSED(arg))
 {
   const ARegion *region = CTX_wm_region(C);
-  const char *but_flip_str = (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_LEFT) ?
-                                 IFACE_("Flip to Right") :
-                                 IFACE_("Flip to Left");
+  const short region_alignment = RGN_ALIGN_ENUM_FROM_MASK(region->alignment);
+  const char *but_flip_str = region_alignment == RGN_ALIGN_LEFT   ? IFACE_("Flip to Right") :
+                             region_alignment == RGN_ALIGN_RIGHT  ? IFACE_("Flip to Left") :
+                             region_alignment == RGN_ALIGN_BOTTOM ? IFACE_("Flip to Top") :
+                                                                    IFACE_("Flip to Bottom");
 
   /* default is WM_OP_INVOKE_REGION_WIN, which we don't want here. */
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
@@ -4342,6 +4403,7 @@ static void ed_screens_statusbar_menu_create(uiLayout *layout, void *UNUSED(arg)
 
   RNA_pointer_create(NULL, &RNA_PreferencesView, &U, &ptr);
   uiItemR(layout, &ptr, "show_statusbar_stats", 0, IFACE_("Scene Statistics"), ICON_NONE);
+  uiItemR(layout, &ptr, "show_statusbar_scene_duration", 0, IFACE_("Scene Duration"), ICON_NONE);
   uiItemR(layout, &ptr, "show_statusbar_memory", 0, IFACE_("System Memory"), ICON_NONE);
   if (GPU_mem_stats_supported()) {
     uiItemR(layout, &ptr, "show_statusbar_vram", 0, IFACE_("Video Memory"), ICON_NONE);
@@ -4362,23 +4424,25 @@ static int screen_context_menu_invoke(bContext *C,
     ed_screens_statusbar_menu_create(layout, NULL);
     UI_popup_menu_end(C, pup);
   }
-  else if (ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
-    uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Header"), ICON_NONE);
-    uiLayout *layout = UI_popup_menu_layout(pup);
-    ED_screens_header_tools_menu_create(C, layout, NULL);
-    UI_popup_menu_end(C, pup);
-  }
-  else if (region->regiontype == RGN_TYPE_FOOTER) {
-    uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Footer"), ICON_NONE);
-    uiLayout *layout = UI_popup_menu_layout(pup);
-    ED_screens_footer_tools_menu_create(C, layout, NULL);
-    UI_popup_menu_end(C, pup);
-  }
-  else if (region->regiontype == RGN_TYPE_NAV_BAR) {
-    uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Navigation Bar"), ICON_NONE);
-    uiLayout *layout = UI_popup_menu_layout(pup);
-    ED_screens_navigation_bar_tools_menu_create(C, layout, NULL);
-    UI_popup_menu_end(C, pup);
+  else if (region) {
+    if (ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
+      uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Header"), ICON_NONE);
+      uiLayout *layout = UI_popup_menu_layout(pup);
+      ED_screens_header_tools_menu_create(C, layout, NULL);
+      UI_popup_menu_end(C, pup);
+    }
+    else if (region->regiontype == RGN_TYPE_FOOTER) {
+      uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Footer"), ICON_NONE);
+      uiLayout *layout = UI_popup_menu_layout(pup);
+      ED_screens_footer_tools_menu_create(C, layout, NULL);
+      UI_popup_menu_end(C, pup);
+    }
+    else if (region->regiontype == RGN_TYPE_NAV_BAR) {
+      uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Navigation Bar"), ICON_NONE);
+      uiLayout *layout = UI_popup_menu_layout(pup);
+      ED_screens_region_flip_menu_create(C, layout, NULL);
+      UI_popup_menu_end(C, pup);
+    }
   }
 
   return OPERATOR_INTERFACE;
@@ -4463,6 +4527,11 @@ static bool match_region_with_redraws(const ScrArea *area,
           return true;
         }
         break;
+      case SPACE_SPREADSHEET:
+        if ((redraws & TIME_SPREADSHEETS)) {
+          return true;
+        }
+        break;
       default:
         break;
     }
@@ -4510,7 +4579,8 @@ static void screen_animation_region_tag_redraw(
 {
   /* Do follow time here if editor type supports it */
   if ((redraws & TIME_FOLLOW) &&
-      screen_animation_region_supports_time_follow(area->spacetype, region->regiontype)) {
+      screen_animation_region_supports_time_follow(area->spacetype, region->regiontype))
+  {
     float w = BLI_rctf_size_x(&region->v2d.cur);
     if (scene->r.cfra < region->v2d.cur.xmin) {
       region->v2d.cur.xmax = scene->r.cfra;
@@ -4610,7 +4680,8 @@ static int screen_animation_step_invoke(bContext *C, wmOperator *UNUSED(op), con
      * dependency graph update. */
   }
   else if ((scene->audio.flag & AUDIO_SYNC) && (sad->flag & ANIMPLAY_FLAG_REVERSE) == false &&
-           isfinite(time = BKE_sound_sync_scene(scene_eval))) {
+           isfinite(time = BKE_sound_sync_scene(scene_eval)))
+  {
     double newfra = time * FPS;
 
     /* give some space here to avoid jumps */
@@ -4819,16 +4890,26 @@ int ED_screen_animation_play(bContext *C, int sync, int mode)
 {
   bScreen *screen = CTX_wm_screen(C);
   Scene *scene = CTX_data_scene(C);
-  Scene *scene_eval = DEG_get_evaluated_scene(CTX_data_ensure_evaluated_depsgraph(C));
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+  Main *bmain = DEG_get_bmain(depsgraph);
 
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     /* stop playback now */
     ED_screen_animation_timer(C, 0, 0, 0);
     BKE_sound_stop_scene(scene_eval);
 
-    WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+    BKE_callback_exec_id_depsgraph(
+        bmain, &scene->id, depsgraph, BKE_CB_EVT_ANIMATION_PLAYBACK_POST);
+
+    /* Triggers redraw of sequencer preview so that it does not show to fps anymore after stopping
+     * playback. */
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_SEQUENCER, scene);
   }
   else {
+    BKE_callback_exec_id_depsgraph(
+        bmain, &scene->id, depsgraph, BKE_CB_EVT_ANIMATION_PLAYBACK_PRE);
+
     /* these settings are currently only available from a menu in the TimeLine */
     if (mode == 1) { /* XXX only play audio forwards!? */
       BKE_sound_play_scene(scene_eval);
@@ -5021,7 +5102,7 @@ static int fullscreen_back_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void SCREEN_OT_back_to_previous(struct wmOperatorType *ot)
+static void SCREEN_OT_back_to_previous(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Back to Previous Screen";
@@ -5044,8 +5125,8 @@ static int userpref_show_exec(bContext *C, wmOperator *op)
   wmWindow *win_cur = CTX_wm_window(C);
   /* Use eventstate, not event from _invoke, so this can be called through exec(). */
   const wmEvent *event = win_cur->eventstate;
-  int sizex = (500 + UI_NAVIGATION_REGION_WIDTH) * UI_DPI_FAC;
-  int sizey = 520 * UI_DPI_FAC;
+  int sizex = (500 + UI_NAVIGATION_REGION_WIDTH) * UI_SCALE_FAC;
+  int sizey = 520 * UI_SCALE_FAC;
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "section");
   if (prop && RNA_property_is_set(op->ptr, prop)) {
@@ -5070,7 +5151,8 @@ static int userpref_show_exec(bContext *C, wmOperator *op)
                      false,
                      false,
                      true,
-                     WIN_ALIGN_LOCATION_CENTER) != NULL) {
+                     WIN_ALIGN_LOCATION_CENTER) != NULL)
+  {
     /* The header only contains the editor switcher and looks empty.
      * So hiding in the temp window makes sense. */
     ScrArea *area = CTX_wm_area(C);
@@ -5079,18 +5161,13 @@ static int userpref_show_exec(bContext *C, wmOperator *op)
     region->flag |= RGN_FLAG_HIDDEN;
     ED_region_visibility_change_update(C, area, region);
 
-    /* And also show the region with "Load & Save" buttons. */
-    region = BKE_area_find_region_type(area, RGN_TYPE_EXECUTE);
-    region->flag &= ~RGN_FLAG_HIDDEN;
-    ED_region_visibility_change_update(C, area, region);
-
     return OPERATOR_FINISHED;
   }
   BKE_report(op->reports, RPT_ERROR, "Failed to open window!");
   return OPERATOR_CANCELLED;
 }
 
-static void SCREEN_OT_userpref_show(struct wmOperatorType *ot)
+static void SCREEN_OT_userpref_show(wmOperatorType *ot)
 {
   PropertyRNA *prop;
 
@@ -5124,8 +5201,8 @@ static int drivers_editor_show_exec(bContext *C, wmOperator *op)
   /* Use eventstate, not event from _invoke, so this can be called through exec(). */
   const wmEvent *event = win_cur->eventstate;
 
-  int sizex = 900 * UI_DPI_FAC;
-  int sizey = 580 * UI_DPI_FAC;
+  int sizex = 900 * UI_SCALE_FAC;
+  int sizey = 580 * UI_SCALE_FAC;
 
   /* Get active property to show driver for
    * - Need to grab it first, or else this info disappears
@@ -5147,7 +5224,8 @@ static int drivers_editor_show_exec(bContext *C, wmOperator *op)
                      false,
                      false,
                      true,
-                     WIN_ALIGN_LOCATION_CENTER) != NULL) {
+                     WIN_ALIGN_LOCATION_CENTER) != NULL)
+  {
     ED_drivers_editor_init(C, CTX_wm_area(C));
 
     /* activate driver F-Curve for the property under the cursor */
@@ -5178,7 +5256,7 @@ static int drivers_editor_show_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static void SCREEN_OT_drivers_editor_show(struct wmOperatorType *ot)
+static void SCREEN_OT_drivers_editor_show(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Show Drivers Editor";
@@ -5201,8 +5279,8 @@ static int info_log_show_exec(bContext *C, wmOperator *op)
   wmWindow *win_cur = CTX_wm_window(C);
   /* Use eventstate, not event from _invoke, so this can be called through exec(). */
   const wmEvent *event = win_cur->eventstate;
-  int sizex = 900 * UI_DPI_FAC;
-  int sizey = 580 * UI_DPI_FAC;
+  int sizex = 900 * UI_SCALE_FAC;
+  int sizey = 580 * UI_SCALE_FAC;
   int shift_y = 480;
 
   /* changes context! */
@@ -5216,14 +5294,15 @@ static int info_log_show_exec(bContext *C, wmOperator *op)
                      false,
                      false,
                      true,
-                     WIN_ALIGN_LOCATION_CENTER) != NULL) {
+                     WIN_ALIGN_LOCATION_CENTER) != NULL)
+  {
     return OPERATOR_FINISHED;
   }
   BKE_report(op->reports, RPT_ERROR, "Failed to open window!");
   return OPERATOR_CANCELLED;
 }
 
-static void SCREEN_OT_info_log_show(struct wmOperatorType *ot)
+static void SCREEN_OT_info_log_show(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Show Info Log";
@@ -5749,7 +5828,8 @@ static void keymap_modal_set(wmKeyConfig *keyconf)
 static bool blend_file_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
   if (drag->type == WM_DRAG_PATH) {
-    if (ELEM(drag->icon, ICON_FILE_BLEND, ICON_FILE_BACKUP, ICON_BLENDER)) {
+    const eFileSel_File_Types file_type = WM_drag_get_path_file_type(drag);
+    if (ELEM(file_type, FILE_TYPE_BLENDER, FILE_TYPE_BLENDER_BACKUP)) {
       return true;
     }
   }
@@ -5759,7 +5839,7 @@ static bool blend_file_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEven
 static void blend_file_drop_copy(bContext *UNUSED(C), wmDrag *drag, wmDropBox *drop)
 {
   /* copy drag path to properties */
-  RNA_string_set(drop->ptr, "filepath", drag->path);
+  RNA_string_set(drop->ptr, "filepath", WM_drag_get_path(drag));
 }
 
 void ED_keymap_screen(wmKeyConfig *keyconf)

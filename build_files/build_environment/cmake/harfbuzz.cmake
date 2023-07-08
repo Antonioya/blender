@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2022-2023 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 if(WIN32)
@@ -21,6 +23,7 @@ set(HARFBUZZ_EXTRA_OPTIONS
   # Only used for command line utilities,
   # disable as this would add an addition & unnecessary build-dependency.
   -Dcairo=disabled
+  ${MESON_BUILD_TYPE}
 )
 
 ExternalProject_Add(external_harfbuzz
@@ -56,6 +59,13 @@ if(BUILD_MODE STREQUAL Release AND WIN32)
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/harfbuzz/include ${HARVEST_TARGET}/harfbuzz/include
     # We do not use the subset API currently, so copying only the main library will suffice for now
     COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/harfbuzz/lib/libharfbuzz.a ${HARVEST_TARGET}/harfbuzz/lib/libharfbuzz.lib
+    DEPENDEES install
+  )
+endif()
+
+if(BUILD_MODE STREQUAL Debug AND WIN32)
+  ExternalProject_Add_Step(external_harfbuzz after_install
+    COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/harfbuzz/lib/libharfbuzz.a ${HARVEST_TARGET}/harfbuzz/lib/libharfbuzz_d.lib
     DEPENDEES install
   )
 endif()

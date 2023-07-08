@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -257,7 +258,7 @@ void shuffle_m4(float R[4][4], const int index[4])
 
 void mul_m4_m4m4(float R[4][4], const float A[4][4], const float B[4][4])
 {
-  if (R == A || R == B) {
+  if (ELEM(R, A, B)) {
     float T[4][4];
     mul_m4_m4m4(T, A, B);
     copy_m4_m4(R, T);
@@ -265,7 +266,7 @@ void mul_m4_m4m4(float R[4][4], const float A[4][4], const float B[4][4])
   }
 
   /* Matrix product: `R[j][k] = B[j][i] . A[i][k]`. */
-#ifdef BLI_HAVE_SSE2
+#if BLI_HAVE_SSE2
   __m128 A0 = _mm_loadu_ps(A[0]);
   __m128 A1 = _mm_loadu_ps(A[1]);
   __m128 A2 = _mm_loadu_ps(A[2]);
@@ -359,7 +360,7 @@ void mul_m3_m3_post(float R[3][3], const float B[3][3])
 
 void mul_m3_m3m3(float R[3][3], const float A[3][3], const float B[3][3])
 {
-  if (R == A || R == B) {
+  if (ELEM(R, A, B)) {
     float T[3][3];
     mul_m3_m3m3(T, A, B);
     copy_m3_m3(R, T);
@@ -504,8 +505,9 @@ void _va_mul_m3_series_4(float r[3][3],
                          const float m2[3][3],
                          const float m3[3][3])
 {
-  mul_m3_m3m3(r, m1, m2);
-  mul_m3_m3m3(r, r, m3);
+  float s[3][3];
+  mul_m3_m3m3(s, m1, m2);
+  mul_m3_m3m3(r, s, m3);
 }
 void _va_mul_m3_series_5(float r[3][3],
                          const float m1[3][3],
@@ -513,9 +515,11 @@ void _va_mul_m3_series_5(float r[3][3],
                          const float m3[3][3],
                          const float m4[3][3])
 {
-  mul_m3_m3m3(r, m1, m2);
-  mul_m3_m3m3(r, r, m3);
-  mul_m3_m3m3(r, r, m4);
+  float s[3][3];
+  float t[3][3];
+  mul_m3_m3m3(s, m1, m2);
+  mul_m3_m3m3(t, s, m3);
+  mul_m3_m3m3(r, t, m4);
 }
 void _va_mul_m3_series_6(float r[3][3],
                          const float m1[3][3],
@@ -524,10 +528,12 @@ void _va_mul_m3_series_6(float r[3][3],
                          const float m4[3][3],
                          const float m5[3][3])
 {
-  mul_m3_m3m3(r, m1, m2);
-  mul_m3_m3m3(r, r, m3);
-  mul_m3_m3m3(r, r, m4);
-  mul_m3_m3m3(r, r, m5);
+  float s[3][3];
+  float t[3][3];
+  mul_m3_m3m3(s, m1, m2);
+  mul_m3_m3m3(t, s, m3);
+  mul_m3_m3m3(s, t, m4);
+  mul_m3_m3m3(r, s, m5);
 }
 void _va_mul_m3_series_7(float r[3][3],
                          const float m1[3][3],
@@ -537,11 +543,13 @@ void _va_mul_m3_series_7(float r[3][3],
                          const float m5[3][3],
                          const float m6[3][3])
 {
-  mul_m3_m3m3(r, m1, m2);
-  mul_m3_m3m3(r, r, m3);
-  mul_m3_m3m3(r, r, m4);
-  mul_m3_m3m3(r, r, m5);
-  mul_m3_m3m3(r, r, m6);
+  float s[3][3];
+  float t[3][3];
+  mul_m3_m3m3(s, m1, m2);
+  mul_m3_m3m3(t, s, m3);
+  mul_m3_m3m3(s, t, m4);
+  mul_m3_m3m3(t, s, m5);
+  mul_m3_m3m3(r, t, m6);
 }
 void _va_mul_m3_series_8(float r[3][3],
                          const float m1[3][3],
@@ -552,12 +560,14 @@ void _va_mul_m3_series_8(float r[3][3],
                          const float m6[3][3],
                          const float m7[3][3])
 {
-  mul_m3_m3m3(r, m1, m2);
-  mul_m3_m3m3(r, r, m3);
-  mul_m3_m3m3(r, r, m4);
-  mul_m3_m3m3(r, r, m5);
-  mul_m3_m3m3(r, r, m6);
-  mul_m3_m3m3(r, r, m7);
+  float s[3][3];
+  float t[3][3];
+  mul_m3_m3m3(s, m1, m2);
+  mul_m3_m3m3(t, s, m3);
+  mul_m3_m3m3(s, t, m4);
+  mul_m3_m3m3(t, s, m5);
+  mul_m3_m3m3(s, t, m6);
+  mul_m3_m3m3(r, s, m7);
 }
 void _va_mul_m3_series_9(float r[3][3],
                          const float m1[3][3],
@@ -569,13 +579,15 @@ void _va_mul_m3_series_9(float r[3][3],
                          const float m7[3][3],
                          const float m8[3][3])
 {
-  mul_m3_m3m3(r, m1, m2);
-  mul_m3_m3m3(r, r, m3);
-  mul_m3_m3m3(r, r, m4);
-  mul_m3_m3m3(r, r, m5);
-  mul_m3_m3m3(r, r, m6);
-  mul_m3_m3m3(r, r, m7);
-  mul_m3_m3m3(r, r, m8);
+  float s[3][3];
+  float t[3][3];
+  mul_m3_m3m3(s, m1, m2);
+  mul_m3_m3m3(t, s, m3);
+  mul_m3_m3m3(s, t, m4);
+  mul_m3_m3m3(t, s, m5);
+  mul_m3_m3m3(s, t, m6);
+  mul_m3_m3m3(t, s, m7);
+  mul_m3_m3m3(r, t, m8);
 }
 
 /** \} */
@@ -593,8 +605,9 @@ void _va_mul_m4_series_4(float r[4][4],
                          const float m2[4][4],
                          const float m3[4][4])
 {
-  mul_m4_m4m4(r, m1, m2);
-  mul_m4_m4m4(r, r, m3);
+  float s[4][4];
+  mul_m4_m4m4(s, m1, m2);
+  mul_m4_m4m4(r, s, m3);
 }
 void _va_mul_m4_series_5(float r[4][4],
                          const float m1[4][4],
@@ -602,9 +615,11 @@ void _va_mul_m4_series_5(float r[4][4],
                          const float m3[4][4],
                          const float m4[4][4])
 {
-  mul_m4_m4m4(r, m1, m2);
-  mul_m4_m4m4(r, r, m3);
-  mul_m4_m4m4(r, r, m4);
+  float s[4][4];
+  float t[4][4];
+  mul_m4_m4m4(s, m1, m2);
+  mul_m4_m4m4(t, s, m3);
+  mul_m4_m4m4(r, t, m4);
 }
 void _va_mul_m4_series_6(float r[4][4],
                          const float m1[4][4],
@@ -613,10 +628,12 @@ void _va_mul_m4_series_6(float r[4][4],
                          const float m4[4][4],
                          const float m5[4][4])
 {
-  mul_m4_m4m4(r, m1, m2);
-  mul_m4_m4m4(r, r, m3);
-  mul_m4_m4m4(r, r, m4);
-  mul_m4_m4m4(r, r, m5);
+  float s[4][4];
+  float t[4][4];
+  mul_m4_m4m4(s, m1, m2);
+  mul_m4_m4m4(t, s, m3);
+  mul_m4_m4m4(s, t, m4);
+  mul_m4_m4m4(r, s, m5);
 }
 void _va_mul_m4_series_7(float r[4][4],
                          const float m1[4][4],
@@ -626,11 +643,13 @@ void _va_mul_m4_series_7(float r[4][4],
                          const float m5[4][4],
                          const float m6[4][4])
 {
-  mul_m4_m4m4(r, m1, m2);
-  mul_m4_m4m4(r, r, m3);
-  mul_m4_m4m4(r, r, m4);
-  mul_m4_m4m4(r, r, m5);
-  mul_m4_m4m4(r, r, m6);
+  float s[4][4];
+  float t[4][4];
+  mul_m4_m4m4(s, m1, m2);
+  mul_m4_m4m4(t, s, m3);
+  mul_m4_m4m4(s, t, m4);
+  mul_m4_m4m4(t, s, m5);
+  mul_m4_m4m4(r, t, m6);
 }
 void _va_mul_m4_series_8(float r[4][4],
                          const float m1[4][4],
@@ -641,12 +660,14 @@ void _va_mul_m4_series_8(float r[4][4],
                          const float m6[4][4],
                          const float m7[4][4])
 {
-  mul_m4_m4m4(r, m1, m2);
-  mul_m4_m4m4(r, r, m3);
-  mul_m4_m4m4(r, r, m4);
-  mul_m4_m4m4(r, r, m5);
-  mul_m4_m4m4(r, r, m6);
-  mul_m4_m4m4(r, r, m7);
+  float s[4][4];
+  float t[4][4];
+  mul_m4_m4m4(s, m1, m2);
+  mul_m4_m4m4(t, s, m3);
+  mul_m4_m4m4(s, t, m4);
+  mul_m4_m4m4(t, s, m5);
+  mul_m4_m4m4(s, t, m6);
+  mul_m4_m4m4(r, s, m7);
 }
 void _va_mul_m4_series_9(float r[4][4],
                          const float m1[4][4],
@@ -658,13 +679,15 @@ void _va_mul_m4_series_9(float r[4][4],
                          const float m7[4][4],
                          const float m8[4][4])
 {
-  mul_m4_m4m4(r, m1, m2);
-  mul_m4_m4m4(r, r, m3);
-  mul_m4_m4m4(r, r, m4);
-  mul_m4_m4m4(r, r, m5);
-  mul_m4_m4m4(r, r, m6);
-  mul_m4_m4m4(r, r, m7);
-  mul_m4_m4m4(r, r, m8);
+  float s[4][4];
+  float t[4][4];
+  mul_m4_m4m4(s, m1, m2);
+  mul_m4_m4m4(t, s, m3);
+  mul_m4_m4m4(s, t, m4);
+  mul_m4_m4m4(t, s, m5);
+  mul_m4_m4m4(s, t, m6);
+  mul_m4_m4m4(t, s, m7);
+  mul_m4_m4m4(r, t, m8);
 }
 
 /** \} */
@@ -1079,8 +1102,8 @@ double determinant_m3_array_db(const double m[3][3])
 
 bool invert_m2_m2(float inverse[2][2], const float mat[2][2])
 {
+  const float det = determinant_m2(mat[0][0], mat[1][0], mat[0][1], mat[1][1]);
   adjoint_m2_m2(inverse, mat);
-  float det = determinant_m2(mat[0][0], mat[1][0], mat[0][1], mat[1][1]);
 
   bool success = (det != 0.0f);
   if (success) {
@@ -1663,7 +1686,7 @@ void orthogonalize_m4_stable(float R[4][4], int axis, bool normalize)
  *
  * \note If an object has a zero scaled axis, this function can be used to "clean" the matrix
  * to behave as if the scale on that axis was `unit_length`. So it can be inverted
- * or used in matrix multiply without creating degenerate matrices, see: T50103
+ * or used in matrix multiply without creating degenerate matrices, see: #50103
  * \{ */
 
 /**
@@ -1818,7 +1841,8 @@ bool is_uniform_scaled_m3(const float m[3][3])
   l6 = len_squared_v3(t[2]);
 
   if (fabsf(l2 - l1) <= eps && fabsf(l3 - l1) <= eps && fabsf(l4 - l1) <= eps &&
-      fabsf(l5 - l1) <= eps && fabsf(l6 - l1) <= eps) {
+      fabsf(l5 - l1) <= eps && fabsf(l6 - l1) <= eps)
+  {
     return true;
   }
 
@@ -1935,11 +1959,15 @@ void normalize_m4_m4(float rmat[4][4], const float mat[4][4])
 
 void adjoint_m2_m2(float R[2][2], const float M[2][2])
 {
-  BLI_assert(R != M);
-  R[0][0] = M[1][1];
-  R[0][1] = -M[0][1];
-  R[1][0] = -M[1][0];
-  R[1][1] = M[0][0];
+  const float r00 = M[1][1];
+  const float r01 = -M[0][1];
+  const float r10 = -M[1][0];
+  const float r11 = M[0][0];
+
+  R[0][0] = r00;
+  R[0][1] = r01;
+  R[1][0] = r10;
+  R[1][1] = r11;
 }
 
 void adjoint_m3_m3(float R[3][3], const float M[3][3])
@@ -2004,9 +2032,8 @@ void adjoint_m4_m4(float R[4][4], const float M[4][4]) /* out = ADJ(in) */
   R[3][3] = determinant_m3(a1, a2, a3, b1, b2, b3, c1, c2, c3);
 }
 
-float determinant_m2(float a, float b, float c, float d)
+float determinant_m2(const float a, const float b, const float c, const float d)
 {
-
   return a * d - b * c;
 }
 
@@ -2412,7 +2439,7 @@ void interp_m3_m3m3(float R[3][3], const float A[3][3], const float B[3][3], con
 
   /* Quaternions cannot represent an axis flip. If such a singularity is detected, choose a
    * different decomposition of the matrix that still satisfies A = U_A * P_A but which has a
-   * positive determinant and thus no axis flips. This resolves T77154.
+   * positive determinant and thus no axis flips. This resolves #77154.
    *
    * Note that a flip of two axes is just a rotation of 180 degrees around the third axis, and
    * three flipped axes are just an 180 degree rotation + a single axis flip. It is thus sufficient
@@ -2703,7 +2730,7 @@ void svd_m4(float U[4][4], float s[4], float V[4][4], float A_[4][4])
         e[k + 1] += 1.0f;
       }
       e[k] = -e[k];
-      if ((k + 1 < m) & (e[k] != 0.0f)) {
+      if ((k + 1 < m) && (e[k] != 0.0f)) {
         float invek1;
 
         /* Apply the transformation. */
@@ -2787,7 +2814,7 @@ void svd_m4(float U[4][4], float s[4], float V[4][4], float A_[4][4])
   /* If required, generate V. */
 
   for (k = n - 1; k >= 0; k--) {
-    if ((k < nrt) & (e[k] != 0.0f)) {
+    if ((k < nrt) && (e[k] != 0.0f)) {
       for (j = k + 1; j < nu; j++) {
         float t = 0;
         for (i = k + 1; i < n; i++) {

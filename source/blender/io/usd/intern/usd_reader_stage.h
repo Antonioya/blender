@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Tangent Animation and. NVIDIA Corporation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2021 Tangent Animation and. NVIDIA Corporation. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
 
 struct Main;
@@ -100,6 +101,12 @@ class USDStageReader {
    * toggled off.
    */
   bool include_by_purpose(const pxr::UsdGeomImageable &imageable) const;
+
+  /*
+   * Returns true if the specified UsdPrim is a UsdGeom primitive,
+   * procedural shape, such as UsdGeomCube.
+   */
+  bool is_primitive_prim(const pxr::UsdPrim &prim) const;
 };
 
 };  // namespace blender::io::usd

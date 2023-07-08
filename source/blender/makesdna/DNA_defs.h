@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -8,7 +10,7 @@
 
 #pragma once
 
-/* makesdna ignores */
+/* `makesdna` ignores. */
 #ifdef DNA_DEPRECATED_ALLOW
 /* allow use of deprecated items */
 #  define DNA_DEPRECATED
@@ -73,9 +75,7 @@ namespace blender::dna::internal {
 
 template<class T> class ShallowDataConstRef {
  public:
-  constexpr explicit ShallowDataConstRef(const T &ref) : ref_(ref)
-  {
-  }
+  constexpr explicit ShallowDataConstRef(const T &ref) : ref_(ref) {}
 
   inline const T *get_pointer() const
   {

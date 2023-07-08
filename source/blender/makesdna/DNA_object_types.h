@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -24,16 +25,26 @@
 #include "DNA_listBase.h"
 
 #ifdef __cplusplus
+namespace blender::bke {
+struct GeometrySet;
+}
+using GeometrySetHandle = blender::bke::GeometrySet;
+#else
+typedef struct GeometrySetHandle GeometrySetHandle;
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
 struct AnimData;
 struct BoundBox;
+struct Collection;
 struct Curve;
 struct FluidsimSettings;
-struct GeometrySet;
 struct Ipo;
 struct LightgroupMembership;
+struct LightProbeGridCacheFrame;
 struct Material;
 struct Mesh;
 struct Object;
@@ -53,19 +64,12 @@ typedef struct bDeformGroup {
   char flag, _pad0[7];
 } bDeformGroup;
 
-/** Face Maps. */
-typedef struct bFaceMap {
-  struct bFaceMap *next, *prev;
-  /** MAX_VGROUP_NAME. */
-  char name[64];
-  char flag;
-  char _pad0[7];
-} bFaceMap;
-
 #define MAX_VGROUP_NAME 64
 
-/* bDeformGroup->flag */
-#define DG_LOCK_WEIGHT 1
+/** #bDeformGroup::flag */
+enum {
+  DG_LOCK_WEIGHT = 1,
+};
 
 /**
  * The following illustrates the orientation of the
@@ -113,12 +117,7 @@ typedef struct Object_Runtime {
   /** Did last modifier stack generation need mapping support? */
   char last_need_mapping;
 
-  /** Opaque data reserved for management of objects in collection context.
-   *  E.g. used currently to check for potential duplicates of objects in a collection, after
-   * remapping process. */
-  char collection_management;
-
-  char _pad0[2];
+  char _pad0[3];
 
   /** Only used for drawing the parent/child help-line. */
   float parent_display_origin[3];
@@ -160,7 +159,7 @@ typedef struct Object_Runtime {
    * #geometry_set_eval might reference the ID pointed to by #data_eval as well, but does not own
    * the data.
    */
-  struct GeometrySet *geometry_set_eval;
+  GeometrySetHandle *geometry_set_eval;
 
   /**
    * Mesh structure created during object evaluation.
@@ -251,6 +250,61 @@ enum eObjectLineArt_Flags {
   OBJECT_LRT_OWN_INTERSECTION_PRIORITY = (1 << 1),
 };
 
+/* Evaluated light linking state needed for the render engines integration. */
+typedef struct LightLinkingRuntime {
+
+  /* For objects that emit light: a bitmask of light sets this emitter is part of for the light
+   * linking.
+   * A light set is a combination of emitters used by one or more receiver objects.
+   *
+   * If there is no light linking in the scene or if the emitter does not specify light linking all
+   * bits are set.
+   *
+   * NOTE: There can only be 64 light sets in a scene. */
+  uint64_t light_set_membership;
+
+  /* For objects that emit light: a bitmask of light sets this emitter is part of for the shadow
+   * linking.
+   * A light set is a combination of emitters from which a blocked object does not cast a shadow.
+   *
+   * If there is no shadow linking in the scene or if the emitter does not specify shadow linking
+   * all bits are set.
+   *
+   * NOTE: There can only be 64 light sets in a scene. */
+  uint64_t shadow_set_membership;
+
+  /* For receiver objects: the index of the light set from which this object receives light.
+   *
+   * If there is no light linking in the scene or the receiver is not linked to any light this is
+   * assigned zero. */
+  uint8_t receiver_light_set;
+
+  /* For blocker objects: the index of the light set from which this object casts shadow from.
+   *
+   * If there is no shadow in the scene or the blocker is not linked to any emitter this is
+   * assigned zero. */
+  uint8_t blocker_shadow_set;
+
+  uint8_t _pad[6];
+} LightLinkingRuntime;
+
+typedef struct LightLinking {
+  /* Collections which contains objects (possibly via nested collection indirection) which defines
+   * the light linking relation: such as whether objects are included or excluded from being lit by
+   * this emitter (receiver_collection), or whether they block light from this emitter
+   * (blocker_collection).
+   *
+   * If the collection is a null pointer then all objects from the current scene are receiving
+   * light from this emitter, and nothing is excluded from receiving the light and shadows.
+   *
+   * The emitter in this context is assumed to be either object of lamp type, or objects with
+   * surface which has emissive shader. */
+  struct Collection *receiver_collection;
+  struct Collection *blocker_collection;
+
+  LightLinkingRuntime runtime;
+} LightLinking;
+
 typedef struct Object {
   DNA_DEFINE_CXX_METHODS(Object)
 
@@ -262,10 +316,11 @@ typedef struct Object {
 
   struct SculptSession *sculpt;
 
-  short type, partype;
-  /** Can be vertexnrs. */
+  short type; /* #ObjectType */
+  short partype;
+  /** Can be vertex indices. */
   int par1, par2, par3;
-  /** String describing subobject info, MAX_ID_NAME-2. */
+  /** String describing sub-object info, `MAX_ID_NAME - 2`. */
   char parsubstr[64];
   struct Object *parent, *track;
   /* Proxy pointer are deprecated, only kept for conversion to liboverrides. */
@@ -299,8 +354,6 @@ typedef struct Object {
   ListBase modifiers;
   /** List of GpencilModifierData structures. */
   ListBase greasepencil_modifiers;
-  /** List of facemaps. */
-  ListBase fmaps;
   /** List of viewport effects. Actually only used by grease pencil. */
   ListBase shader_fx;
 
@@ -391,8 +444,7 @@ typedef struct Object {
   /** Current deformation group, NOTE: index starts at 1. */
   unsigned short actdef DNA_DEPRECATED;
   /** Current face map, NOTE: index starts at 1. */
-  unsigned short actfmap;
-  char _pad2[2];
+  char _pad2[4];
   /** Object color (in most cases the material color is used for drawing). */
   float color[4];
 
@@ -450,8 +502,14 @@ typedef struct Object {
 
   ObjectLineArt lineart;
 
-  /** Lightgroup membership information. */
+  /** Light-group membership information. */
   struct LightgroupMembership *lightgroup;
+
+  /** Light linking information. */
+  LightLinking *light_linking;
+
+  /** Irradiance caches baked for this object (light-probes only). */
+  struct LightProbeObjectCache *lightprobe_cache;
 
   /** Runtime evaluation data (keep last). */
   Object_Runtime runtime;
@@ -494,10 +552,10 @@ typedef struct ObHook {
 #define SELECT 1
 
 /** #Object.type */
-enum {
+typedef enum ObjectType {
   OB_EMPTY = 0,
   OB_MESH = 1,
-  /** Curve object is still used but replaced by "Curves" for the future (see T95355). */
+  /** Curve object is still used but replaced by "Curves" for the future (see #95355). */
   OB_CURVES_LEGACY = 2,
   OB_SURF = 3,
   OB_FONT = 4,
@@ -513,8 +571,7 @@ enum {
 
   OB_ARMATURE = 25,
 
-  /** Grease Pencil object used in 3D view but not used for annotation in 2D. */
-  OB_GPENCIL = 26,
+  OB_GPENCIL_LEGACY = 26,
 
   OB_CURVES = 27,
 
@@ -522,25 +579,31 @@ enum {
 
   OB_VOLUME = 29,
 
+  OB_GREASE_PENCIL = 30,
+
   /* Keep last. */
   OB_TYPE_MAX,
-};
+} ObjectType;
 
 /* check if the object type supports materials */
 #define OB_TYPE_SUPPORT_MATERIAL(_type) \
-  (((_type) >= OB_MESH && (_type) <= OB_MBALL) || ((_type) >= OB_GPENCIL && (_type) <= OB_VOLUME))
-/** Does the object have some render-able geometry (unlike empties, cameras, etc.). */
+  (((_type) >= OB_MESH && (_type) <= OB_MBALL) || \
+   ((_type) >= OB_GPENCIL_LEGACY && (_type) <= OB_GREASE_PENCIL))
+/** Does the object have some render-able geometry (unlike empties, cameras, etc.). True for
+ * #OB_CURVES_LEGACY, since these often evaluate to objects with geometry. */
 #define OB_TYPE_IS_GEOMETRY(_type) \
   (ELEM(_type, \
         OB_MESH, \
         OB_SURF, \
         OB_FONT, \
         OB_MBALL, \
-        OB_GPENCIL, \
+        OB_GPENCIL_LEGACY, \
+        OB_CURVES_LEGACY, \
         OB_CURVES, \
         OB_POINTCLOUD, \
-        OB_VOLUME))
-#define OB_TYPE_SUPPORT_VGROUP(_type) (ELEM(_type, OB_MESH, OB_LATTICE, OB_GPENCIL))
+        OB_VOLUME, \
+        OB_GREASE_PENCIL))
+#define OB_TYPE_SUPPORT_VGROUP(_type) (ELEM(_type, OB_MESH, OB_LATTICE, OB_GPENCIL_LEGACY))
 #define OB_TYPE_SUPPORT_EDITMODE(_type) \
   (ELEM(_type, \
         OB_MESH, \
@@ -550,14 +613,15 @@ enum {
         OB_MBALL, \
         OB_LATTICE, \
         OB_ARMATURE, \
-        OB_CURVES))
+        OB_CURVES, \
+        OB_POINTCLOUD, \
+        OB_GREASE_PENCIL))
 #define OB_TYPE_SUPPORT_PARVERT(_type) \
   (ELEM(_type, OB_MESH, OB_SURF, OB_CURVES_LEGACY, OB_LATTICE))
 
 /** Matches #OB_TYPE_SUPPORT_EDITMODE. */
 #define OB_DATA_SUPPORT_EDITMODE(_type) \
-  (ELEM(_type, ID_ME, ID_CU_LEGACY, ID_MB, ID_LT, ID_AR) || \
-   (U.experimental.use_new_curves_tools && (_type) == ID_CV))
+  (ELEM(_type, ID_ME, ID_CU_LEGACY, ID_MB, ID_LT, ID_AR, ID_CV, ID_GP))
 
 /* is this ID type used as object data */
 #define OB_DATA_SUPPORT_ID(_id_type) \
@@ -570,11 +634,12 @@ enum {
         ID_LP, \
         ID_CA, \
         ID_LT, \
-        ID_GD, \
+        ID_GD_LEGACY, \
         ID_AR, \
         ID_CV, \
         ID_PT, \
-        ID_VO))
+        ID_VO, \
+        ID_GP))
 
 #define OB_DATA_SUPPORT_ID_CASE \
   ID_ME: \
@@ -585,11 +650,12 @@ enum {
   case ID_LP: \
   case ID_CA: \
   case ID_LT: \
-  case ID_GD: \
+  case ID_GD_LEGACY: \
   case ID_AR: \
   case ID_CV: \
   case ID_PT: \
-  case ID_VO
+  case ID_VO: \
+  case ID_GP
 
 /** #Object.partype: first 4 bits: type. */
 enum {
@@ -692,34 +758,36 @@ enum {
 
 /* **************** BASE ********************* */
 
-/** #Base.flag_legacy */
+/** #Base::flag_legacy (also used for #Object::flag). */
 enum {
   BA_WAS_SEL = (1 << 1),
   /* NOTE: BA_HAS_RECALC_DATA can be re-used later if freed in readfile.c. */
-  // BA_HAS_RECALC_OB = (1 << 2),  /* DEPRECATED */
-  // BA_HAS_RECALC_DATA =  (1 << 3),  /* DEPRECATED */
+  // BA_HAS_RECALC_OB = 1 << 2, /* DEPRECATED */
+  // BA_HAS_RECALC_DATA = 1 << 3, /* DEPRECATED */
   /** DEPRECATED, was runtime only, but was reusing an older flag. */
   BA_SNAP_FIX_DEPS_FIASCO = (1 << 2),
-};
 
-/* NOTE: this was used as a proper setting in past, so nullify before using */
-#define BA_TEMP_TAG (1 << 5)
+  /** NOTE: this was used as a proper setting in past, so nullify before using */
+  BA_TEMP_TAG = 1 << 5,
+  /**
+   * Even if this is tagged for transform, this flag means it's being locked in place.
+   * Use for #SCE_XFORM_SKIP_CHILDREN.
+   */
+  BA_TRANSFORM_LOCKED_IN_PLACE = 1 << 7,
 
-/**
- * Even if this is tagged for transform, this flag means it's being locked in place.
- * Use for #SCE_XFORM_SKIP_CHILDREN.
- */
-#define BA_TRANSFORM_LOCKED_IN_PLACE (1 << 7)
+  /** Child of a transformed object. */
+  BA_TRANSFORM_CHILD = 1 << 8,
+  /** Parent of a transformed object. */
+  BA_TRANSFORM_PARENT = 1 << 13,
 
-#define BA_TRANSFORM_CHILD (1 << 8)   /* child of a transformed object */
-#define BA_TRANSFORM_PARENT (1 << 13) /* parent of a transformed object */
-
-#define OB_FROMDUPLI (1 << 9)
-#define OB_DONE (1 << 10) /* unknown state, clear before use */
+  OB_FROMDUPLI = 1 << 9,
+  /** Unknown state, clear before use. */
+  OB_DONE = 1 << 10,
+  OB_FLAG_USE_SIMULATION_CACHE = 1 << 11,
 #ifdef DNA_DEPRECATED_ALLOW
-#  define OB_FLAG_UNUSED_11 (1 << 11) /* cleared */
-#  define OB_FLAG_UNUSED_12 (1 << 12) /* cleared */
+  OB_FLAG_UNUSED_12 = 1 << 12, /* cleared */
 #endif
+};
 
 /** #Object.visibility_flag */
 enum {
@@ -786,9 +854,11 @@ enum {
 };
 
 /** #Object.empty_image_depth */
-#define OB_EMPTY_IMAGE_DEPTH_DEFAULT 0
-#define OB_EMPTY_IMAGE_DEPTH_FRONT 1
-#define OB_EMPTY_IMAGE_DEPTH_BACK 2
+enum {
+  OB_EMPTY_IMAGE_DEPTH_DEFAULT = 0,
+  OB_EMPTY_IMAGE_DEPTH_FRONT = 1,
+  OB_EMPTY_IMAGE_DEPTH_BACK = 2,
+};
 
 /** #Object.empty_image_visibility_flag */
 enum {

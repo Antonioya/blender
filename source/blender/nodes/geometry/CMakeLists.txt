@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2023 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
@@ -18,6 +20,7 @@ set(INC
   ../../makesrna
   ../../render
   ../../windowmanager
+  ../../../../extern/fmtlib/include
   ../../../../intern/guardedalloc
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -69,22 +72,24 @@ set(SRC
   nodes/node_geo_edge_paths_to_curves.cc
   nodes/node_geo_edge_paths_to_selection.cc
   nodes/node_geo_edge_split.cc
+  nodes/node_geo_edges_to_face_groups.cc
   nodes/node_geo_evaluate_at_index.cc
   nodes/node_geo_evaluate_on_domain.cc
   nodes/node_geo_extrude_mesh.cc
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_geometry_to_instance.cc
+  nodes/node_geo_image.cc
   nodes/node_geo_image_info.cc
   nodes/node_geo_image_texture.cc
-  nodes/node_geo_image.cc
+  nodes/node_geo_index_of_nearest.cc
   nodes/node_geo_input_curve_handles.cc
   nodes/node_geo_input_curve_tilt.cc
   nodes/node_geo_input_id.cc
   nodes/node_geo_input_index.cc
   nodes/node_geo_input_instance_rotation.cc
   nodes/node_geo_input_instance_scale.cc
-  nodes/node_geo_input_material_index.cc
   nodes/node_geo_input_material.cc
+  nodes/node_geo_input_material_index.cc
   nodes/node_geo_input_mesh_edge_angle.cc
   nodes/node_geo_input_mesh_edge_neighbors.cc
   nodes/node_geo_input_mesh_edge_vertices.cc
@@ -100,6 +105,7 @@ set(SRC
   nodes/node_geo_input_scene_time.cc
   nodes/node_geo_input_shade_smooth.cc
   nodes/node_geo_input_shortest_edge_paths.cc
+  nodes/node_geo_input_signed_distance.cc
   nodes/node_geo_input_spline_cyclic.cc
   nodes/node_geo_input_spline_length.cc
   nodes/node_geo_input_spline_resolution.cc
@@ -111,6 +117,7 @@ set(SRC
   nodes/node_geo_join_geometry.cc
   nodes/node_geo_material_replace.cc
   nodes/node_geo_material_selection.cc
+  nodes/node_geo_mean_filter_sdf_volume.cc
   nodes/node_geo_merge_by_distance.cc
   nodes/node_geo_mesh_face_group_boundaries.cc
   nodes/node_geo_mesh_primitive_circle.cc
@@ -124,7 +131,9 @@ set(SRC
   nodes/node_geo_mesh_subdivide.cc
   nodes/node_geo_mesh_to_curve.cc
   nodes/node_geo_mesh_to_points.cc
+  nodes/node_geo_mesh_to_sdf_volume.cc
   nodes/node_geo_mesh_to_volume.cc
+  nodes/node_geo_mesh_topology_corners_of_edge.cc
   nodes/node_geo_mesh_topology_corners_of_face.cc
   nodes/node_geo_mesh_topology_corners_of_vertex.cc
   nodes/node_geo_mesh_topology_edges_of_corner.cc
@@ -134,20 +143,24 @@ set(SRC
   nodes/node_geo_mesh_topology_vertex_of_corner.cc
   nodes/node_geo_object_info.cc
   nodes/node_geo_offset_point_in_curve.cc
+  nodes/node_geo_offset_sdf_volume.cc
+  nodes/node_geo_points.cc
+  nodes/node_geo_points_to_sdf_volume.cc
   nodes/node_geo_points_to_vertices.cc
   nodes/node_geo_points_to_volume.cc
-  nodes/node_geo_points.cc
   nodes/node_geo_proximity.cc
   nodes/node_geo_raycast.cc
   nodes/node_geo_realize_instances.cc
   nodes/node_geo_remove_attribute.cc
   nodes/node_geo_rotate_instances.cc
   nodes/node_geo_sample_index.cc
-  nodes/node_geo_sample_nearest_surface.cc
   nodes/node_geo_sample_nearest.cc
+  nodes/node_geo_sample_nearest_surface.cc
   nodes/node_geo_sample_uv_surface.cc
+  nodes/node_geo_sample_volume.cc
   nodes/node_geo_scale_elements.cc
   nodes/node_geo_scale_instances.cc
+  nodes/node_geo_sdf_volume_sphere.cc
   nodes/node_geo_self_object.cc
   nodes/node_geo_separate_components.cc
   nodes/node_geo_separate_geometry.cc
@@ -156,13 +169,15 @@ set(SRC
   nodes/node_geo_set_curve_radius.cc
   nodes/node_geo_set_curve_tilt.cc
   nodes/node_geo_set_id.cc
-  nodes/node_geo_set_material_index.cc
   nodes/node_geo_set_material.cc
+  nodes/node_geo_set_material_index.cc
   nodes/node_geo_set_point_radius.cc
   nodes/node_geo_set_position.cc
   nodes/node_geo_set_shade_smooth.cc
   nodes/node_geo_set_spline_cyclic.cc
   nodes/node_geo_set_spline_resolution.cc
+  nodes/node_geo_simulation_input.cc
+  nodes/node_geo_simulation_output.cc
   nodes/node_geo_store_named_attribute.cc
   nodes/node_geo_string_join.cc
   nodes/node_geo_string_to_curves.cc
@@ -190,6 +205,7 @@ set(LIB
   bf_functions
   bf_geometry
   bf_nodes
+  extern_fmtlib
 )
 
 if(WITH_BULLET)

@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup RNA
@@ -156,6 +158,7 @@ void RNA_def_depsgraph(struct BlenderRNA *brna);
 void RNA_def_dynamic_paint(struct BlenderRNA *brna);
 void RNA_def_fcurve(struct BlenderRNA *brna);
 void RNA_def_gpencil(struct BlenderRNA *brna);
+void RNA_def_grease_pencil(struct BlenderRNA *brna);
 void RNA_def_greasepencil_modifier(struct BlenderRNA *brna);
 void RNA_def_shader_fx(struct BlenderRNA *brna);
 void RNA_def_curves(struct BlenderRNA *brna);
@@ -292,7 +295,7 @@ struct IDProperty **rna_ID_idprops(struct PointerRNA *ptr);
 void rna_ID_fake_user_set(struct PointerRNA *ptr, bool value);
 void **rna_ID_instance(PointerRNA *ptr);
 struct IDProperty **rna_PropertyGroup_idprops(struct PointerRNA *ptr);
-void rna_PropertyGroup_unregister(struct Main *bmain, struct StructRNA *type);
+bool rna_PropertyGroup_unregister(struct Main *bmain, struct StructRNA *type);
 struct StructRNA *rna_PropertyGroup_register(struct Main *bmain,
                                              struct ReportList *reports,
                                              void *data,
@@ -308,15 +311,15 @@ void rna_object_vgroup_name_index_set(struct PointerRNA *ptr, const char *value,
 void rna_object_vgroup_name_set(struct PointerRNA *ptr,
                                 const char *value,
                                 char *result,
-                                int maxlen);
+                                int result_maxncpy);
 void rna_object_uvlayer_name_set(struct PointerRNA *ptr,
                                  const char *value,
                                  char *result,
-                                 int maxlen);
+                                 int result_maxncpy);
 void rna_object_vcollayer_name_set(struct PointerRNA *ptr,
                                    const char *value,
                                    char *result,
-                                   int maxlen);
+                                   int result_maxncpy);
 PointerRNA rna_object_shapekey_index_get(struct ID *id, int value);
 int rna_object_shapekey_index_set(struct ID *id, PointerRNA value, int current);
 
@@ -326,7 +329,7 @@ void rna_def_object_type_visibility_flags_common(StructRNA *srna,
 int rna_object_type_visibility_icon_get_common(int object_type_exclude_viewport,
                                                const int *object_type_exclude_select);
 
-/* ViewLayer related functions defined in rna_scene.c but required in rna_layer.c */
+/* ViewLayer related functions defined in rna_scene.cc but required in rna_layer.cc */
 void rna_def_freestyle_settings(struct BlenderRNA *brna);
 struct PointerRNA rna_FreestyleLineSet_linestyle_get(struct PointerRNA *ptr);
 void rna_FreestyleLineSet_linestyle_set(struct PointerRNA *ptr,
@@ -468,6 +471,7 @@ void RNA_api_region_view3d(struct StructRNA *srna);
 void RNA_api_texture(struct StructRNA *srna);
 void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, bool metastrip);
 void RNA_api_sequence_elements(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_api_sequence_retiming_handles(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_api_sound(struct StructRNA *srna);
 void RNA_api_vfont(struct StructRNA *srna);
 void RNA_api_workspace(struct StructRNA *srna);
@@ -500,7 +504,8 @@ void RNA_def_main_armatures(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_actions(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_particles(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_palettes(BlenderRNA *brna, PropertyRNA *cprop);
-void RNA_def_main_gpencil(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_def_main_gpencil_legacy(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_def_main_grease_pencil(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_movieclips(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_masks(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_linestyles(BlenderRNA *brna, PropertyRNA *cprop);

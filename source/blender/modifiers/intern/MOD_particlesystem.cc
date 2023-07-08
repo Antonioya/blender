@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup modifiers
@@ -20,7 +21,7 @@
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
 #include "BKE_lib_id.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_legacy_convert.h"
 #include "BKE_modifier.h"
 #include "BKE_particle.h"
@@ -36,8 +37,8 @@
 
 #include "BLO_read_write.h"
 
-#include "MOD_ui_common.h"
-#include "MOD_util.h"
+#include "MOD_ui_common.hh"
+#include "MOD_util.hh"
 
 static void initData(ModifierData *md)
 {
@@ -99,9 +100,8 @@ static void deformVerts(ModifierData *md,
                         const ModifierEvalContext *ctx,
                         Mesh *mesh,
                         float (*vertexCos)[3],
-                        int verts_num)
+                        int /*verts_num*/)
 {
-  Mesh *mesh_src = mesh;
   ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
   ParticleSystem *psys = nullptr;
 
@@ -114,13 +114,6 @@ static void deformVerts(ModifierData *md,
 
   if (!psys_check_enabled(ctx->object, psys, (ctx->flag & MOD_APPLY_RENDER) != 0)) {
     return;
-  }
-
-  if (mesh_src == nullptr) {
-    mesh_src = MOD_deform_mesh_eval_get(ctx->object, nullptr, nullptr, vertexCos, verts_num, true);
-    if (mesh_src == nullptr) {
-      return;
-    }
   }
 
   /* Clear old evaluated mesh. */
@@ -154,7 +147,7 @@ static void deformVerts(ModifierData *md,
   }
 
   /* make new mesh */
-  psmd->mesh_final = BKE_mesh_copy_for_eval(mesh_src, false);
+  psmd->mesh_final = BKE_mesh_copy_for_eval(mesh);
   BKE_mesh_vert_coords_apply(psmd->mesh_final, vertexCos);
 
   BKE_mesh_tessface_ensure(psmd->mesh_final);
@@ -178,21 +171,17 @@ static void deformVerts(ModifierData *md,
       }
     }
     else {
-      mesh_original = mesh_src;
+      mesh_original = mesh;
     }
 
     if (mesh_original) {
       /* Make a persistent copy of the mesh. We don't actually need
        * all this data, just some topology for remapping. Could be
        * optimized once. */
-      psmd->mesh_original = BKE_mesh_copy_for_eval(mesh_original, false);
+      psmd->mesh_original = BKE_mesh_copy_for_eval(mesh_original);
     }
 
     BKE_mesh_tessface_ensure(psmd->mesh_original);
-  }
-
-  if (!ELEM(mesh_src, nullptr, mesh, psmd->mesh_final)) {
-    BKE_id_free(nullptr, mesh_src);
   }
 
   /* Report change in mesh structure.
@@ -201,7 +190,8 @@ static void deformVerts(ModifierData *md,
    * instance. */
   if (had_mesh_final && (psmd->mesh_final->totvert != psmd->totdmvert ||
                          psmd->mesh_final->totedge != psmd->totdmedge ||
-                         psmd->mesh_final->totface != psmd->totdmface)) {
+                         psmd->mesh_final->totface != psmd->totdmface))
+  {
     psys->recalc |= ID_RECALC_PSYS_RESET;
   }
   psmd->totdmvert = psmd->mesh_final->totvert;
@@ -209,7 +199,7 @@ static void deformVerts(ModifierData *md,
   psmd->totdmface = psmd->mesh_final->totface;
 
   {
-    struct Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
+    Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
     psmd->flag &= ~eParticleSystemFlag_psys_updated;
     particle_system_update(
         ctx->depsgraph, scene, ctx->object, psys, (ctx->flag & MOD_APPLY_RENDER) != 0);
@@ -224,30 +214,6 @@ static void deformVerts(ModifierData *md,
     psmd_orig->flag = psmd->flag;
   }
 }
-
-/* disabled particles in editmode for now, until support for proper evaluated mesh
- * updates is coded */
-#if 0
-static void deformVertsEM(ModifierData *md,
-                          Object *ob,
-                          BMEditMesh *editData,
-                          Mesh *mesh,
-                          float (*vertexCos)[3],
-                          int verts_num)
-{
-  const bool do_temp_mesh = (mesh == nullptr);
-  if (do_temp_mesh) {
-    mesh = BKE_id_new_nomain(ID_ME, ((ID *)ob->data)->name);
-    BM_mesh_bm_to_me(nullptr, editData->bm, mesh, &((BMeshToMeshParams){0}));
-  }
-
-  deformVerts(md, ob, mesh, vertexCos, verts_num);
-
-  if (derivedData) {
-    BKE_id_free(nullptr, mesh);
-  }
-}
-#endif
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
@@ -304,11 +270,7 @@ ModifierTypeInfo modifierType_ParticleSystem = {
     /*srna*/ &RNA_ParticleSystemModifier,
     /*type*/ eModifierTypeType_OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
-        eModifierTypeFlag_UsesPointCache
-#if 0
-        | eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode
-#endif
-    ,
+        eModifierTypeFlag_UsesPointCache,
     /*icon*/ ICON_MOD_PARTICLES,
 
     /*copyData*/ copyData,

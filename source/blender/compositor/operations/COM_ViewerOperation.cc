@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2011 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2011 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "COM_ViewerOperation.h"
 #include "BKE_image.h"
@@ -12,27 +13,21 @@
 
 namespace blender::compositor {
 
-static int MAX_VIEWER_TRANSLATION_PADDING = 12000;
-
 ViewerOperation::ViewerOperation()
 {
   this->set_image(nullptr);
   this->set_image_user(nullptr);
   output_buffer_ = nullptr;
-  depth_buffer_ = nullptr;
   active_ = false;
-  do_depth_buffer_ = false;
   view_settings_ = nullptr;
   display_settings_ = nullptr;
   use_alpha_input_ = false;
 
   this->add_input_socket(DataType::Color);
   this->add_input_socket(DataType::Value);
-  this->add_input_socket(DataType::Value);
 
   image_input_ = nullptr;
   alpha_input_ = nullptr;
-  depth_input_ = nullptr;
   rd_ = nullptr;
   view_name_ = nullptr;
   flags_.use_viewer_border = true;
@@ -44,8 +39,6 @@ void ViewerOperation::init_execution()
   /* When initializing the tree during initial load the width and height can be zero. */
   image_input_ = get_input_socket_reader(0);
   alpha_input_ = get_input_socket_reader(1);
-  depth_input_ = get_input_socket_reader(2);
-  do_depth_buffer_ = (depth_input_ != nullptr);
 
   if (is_active_viewer_output() && !exec_system_->is_breaked()) {
     init_image();
@@ -56,14 +49,12 @@ void ViewerOperation::deinit_execution()
 {
   image_input_ = nullptr;
   alpha_input_ = nullptr;
-  depth_input_ = nullptr;
   output_buffer_ = nullptr;
 }
 
 void ViewerOperation::execute_region(rcti *rect, uint /*tile_number*/)
 {
   float *buffer = output_buffer_;
-  float *depthbuffer = depth_buffer_;
   if (!buffer) {
     return;
   }
@@ -75,7 +66,7 @@ void ViewerOperation::execute_region(rcti *rect, uint /*tile_number*/)
   const int offsetadd4 = offsetadd * 4;
   int offset = (y1 * this->get_width() + x1);
   int offset4 = offset * 4;
-  float alpha[4], depth[4];
+  float alpha[4];
   int x;
   int y;
   bool breaked = false;
@@ -87,8 +78,6 @@ void ViewerOperation::execute_region(rcti *rect, uint /*tile_number*/)
         alpha_input_->read_sampled(alpha, x, y, PixelSampler::Nearest);
         buffer[offset4 + 3] = alpha[0];
       }
-      depth_input_->read_sampled(depth, x, y, PixelSampler::Nearest);
-      depthbuffer[offset] = depth[0];
 
       offset++;
       offset4 += 4;
@@ -137,23 +126,12 @@ void ViewerOperation::init_image()
     return;
   }
 
-  int padding_x = abs(canvas_.xmin) * 2;
-  int padding_y = abs(canvas_.ymin) * 2;
-  if (padding_x > MAX_VIEWER_TRANSLATION_PADDING) {
-    padding_x = MAX_VIEWER_TRANSLATION_PADDING;
-  }
-  if (padding_y > MAX_VIEWER_TRANSLATION_PADDING) {
-    padding_y = MAX_VIEWER_TRANSLATION_PADDING;
-  }
+  if (ibuf->x != get_width() || ibuf->y != get_height()) {
 
-  display_width_ = get_width() + padding_x;
-  display_height_ = get_height() + padding_y;
-  if (ibuf->x != display_width_ || ibuf->y != display_height_) {
     imb_freerectImBuf(ibuf);
     imb_freerectfloatImBuf(ibuf);
-    IMB_freezbuffloatImBuf(ibuf);
-    ibuf->x = display_width_;
-    ibuf->y = display_height_;
+    ibuf->x = get_width();
+    ibuf->y = get_height();
     /* zero size can happen if no image buffers exist to define a sensible resolution */
     if (ibuf->x > 0 && ibuf->y > 0) {
       imb_addrectfloatImBuf(ibuf, 4);
@@ -162,19 +140,11 @@ void ViewerOperation::init_image()
     ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
   }
 
-  if (do_depth_buffer_) {
-    addzbuffloatImBuf(ibuf);
-  }
-
   /* now we combine the input with ibuf */
-  output_buffer_ = ibuf->rect_float;
+  output_buffer_ = ibuf->float_buffer.data;
 
   /* needed for display buffer update */
   ibuf_ = ibuf;
-
-  if (do_depth_buffer_) {
-    depth_buffer_ = ibuf->zbuf_float;
-  }
 
   BKE_image_release_ibuf(image_, ibuf_, lock);
 
@@ -187,11 +157,13 @@ void ViewerOperation::update_image(const rcti *rect)
     return;
   }
 
+  image_->offset_x = canvas_.xmin;
+  image_->offset_y = canvas_.ymin;
   float *buffer = output_buffer_;
   IMB_partial_display_buffer_update(ibuf_,
                                     buffer,
                                     nullptr,
-                                    display_width_,
+                                    get_width(),
                                     0,
                                     0,
                                     view_settings_,
@@ -224,32 +196,16 @@ void ViewerOperation::update_memory_buffer_partial(MemoryBuffer * /*output*/,
     return;
   }
 
-  const int offset_x = area.xmin + (canvas_.xmin > 0 ? canvas_.xmin * 2 : 0);
-  const int offset_y = area.ymin + (canvas_.ymin > 0 ? canvas_.ymin * 2 : 0);
   MemoryBuffer output_buffer(
-      output_buffer_, COM_DATA_TYPE_COLOR_CHANNELS, display_width_, display_height_);
+      output_buffer_, COM_DATA_TYPE_COLOR_CHANNELS, get_width(), get_height());
   const MemoryBuffer *input_image = inputs[0];
-  output_buffer.copy_from(input_image, area, offset_x, offset_y);
+  output_buffer.copy_from(input_image, area);
   if (use_alpha_input_) {
     const MemoryBuffer *input_alpha = inputs[1];
-    output_buffer.copy_from(
-        input_alpha, area, 0, COM_DATA_TYPE_VALUE_CHANNELS, offset_x, offset_y, 3);
+    output_buffer.copy_from(input_alpha, area, 0, COM_DATA_TYPE_VALUE_CHANNELS, 3);
   }
 
-  if (depth_buffer_) {
-    MemoryBuffer depth_buffer(
-        depth_buffer_, COM_DATA_TYPE_VALUE_CHANNELS, display_width_, display_height_);
-    const MemoryBuffer *input_depth = inputs[2];
-    depth_buffer.copy_from(input_depth, area, offset_x, offset_y);
-  }
-
-  rcti display_area;
-  BLI_rcti_init(&display_area,
-                offset_x,
-                offset_x + BLI_rcti_size_x(&area),
-                offset_y,
-                offset_y + BLI_rcti_size_y(&area));
-  update_image(&display_area);
+  update_image(&area);
 }
 
 void ViewerOperation::clear_display_buffer()

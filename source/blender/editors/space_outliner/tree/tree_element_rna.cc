@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
@@ -40,11 +42,6 @@ TreeElementRNACommon::TreeElementRNACommon(TreeElement &legacy_te, PointerRNA &r
     legacy_te_.name = IFACE_("(empty)");
     return;
   }
-}
-
-bool TreeElementRNACommon::isExpandValid() const
-{
-  return true;
 }
 
 bool TreeElementRNACommon::isRNAValid() const

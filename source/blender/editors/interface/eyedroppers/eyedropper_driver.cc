@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2009 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
@@ -54,7 +55,8 @@ static bool driverdropper_init(bContext *C, wmOperator *op)
 
   if ((ddr->ptr.data == nullptr) || (ddr->prop == nullptr) ||
       (RNA_property_editable(&ddr->ptr, ddr->prop) == false) ||
-      (RNA_property_animateable(&ddr->ptr, ddr->prop) == false) || (but->flag & UI_BUT_DRIVEN)) {
+      (RNA_property_animateable(&ddr->ptr, ddr->prop) == false) || (but->flag & UI_BUT_DRIVEN))
+  {
     MEM_freeN(ddr);
     return false;
   }
@@ -161,7 +163,7 @@ static int driverdropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*e
   /* init */
   if (driverdropper_init(C, op)) {
     wmWindow *win = CTX_wm_window(C);
-    /* Workaround for de-activating the button clearing the cursor, see T76794 */
+    /* Workaround for de-activating the button clearing the cursor, see #76794 */
     UI_context_active_but_clear(C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 

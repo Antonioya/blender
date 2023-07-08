@@ -1,17 +1,19 @@
+# SPDX-FileCopyrightText: 2020-2023 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 if(WIN32)
   set(ISPC_EXTRA_ARGS_WIN
     -DFLEX_EXECUTABLE=${LIBDIR}/flexbison/win_flex.exe
     -DBISON_EXECUTABLE=${LIBDIR}/flexbison/win_bison.exe
-    -DM4_EXECUTABLE=${DOWNLOAD_DIR}/mingw/mingw64/msys/1.0/bin/m4.exe
+    -DM4_EXECUTABLE=${DOWNLOAD_DIR}/msys2/msys64/usr/bin/m4.exe
     -DARM_ENABLED=Off
     -DPython3_FIND_REGISTRY=NEVER
   )
 elseif(APPLE)
   # Use bison and flex installed via Homebrew.
   # The ones that come with Xcode toolset are too old.
-  if("${CMAKE_HOST_SYSTEM_PROCESSOR}" STREQUAL "arm64")
+  if(BLENDER_PLATFORM_ARM)
     set(ISPC_EXTRA_ARGS_APPLE
       -DBISON_EXECUTABLE=/opt/homebrew/opt/bison/bin/bison
       -DFLEX_EXECUTABLE=/opt/homebrew/opt/flex/bin/flex

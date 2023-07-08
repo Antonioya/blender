@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <algorithm>
 
@@ -21,6 +23,8 @@
 #include "DEG_depsgraph_query.h"
 
 #include "BLT_translation.h"
+
+#include "GEO_curve_constraints.hh"
 
 /**
  * The code below uses a prefix naming convention to indicate the coordinate space:
@@ -214,7 +218,8 @@ std::optional<CurvesBrush3D> sample_curves_3d_brush(const Depsgraph &depsgraph,
     if (center_ray_hit.index >= 0) {
       const float3 hit_position_su = center_ray_hit.co;
       if (math::distance(center_ray_start_su, center_ray_end_su) >
-          math::distance(center_ray_start_su, hit_position_su)) {
+          math::distance(center_ray_start_su, hit_position_su))
+      {
         center_ray_end_su = hit_position_su;
         center_ray_end_wo = math::transform_point(surface_to_world_mat, center_ray_end_su);
       }
@@ -429,6 +434,42 @@ void report_missing_uv_map_on_evaluated_surface(ReportList *reports)
 void report_invalid_uv_map(ReportList *reports)
 {
   BKE_report(reports, RPT_WARNING, TIP_("Invalid UV map: UV islands must not overlap"));
+}
+
+void CurvesConstraintSolver::initialize(const bke::CurvesGeometry &curves,
+                                        const IndexMask &curve_selection,
+                                        const bool use_surface_collision)
+{
+  use_surface_collision_ = use_surface_collision;
+  segment_lengths_.reinitialize(curves.points_num());
+  geometry::curve_constraints::compute_segment_lengths(
+      curves.points_by_curve(), curves.positions(), curve_selection, segment_lengths_);
+  if (use_surface_collision_) {
+    start_positions_ = curves.positions();
+  }
+}
+
+void CurvesConstraintSolver::solve_step(bke::CurvesGeometry &curves,
+                                        const IndexMask &curve_selection,
+                                        const Mesh *surface,
+                                        const CurvesSurfaceTransforms &transforms)
+{
+  if (use_surface_collision_ && surface != nullptr) {
+    geometry::curve_constraints::solve_length_and_collision_constraints(
+        curves.points_by_curve(),
+        curve_selection,
+        segment_lengths_,
+        start_positions_,
+        *surface,
+        transforms,
+        curves.positions_for_write());
+    start_positions_ = curves.positions();
+  }
+  else {
+    geometry::curve_constraints::solve_length_constraints(
+        curves.points_by_curve(), curve_selection, segment_lengths_, curves.positions_for_write());
+  }
+  curves.tag_positions_changed();
 }
 
 }  // namespace blender::ed::sculpt_paint

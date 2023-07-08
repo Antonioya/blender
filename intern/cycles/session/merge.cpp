@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "session/merge.h"
 
@@ -77,12 +78,14 @@ struct MergeImage {
 static MergeChannelOp parse_channel_operation(const string &pass_name)
 {
   if (pass_name == "Depth" || pass_name == "IndexMA" || pass_name == "IndexOB" ||
-      string_startswith(pass_name, "Crypto")) {
+      string_startswith(pass_name, "Crypto"))
+  {
     return MERGE_CHANNEL_COPY;
   }
   else if (string_startswith(pass_name, "Debug BVH") ||
            string_startswith(pass_name, "Debug Ray") ||
-           string_startswith(pass_name, "Debug Render Time")) {
+           string_startswith(pass_name, "Debug Render Time"))
+  {
     return MERGE_CHANNEL_SUM;
   }
   else if (string_startswith(pass_name, "Debug Sample Count")) {
@@ -263,7 +266,8 @@ static bool open_images(const vector<string> &filepaths, vector<MergeImage> &ima
 
       if (base_spec.width != spec.width || base_spec.height != spec.height ||
           base_spec.depth != spec.depth || base_spec.format != spec.format ||
-          base_spec.deep != spec.deep) {
+          base_spec.deep != spec.deep)
+      {
         error = "Images do not have matching size and data layout.";
         return false;
       }
@@ -436,7 +440,8 @@ static bool merge_pixels(const vector<MergeImage> &images,
             const auto &samples = layer_samples.at(layer.name);
 
             for (size_t i = 0; offset < num_pixels;
-                 offset += stride, sample_pass_offset += stride, out_offset += out_stride, i++) {
+                 offset += stride, sample_pass_offset += stride, out_offset += out_stride, i++)
+            {
               const float total_samples = samples.per_pixel[i];
 
               float layer_samples;
@@ -563,9 +568,7 @@ static void read_layer_samples(vector<MergeImage> &images,
 }
 /* Image Merger */
 
-ImageMerger::ImageMerger()
-{
-}
+ImageMerger::ImageMerger() {}
 
 bool ImageMerger::run()
 {

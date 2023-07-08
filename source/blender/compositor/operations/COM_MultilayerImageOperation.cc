@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2011 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2011 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "COM_MultilayerImageOperation.h"
 
@@ -39,7 +40,12 @@ void MultilayerBaseOperation::update_memory_buffer_partial(MemoryBuffer *output,
                                                            const rcti &area,
                                                            Span<MemoryBuffer *> /*inputs*/)
 {
-  output->copy_from(buffer_, area);
+  if (buffer_) {
+    output->copy_from(buffer_, area);
+  }
+  else {
+    output->clear();
+  }
 }
 
 std::unique_ptr<MetaData> MultilayerColorOperation::get_meta_data()

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2020 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2020 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -17,15 +18,16 @@
 
 #include "BLI_task.h"
 
+#include "BKE_attribute.hh"
 #include "BKE_customdata.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.h"
 #include "BKE_multires.h"
 #include "BKE_subdiv.h"
 #include "BKE_subdiv_ccg.h"
 #include "BKE_subdiv_eval.h"
-#include "BKE_subdiv_foreach.h"
-#include "BKE_subdiv_mesh.h"
+#include "BKE_subdiv_foreach.hh"
+#include "BKE_subdiv_mesh.hh"
 
 #include "DEG_depsgraph_query.h"
 
@@ -52,7 +54,8 @@ Subdiv *multires_reshape_create_subdiv(Depsgraph *depsgraph,
   BKE_multires_subdiv_settings_init(&subdiv_settings, mmd);
   Subdiv *subdiv = BKE_subdiv_new_from_mesh(&subdiv_settings, base_mesh);
   if (!BKE_subdiv_eval_begin_from_mesh(
-          subdiv, base_mesh, nullptr, SUBDIV_EVALUATOR_TYPE_CPU, nullptr)) {
+          subdiv, base_mesh, nullptr, SUBDIV_EVALUATOR_TYPE_CPU, nullptr))
+  {
     BKE_subdiv_free(subdiv);
     return nullptr;
   }
@@ -61,13 +64,13 @@ Subdiv *multires_reshape_create_subdiv(Depsgraph *depsgraph,
 
 static void context_zero(MultiresReshapeContext *reshape_context)
 {
-  memset(reshape_context, 0, sizeof(*reshape_context));
+  *reshape_context = {};
 }
 
 static void context_init_lookup(MultiresReshapeContext *reshape_context)
 {
   const Mesh *base_mesh = reshape_context->base_mesh;
-  const MPoly *mpoly = reshape_context->base_polys;
+  const blender::OffsetIndices polys = reshape_context->base_polys;
   const int num_faces = base_mesh->totpoly;
 
   reshape_context->face_start_grid_index = static_cast<int *>(
@@ -75,7 +78,7 @@ static void context_init_lookup(MultiresReshapeContext *reshape_context)
   int num_grids = 0;
   int num_ptex_faces = 0;
   for (int face_index = 0; face_index < num_faces; ++face_index) {
-    const int num_corners = mpoly[face_index].totloop;
+    const int num_corners = polys[face_index].size();
     reshape_context->face_start_grid_index[face_index] = num_grids;
     num_grids += num_corners;
     num_ptex_faces += (num_corners == 4) ? 1 : num_corners;
@@ -86,7 +89,7 @@ static void context_init_lookup(MultiresReshapeContext *reshape_context)
   reshape_context->ptex_start_grid_index = static_cast<int *>(
       MEM_malloc_arrayN(num_ptex_faces, sizeof(int), "ptex_start_grid_index"));
   for (int face_index = 0, grid_index = 0, ptex_index = 0; face_index < num_faces; ++face_index) {
-    const int num_corners = mpoly[face_index].totloop;
+    const int num_corners = polys[face_index].size();
     const int num_face_ptex_faces = (num_corners == 4) ? 1 : num_corners;
     for (int i = 0; i < num_face_ptex_faces; ++i) {
       reshape_context->ptex_start_grid_index[ptex_index + i] = grid_index + i;
@@ -155,10 +158,11 @@ bool multires_reshape_context_create_from_base_mesh(MultiresReshapeContext *resh
   reshape_context->mmd = mmd;
 
   reshape_context->base_mesh = base_mesh;
-  reshape_context->base_positions = BKE_mesh_vert_positions(base_mesh);
-  reshape_context->base_edges = BKE_mesh_edges(base_mesh);
-  reshape_context->base_polys = BKE_mesh_polys(base_mesh);
-  reshape_context->base_loops = BKE_mesh_loops(base_mesh);
+  reshape_context->base_positions = base_mesh->vert_positions();
+  reshape_context->base_edges = base_mesh->edges();
+  reshape_context->base_polys = base_mesh->polys();
+  reshape_context->base_corner_verts = base_mesh->corner_verts();
+  reshape_context->base_corner_edges = base_mesh->corner_edges();
 
   reshape_context->subdiv = multires_reshape_create_subdiv(nullptr, object, mmd);
   reshape_context->need_free_subdiv = true;
@@ -181,6 +185,7 @@ bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape
                                                  Object *object,
                                                  MultiresModifierData *mmd)
 {
+  using namespace blender;
   context_zero(reshape_context);
 
   const bool use_render_params = false;
@@ -192,10 +197,11 @@ bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape
   reshape_context->mmd = mmd;
 
   reshape_context->base_mesh = base_mesh;
-  reshape_context->base_positions = BKE_mesh_vert_positions(base_mesh);
-  reshape_context->base_edges = BKE_mesh_edges(base_mesh);
-  reshape_context->base_polys = BKE_mesh_polys(base_mesh);
-  reshape_context->base_loops = BKE_mesh_loops(base_mesh);
+  reshape_context->base_positions = base_mesh->vert_positions();
+  reshape_context->base_edges = base_mesh->edges();
+  reshape_context->base_polys = base_mesh->polys();
+  reshape_context->base_corner_verts = base_mesh->corner_verts();
+  reshape_context->base_corner_edges = base_mesh->corner_edges();
 
   reshape_context->subdiv = multires_reshape_create_subdiv(depsgraph, object, mmd);
   reshape_context->need_free_subdiv = true;
@@ -208,10 +214,9 @@ bool multires_reshape_context_create_from_object(MultiresReshapeContext *reshape
   reshape_context->top.level = mmd->totlvl;
   reshape_context->top.grid_size = BKE_subdiv_grid_size_from_level(reshape_context->top.level);
 
-  reshape_context->cd_vertex_crease = static_cast<const float *>(
-      CustomData_get_layer(&base_mesh->vdata, CD_CREASE));
-  reshape_context->cd_edge_crease = static_cast<const float *>(
-      CustomData_get_layer(&base_mesh->edata, CD_CREASE));
+  const bke::AttributeAccessor attributes = base_mesh->attributes();
+  reshape_context->cd_vertex_crease = *attributes.lookup<float>("crease_vert", ATTR_DOMAIN_POINT);
+  reshape_context->cd_edge_crease = *attributes.lookup<float>("crease_edge", ATTR_DOMAIN_EDGE);
 
   context_init_commoon(reshape_context);
 
@@ -226,10 +231,11 @@ bool multires_reshape_context_create_from_ccg(MultiresReshapeContext *reshape_co
   context_zero(reshape_context);
 
   reshape_context->base_mesh = base_mesh;
-  reshape_context->base_positions = BKE_mesh_vert_positions(base_mesh);
-  reshape_context->base_edges = BKE_mesh_edges(base_mesh);
-  reshape_context->base_polys = BKE_mesh_polys(base_mesh);
-  reshape_context->base_loops = BKE_mesh_loops(base_mesh);
+  reshape_context->base_positions = base_mesh->vert_positions();
+  reshape_context->base_edges = base_mesh->edges();
+  reshape_context->base_polys = base_mesh->polys();
+  reshape_context->base_corner_verts = base_mesh->corner_verts();
+  reshape_context->base_corner_edges = base_mesh->corner_edges();
 
   reshape_context->subdiv = subdiv_ccg->subdiv;
   reshape_context->need_free_subdiv = false;
@@ -267,18 +273,21 @@ bool multires_reshape_context_create_from_subdiv(MultiresReshapeContext *reshape
                                                  Subdiv *subdiv,
                                                  int top_level)
 {
+  using namespace blender;
   context_zero(reshape_context);
 
   Mesh *base_mesh = (Mesh *)object->data;
 
   reshape_context->mmd = mmd;
   reshape_context->base_mesh = base_mesh;
-  reshape_context->base_positions = BKE_mesh_vert_positions(base_mesh);
-  reshape_context->base_edges = BKE_mesh_edges(base_mesh);
-  reshape_context->base_polys = BKE_mesh_polys(base_mesh);
-  reshape_context->base_loops = BKE_mesh_loops(base_mesh);
-  reshape_context->cd_vertex_crease = (const float *)CustomData_get_layer(&base_mesh->edata,
-                                                                          CD_CREASE);
+  reshape_context->base_positions = base_mesh->vert_positions();
+  reshape_context->base_edges = base_mesh->edges();
+  reshape_context->base_polys = base_mesh->polys();
+  reshape_context->base_corner_verts = base_mesh->corner_verts();
+  reshape_context->base_corner_edges = base_mesh->corner_edges();
+
+  const bke::AttributeAccessor attributes = base_mesh->attributes();
+  reshape_context->cd_vertex_crease = *attributes.lookup<float>("crease_vert", ATTR_DOMAIN_POINT);
 
   reshape_context->subdiv = subdiv;
   reshape_context->need_free_subdiv = false;
@@ -368,8 +377,7 @@ int multires_reshape_grid_to_corner(const MultiresReshapeContext *reshape_contex
 
 bool multires_reshape_is_quad_face(const MultiresReshapeContext *reshape_context, int face_index)
 {
-  const MPoly *base_poly = &reshape_context->base_polys[face_index];
-  return (base_poly->totloop == 4);
+  return reshape_context->base_polys[face_index].size() == 4;
 }
 
 int multires_reshape_grid_to_ptex_index(const MultiresReshapeContext *reshape_context,
@@ -665,11 +673,11 @@ static void foreach_grid_face_coordinate_task(void *__restrict userdata_v,
 
   const MultiresReshapeContext *reshape_context = data->reshape_context;
 
-  const MPoly *mpoly = reshape_context->base_polys;
+  const blender::OffsetIndices polys = reshape_context->base_polys;
   const int grid_size = data->grid_size;
   const float grid_size_1_inv = 1.0f / (float(grid_size) - 1.0f);
 
-  const int num_corners = mpoly[face_index].totloop;
+  const int num_corners = polys[face_index].size();
   int grid_index = reshape_context->face_start_grid_index[face_index];
   for (int corner = 0; corner < num_corners; ++corner, ++grid_index) {
     for (int y = 0; y < grid_size; ++y) {

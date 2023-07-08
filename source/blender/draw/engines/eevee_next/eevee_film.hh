@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation.
- */
+/* SPDX-FileCopyrightText: 2021 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup eevee
@@ -105,13 +105,12 @@ class Film {
   int cryptomatte_layer_max_get() const;
   int cryptomatte_layer_len_get() const;
 
+  /** WARNING: Film and RenderBuffers use different storage types for AO and Shadow. */
   static ePassStorageType pass_storage_type(eViewLayerEEVEEPassType pass_type)
   {
     switch (pass_type) {
       case EEVEE_RENDER_PASS_Z:
       case EEVEE_RENDER_PASS_MIST:
-      case EEVEE_RENDER_PASS_SHADOW:
-      case EEVEE_RENDER_PASS_AO:
         return PASS_STORAGE_VALUE;
       case EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT:
       case EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET:
@@ -124,19 +123,8 @@ class Film {
 
   static bool pass_is_float3(eViewLayerEEVEEPassType pass_type)
   {
-    switch (pass_type) {
-      case EEVEE_RENDER_PASS_NORMAL:
-      case EEVEE_RENDER_PASS_DIFFUSE_LIGHT:
-      case EEVEE_RENDER_PASS_DIFFUSE_COLOR:
-      case EEVEE_RENDER_PASS_SPECULAR_LIGHT:
-      case EEVEE_RENDER_PASS_SPECULAR_COLOR:
-      case EEVEE_RENDER_PASS_VOLUME_LIGHT:
-      case EEVEE_RENDER_PASS_EMIT:
-      case EEVEE_RENDER_PASS_ENVIRONMENT:
-        return true;
-      default:
-        return false;
-    }
+    return pass_storage_type(pass_type) == PASS_STORAGE_COLOR &&
+           pass_type != EEVEE_RENDER_PASS_COMBINED;
   }
 
   /* Returns layer offset in the accumulation texture. -1 if the pass is not enabled. */

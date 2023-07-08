@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2006 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup cmpnodes
@@ -25,9 +26,8 @@ namespace blender::nodes::node_composite_composite_cc {
 
 static void cmp_node_composite_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>(N_("Image")).default_value({0.0f, 0.0f, 0.0f, 1.0f});
-  b.add_input<decl::Float>(N_("Alpha")).default_value(1.0f).min(0.0f).max(1.0f);
-  b.add_input<decl::Float>(N_("Z")).default_value(1.0f).min(0.0f).max(1.0f);
+  b.add_input<decl::Color>("Image").default_value({0.0f, 0.0f, 0.0f, 1.0f});
+  b.add_input<decl::Float>("Alpha").default_value(1.0f).min(0.0f).max(1.0f);
 }
 
 static void node_composit_buts_composite(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -94,7 +94,7 @@ class CompositeOperation : public NodeOperation {
     image.bind_as_texture(shader, "input_tx");
 
     GPUTexture *output_texture = context().get_output_texture();
-    const int image_unit = GPU_shader_get_texture_binding(shader, "output_img");
+    const int image_unit = GPU_shader_get_sampler_binding(shader, "output_img");
     GPU_texture_image_bind(output_texture, image_unit);
 
     const int2 compositing_region_size = context().get_compositing_region_size();
@@ -122,7 +122,7 @@ class CompositeOperation : public NodeOperation {
     image.bind_as_texture(shader, "input_tx");
 
     GPUTexture *output_texture = context().get_output_texture();
-    const int image_unit = GPU_shader_get_texture_binding(shader, "output_img");
+    const int image_unit = GPU_shader_get_sampler_binding(shader, "output_img");
     GPU_texture_image_bind(output_texture, image_unit);
 
     const int2 compositing_region_size = context().get_compositing_region_size();
@@ -152,7 +152,7 @@ class CompositeOperation : public NodeOperation {
     alpha.bind_as_texture(shader, "alpha_tx");
 
     GPUTexture *output_texture = context().get_output_texture();
-    const int image_unit = GPU_shader_get_texture_binding(shader, "output_img");
+    const int image_unit = GPU_shader_get_sampler_binding(shader, "output_img");
     GPU_texture_image_bind(output_texture, image_unit);
 
     const int2 compositing_region_size = context().get_compositing_region_size();

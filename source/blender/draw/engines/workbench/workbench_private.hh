@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "DNA_camera_types.h"
 #include "DRW_render.h"
@@ -57,7 +59,7 @@ void get_material_image(Object *ob,
                         int material_index,
                         ::Image *&image,
                         ImageUser *&iuser,
-                        eGPUSamplerState &sampler_state);
+                        GPUSamplerState &sampler_state);
 
 struct SceneState {
   Scene *scene = nullptr;
@@ -86,7 +88,6 @@ struct SceneState {
   bool draw_aa = false;
 
   bool draw_object_id = false;
-  bool draw_transparent_depth = false;
 
   int sample = 0;
   int samples_len = 0;
@@ -106,7 +107,7 @@ struct ObjectState {
   bool sculpt_pbvh = false;
   bool texture_paint_mode = false;
   ::Image *image_paint_override = nullptr;
-  eGPUSamplerState override_sampler_state = GPU_SAMPLER_DEFAULT;
+  GPUSamplerState override_sampler_state = GPUSamplerState::default_sampler();
   bool draw_shadow = false;
   bool use_per_material_batches = false;
 
@@ -181,12 +182,10 @@ class MeshPass : public PassMain {
                       bool clip,
                       ShaderCache &shaders);
 
-  void draw(ObjectRef &ref,
-            GPUBatch *batch,
-            ResourceHandle handle,
-            ::Image *image = nullptr,
-            eGPUSamplerState sampler_state = eGPUSamplerState::GPU_SAMPLER_DEFAULT,
-            ImageUser *iuser = nullptr);
+  PassMain::Sub &get_subpass(eGeometryType geometry_type,
+                             ::Image *image = nullptr,
+                             GPUSamplerState sampler_state = GPUSamplerState::default_sampler(),
+                             ImageUser *iuser = nullptr);
 };
 
 class OpaquePass {
@@ -207,8 +206,7 @@ class OpaquePass {
             View &view,
             SceneResources &resources,
             int2 resolution,
-            class ShadowPass *shadow_pass,
-            bool accumulation_ps_is_empty);
+            class ShadowPass *shadow_pass);
   bool is_empty() const;
 };
 
@@ -323,6 +321,54 @@ class ShadowPass {
             bool force_fail_method);
 };
 
+class VolumePass {
+  bool active_ = true;
+
+  PassMain ps_ = {"Volume"};
+  Framebuffer fb_ = {"Volume"};
+
+  Texture dummy_shadow_tx_ = {"Volume.Dummy Shadow Tx"};
+  Texture dummy_volume_tx_ = {"Volume.Dummy Volume Tx"};
+  Texture dummy_coba_tx_ = {"Volume.Dummy Coba Tx"};
+
+  GPUTexture *stencil_tx_ = nullptr;
+
+  GPUShader *shaders_[2 /*slice*/][2 /*coba*/][3 /*interpolation*/][2 /*smoke*/];
+
+ public:
+  void sync(SceneResources &resources);
+
+  void object_sync_volume(Manager &manager,
+                          SceneResources &resources,
+                          const SceneState &scene_state,
+                          ObjectRef &ob_ref,
+                          float3 color);
+
+  void object_sync_modifier(Manager &manager,
+                            SceneResources &resources,
+                            const SceneState &scene_state,
+                            ObjectRef &ob_ref,
+                            ModifierData *md);
+
+  void draw(Manager &manager, View &view, SceneResources &resources);
+
+ private:
+  GPUShader *get_shader(bool slice, bool coba, int interpolation, bool smoke);
+
+  void draw_slice_ps(Manager &manager,
+                     PassMain::Sub &ps,
+                     ObjectRef &ob_ref,
+                     int slice_axis_enum,
+                     float slice_depth);
+
+  void draw_volume_ps(Manager &manager,
+                      PassMain::Sub &ps,
+                      ObjectRef &ob_ref,
+                      int taa_sample,
+                      float3 slice_count,
+                      float3 world_size);
+};
+
 class OutlinePass {
  private:
   bool enabled_ = false;
@@ -407,6 +453,7 @@ class AntiAliasingPass {
   float weights_sum_ = 0;
 
   Texture sample0_depth_tx_ = {"sample0_depth_tx"};
+  GPUTexture *stencil_tx_ = nullptr;
 
   Texture taa_accumulation_tx_ = {"taa_accumulation_tx"};
   Texture smaa_search_tx_ = {"smaa_search_tx"};
@@ -418,6 +465,7 @@ class AntiAliasingPass {
   Framebuffer smaa_edge_fb_ = {"smaa_edge_fb"};
   Framebuffer smaa_weight_fb_ = {"smaa_weight_fb"};
   Framebuffer smaa_resolve_fb_ = {"smaa_resolve_fb"};
+  Framebuffer overlay_depth_fb_ = {"overlay_depth_fb"};
 
   float4 smaa_viewport_metrics_ = float4(0);
   float smaa_mix_factor_ = 0;
@@ -426,11 +474,13 @@ class AntiAliasingPass {
   GPUShader *smaa_edge_detect_sh_ = nullptr;
   GPUShader *smaa_aa_weight_sh_ = nullptr;
   GPUShader *smaa_resolve_sh_ = nullptr;
+  GPUShader *overlay_depth_sh_ = nullptr;
 
   PassSimple taa_accumulation_ps_ = {"TAA.Accumulation"};
   PassSimple smaa_edge_detect_ps_ = {"SMAA.EdgeDetect"};
   PassSimple smaa_aa_weight_ps_ = {"SMAA.BlendWeights"};
   PassSimple smaa_resolve_ps_ = {"SMAA.Resolve"};
+  PassSimple overlay_depth_ps_ = {"Overlay Depth"};
 
  public:
   AntiAliasingPass();

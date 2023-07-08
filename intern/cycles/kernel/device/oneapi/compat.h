@@ -1,10 +1,16 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2021-2022 Intel Corporation */
+/* SPDX-FileCopyrightText: 2021-2022 Intel Corporation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
 #define __KERNEL_GPU__
 #define __KERNEL_ONEAPI__
+#define __KERNEL_64_BIT__
+
+#ifdef WITH_EMBREE_GPU
+#  define __KERNEL_GPU_RAYTRACING__
+#endif
 
 #define CCL_NAMESPACE_BEGIN
 #define CCL_NAMESPACE_END
@@ -43,6 +49,7 @@
 #define ccl_loop_no_unroll
 #define ccl_optional_struct_init
 #define ccl_private
+#define ccl_gpu_shared
 #define ATTR_FALLTHROUGH __attribute__((fallthrough))
 #define ccl_constant const
 #define ccl_try_align(...) __attribute__((aligned(__VA_ARGS__)))
@@ -57,16 +64,18 @@
 #define ccl_gpu_kernel_threads(block_num_threads)
 
 #ifndef WITH_ONEAPI_SYCL_HOST_TASK
-#  define ccl_gpu_kernel_signature(name, ...) \
+#  define __ccl_gpu_kernel_signature(name, ...) \
 void oneapi_kernel_##name(KernelGlobalsGPU *ccl_restrict kg, \
                           size_t kernel_global_size, \
                           size_t kernel_local_size, \
                           sycl::handler &cgh, \
                           __VA_ARGS__) { \
       (kg); \
-      cgh.parallel_for<class kernel_##name>( \
+      cgh.parallel_for( \
           sycl::nd_range<1>(kernel_global_size, kernel_local_size), \
           [=](sycl::nd_item<1> item) {
+
+#  define ccl_gpu_kernel_signature __ccl_gpu_kernel_signature
 
 #  define ccl_gpu_kernel_postfix \
           }); \
@@ -101,6 +110,7 @@ void oneapi_kernel_##name(KernelGlobalsGPU *ccl_restrict kg, \
 #endif
 
 #define ccl_gpu_kernel_call(x) ((ONEAPIKernelContext*)kg)->x
+#define ccl_gpu_kernel_within_bounds(i, n) ((i) < (n))
 
 #define ccl_gpu_kernel_lambda(func, ...) \
   struct KernelLambda \
@@ -150,18 +160,18 @@ void oneapi_kernel_##name(KernelGlobalsGPU *ccl_restrict kg, \
 
 /* Debug defines */
 #if defined(__SYCL_DEVICE_ONLY__)
-#  define CONSTANT __attribute__((opencl_constant))
+#  define CCL_ONEAPI_CONSTANT __attribute__((opencl_constant))
 #else
-#  define CONSTANT
+#  define CCL_ONEAPI_CONSTANT
 #endif
 
 #define sycl_printf(format, ...) {               \
-    static const CONSTANT char fmt[] = format;               \
+    static const CCL_ONEAPI_CONSTANT char fmt[] = format;          \
     sycl::ext::oneapi::experimental::printf(fmt, __VA_ARGS__ );    \
   }
 
 #define sycl_printf_(format) {               \
-    static const CONSTANT char fmt[] = format;               \
+    static const CCL_ONEAPI_CONSTANT char fmt[] = format;          \
     sycl::ext::oneapi::experimental::printf(fmt);                  \
   }
 
@@ -178,6 +188,23 @@ using uchar = unsigned char;
 using sycl::half;
 
 /* math functions */
+ccl_device_forceinline float __uint_as_float(unsigned int x)
+{
+  return sycl::bit_cast<float>(x);
+}
+ccl_device_forceinline unsigned int __float_as_uint(float x)
+{
+  return sycl::bit_cast<unsigned int>(x);
+}
+ccl_device_forceinline float __int_as_float(int x)
+{
+  return sycl::bit_cast<float>(x);
+}
+ccl_device_forceinline int __float_as_int(float x)
+{
+  return sycl::bit_cast<int>(x);
+}
+
 #define fabsf(x) sycl::fabs((x))
 #define copysignf(x, y) sycl::copysign((x), (y))
 #define asinf(x) sycl::asin((x))

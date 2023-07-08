@@ -1,17 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "NOD_geometry.h"
+#include "NOD_geometry.hh"
 
 #include "BKE_context.h"
 #include "BKE_layer.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_object.h"
-
-#include "BLT_translation.h"
 
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
@@ -22,6 +22,8 @@
 
 #include "UI_resources.h"
 
+#include "BLT_translation.h"
+
 #include "node_common.h"
 
 #include "node_geometry_register.hh"
@@ -31,6 +33,12 @@ bNodeTreeType *ntreeType_Geometry;
 static void geometry_node_tree_get_from_context(
     const bContext *C, bNodeTreeType * /*treetype*/, bNodeTree **r_ntree, ID **r_id, ID **r_from)
 {
+  const SpaceNode *snode = CTX_wm_space_node(C);
+  if (snode->geometry_nodes_type == SNODE_GEOMETRY_OPERATOR) {
+    *r_ntree = snode->nodetree;
+    return;
+  }
+
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -81,7 +89,8 @@ static bool geometry_node_tree_validate_link(eNodeSocketDatatype type_a,
   /* Geometry, string, object, material, texture and collection sockets can only be connected to
    * themselves. The other types can be converted between each other. */
   if (ELEM(type_a, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT) &&
-      ELEM(type_b, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT)) {
+      ELEM(type_b, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT))
+  {
     return true;
   }
   return type_a == type_b;
@@ -90,19 +99,20 @@ static bool geometry_node_tree_validate_link(eNodeSocketDatatype type_a,
 static bool geometry_node_tree_socket_type_valid(bNodeTreeType * /*treetype*/,
                                                  bNodeSocketType *socket_type)
 {
-  return nodeIsStaticSocketType(socket_type) && ELEM(socket_type->type,
-                                                     SOCK_FLOAT,
-                                                     SOCK_VECTOR,
-                                                     SOCK_RGBA,
-                                                     SOCK_BOOLEAN,
-                                                     SOCK_INT,
-                                                     SOCK_STRING,
-                                                     SOCK_OBJECT,
-                                                     SOCK_GEOMETRY,
-                                                     SOCK_COLLECTION,
-                                                     SOCK_TEXTURE,
-                                                     SOCK_IMAGE,
-                                                     SOCK_MATERIAL);
+  return blender::bke::nodeIsStaticSocketType(socket_type) && ELEM(socket_type->type,
+                                                                   SOCK_FLOAT,
+                                                                   SOCK_VECTOR,
+                                                                   SOCK_RGBA,
+                                                                   SOCK_BOOLEAN,
+                                                                   SOCK_ROTATION,
+                                                                   SOCK_INT,
+                                                                   SOCK_STRING,
+                                                                   SOCK_OBJECT,
+                                                                   SOCK_GEOMETRY,
+                                                                   SOCK_COLLECTION,
+                                                                   SOCK_TEXTURE,
+                                                                   SOCK_IMAGE,
+                                                                   SOCK_MATERIAL);
 }
 
 void register_node_tree_type_geo()
@@ -110,11 +120,11 @@ void register_node_tree_type_geo()
   bNodeTreeType *tt = ntreeType_Geometry = static_cast<bNodeTreeType *>(
       MEM_callocN(sizeof(bNodeTreeType), "geometry node tree type"));
   tt->type = NTREE_GEOMETRY;
-  strcpy(tt->idname, "GeometryNodeTree");
-  strcpy(tt->group_idname, "GeometryNodeGroup");
-  strcpy(tt->ui_name, N_("Geometry Node Editor"));
+  STRNCPY(tt->idname, "GeometryNodeTree");
+  STRNCPY(tt->group_idname, "GeometryNodeGroup");
+  STRNCPY(tt->ui_name, N_("Geometry Node Editor"));
   tt->ui_icon = ICON_GEOMETRY_NODES;
-  strcpy(tt->ui_description, N_("Geometry nodes"));
+  STRNCPY(tt->ui_description, N_("Geometry nodes"));
   tt->rna_ext.srna = &RNA_GeometryNodeTree;
   tt->update = geometry_node_tree_update;
   tt->get_from_context = geometry_node_tree_get_from_context;

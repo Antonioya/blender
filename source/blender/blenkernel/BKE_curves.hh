@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -9,6 +11,7 @@
 
 #include "BLI_bounds_types.hh"
 #include "BLI_generic_virtual_array.hh"
+#include "BLI_implicit_sharing.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -53,6 +56,9 @@ struct BasisCache {
  */
 class CurvesGeometryRuntime {
  public:
+  /** Implicit sharing user count for #CurvesGeometry::curve_offsets. */
+  const ImplicitSharingInfo *curve_offsets_sharing_info = nullptr;
+
   /**
    * The cached number of curves with each type. Unlike other caches here, this is not computed
    * lazily, since it is needed so often and types are not adjusted much anyway.
@@ -71,19 +77,14 @@ class CurvesGeometryRuntime {
 
   mutable SharedCache<Vector<curves::nurbs::BasisCache>> nurbs_basis_cache;
 
-  /** Cache of evaluated positions. */
-  struct EvaluatedPositions {
-    Vector<float3> vector;
-    /**
-     * The evaluated positions result, using a separate span in case all curves are poly curves,
-     * in which case a separate array of evaluated positions is unnecessary.
-     */
-    Span<float3> span;
-  };
-  mutable SharedCache<EvaluatedPositions> evaluated_position_cache;
+  /**
+   * Cache of evaluated positions for all curves. The positions span will
+   * be used directly rather than the cache when all curves are poly type.
+   */
+  mutable SharedCache<Vector<float3>> evaluated_position_cache;
 
   /**
-   * A cache of bounds shared between data-blocks with unchanged positions and radii.
+   * A cache of bounds shared between data-blocks with unchanged positions.
    * When data changes affect the bounds, the cache is "un-shared" with other geometries.
    * See #SharedCache comments.
    */
@@ -139,7 +140,9 @@ class CurvesGeometry : public ::CurvesGeometry {
 
   /**
    * The index of the first point in every curve. The size of this span is one larger than the
-   * number of curves. Consider using #points_by_curve rather than using the offsets directly.
+   * number of curves, but the spans will be empty if there are no curves/points.
+   *
+   * Consider using #points_by_curve rather than these offsets directly.
    */
   Span<int> offsets() const;
   MutableSpan<int> offsets_for_write();
@@ -159,7 +162,7 @@ class CurvesGeometry : public ::CurvesGeometry {
   /** Set all curve types to the value and call #update_curve_types. */
   void fill_curve_types(CurveType type);
   /** Set the types for the curves in the selection and call #update_curve_types. */
-  void fill_curve_types(IndexMask selection, CurveType type);
+  void fill_curve_types(const IndexMask &selection, CurveType type);
   /** Update the cached count of curves of each type, necessary after #curve_types_for_write. */
   void update_curve_types();
 
@@ -172,10 +175,10 @@ class CurvesGeometry : public ::CurvesGeometry {
   /**
    * All of the curve indices for curves with a specific type.
    */
-  IndexMask indices_for_curve_type(CurveType type, Vector<int64_t> &r_indices) const;
+  IndexMask indices_for_curve_type(CurveType type, IndexMaskMemory &memory) const;
   IndexMask indices_for_curve_type(CurveType type,
-                                   IndexMask selection,
-                                   Vector<int64_t> &r_indices) const;
+                                   const IndexMask &selection,
+                                   IndexMaskMemory &memory) const;
 
   Array<int> point_to_curve_map() const;
 
@@ -255,12 +258,9 @@ class CurvesGeometry : public ::CurvesGeometry {
   MutableSpan<float2> surface_uv_coords_for_write();
 
   /**
-   * Calculate the largest and smallest position values, only including control points
-   * (rather than evaluated points). The existing values of `min` and `max` are taken into account.
-   *
-   * \return Whether there are any points. If the curve is empty, the inputs will be unaffected.
+   * The largest and smallest position values of evaluated points.
    */
-  bool bounds_min_max(float3 &min, float3 &max) const;
+  std::optional<Bounds<float3>> bounds_min_max() const;
 
  private:
   /* --------------------------------------------------------------------
@@ -360,16 +360,16 @@ class CurvesGeometry : public ::CurvesGeometry {
 
   void calculate_bezier_auto_handles();
 
-  void remove_points(IndexMask points_to_delete,
+  void remove_points(const IndexMask &points_to_delete,
                      const AnonymousAttributePropagationInfo &propagation_info = {});
-  void remove_curves(IndexMask curves_to_delete,
+  void remove_curves(const IndexMask &curves_to_delete,
                      const AnonymousAttributePropagationInfo &propagation_info = {});
 
   /**
    * Change the direction of selected curves (switch the start and end) without changing their
    * shape.
    */
-  void reverse_curves(IndexMask curves_to_reverse);
+  void reverse_curves(const IndexMask &curves_to_reverse);
 
   /**
    * Remove any attributes that are unused based on the types in the curves.
@@ -389,6 +389,13 @@ class CurvesGeometry : public ::CurvesGeometry {
   {
     return this->adapt_domain(GVArray(varray), from, to).typed<T>();
   }
+
+  /* --------------------------------------------------------------------
+   * File Read/Write.
+   */
+
+  void blend_read(BlendDataReader &reader);
+  void blend_write(BlendWriter &writer, ID &id);
 };
 
 static_assert(sizeof(blender::bke::CurvesGeometry) == sizeof(::CurvesGeometry));
@@ -414,9 +421,7 @@ class CurvesEditHints {
    */
   std::optional<Array<float3x3>> deform_mats;
 
-  CurvesEditHints(const Curves &curves_id_orig) : curves_id_orig(curves_id_orig)
-  {
-  }
+  CurvesEditHints(const Curves &curves_id_orig) : curves_id_orig(curves_id_orig) {}
 
   /**
    * The edit hints have to correspond to the original curves, i.e. the number of deformed points
@@ -798,6 +803,16 @@ Curves *curves_new_nomain_single(int points_num, CurveType type);
  * copy high-level parameters when a geometry-altering operation creates a new curves data-block.
  */
 void curves_copy_parameters(const Curves &src, Curves &dst);
+
+CurvesGeometry curves_copy_point_selection(
+    const CurvesGeometry &curves,
+    const IndexMask &points_to_copy,
+    const AnonymousAttributePropagationInfo &propagation_info);
+
+CurvesGeometry curves_copy_curve_selection(
+    const CurvesGeometry &curves,
+    const IndexMask &curves_to_copy,
+    const AnonymousAttributePropagationInfo &propagation_info);
 
 std::array<int, CURVE_TYPES_NUM> calculate_type_counts(const VArray<int8_t> &types);
 

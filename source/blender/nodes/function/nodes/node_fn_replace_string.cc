@@ -1,6 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_string_utf8.h"
+#include "BLI_string_utils.h"
 
 #include "node_function_util.hh"
 
@@ -8,11 +11,10 @@ namespace blender::nodes::node_fn_replace_string_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>(N_("String"));
-  b.add_input<decl::String>(N_("Find")).description(N_("The string to find in the input string"));
-  b.add_input<decl::String>(N_("Replace"))
-      .description(N_("The string to replace each match with"));
-  b.add_output<decl::String>(N_("String"));
+  b.add_input<decl::String>("String");
+  b.add_input<decl::String>("Find").description("The string to find in the input string");
+  b.add_input<decl::String>("Replace").description("The string to replace each match with");
+  b.add_output<decl::String>("String");
 }
 
 static std::string replace_all(const StringRefNull str,
@@ -22,7 +24,7 @@ static std::string replace_all(const StringRefNull str,
   if (from.is_empty()) {
     return str;
   }
-  char *new_str_ptr = BLI_str_replaceN(str.c_str(), from.c_str(), to.c_str());
+  char *new_str_ptr = BLI_string_replaceN(str.c_str(), from.c_str(), to.c_str());
   std::string new_str{new_str_ptr};
   MEM_freeN(new_str_ptr);
   return new_str;

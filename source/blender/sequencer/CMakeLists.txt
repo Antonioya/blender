@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2011 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2011 Blender Foundation. All rights reserved.
 
 set(INC
   .
@@ -15,7 +16,6 @@ set(INC
   ../makesrna
   ../render
   ../windowmanager
-  ../../../intern/atomic
   ../../../intern/clog
   ../../../intern/guardedalloc
 
@@ -42,6 +42,8 @@ set(SRC
   SEQ_proxy.h
   SEQ_relations.h
   SEQ_render.h
+  SEQ_retiming.h
+  SEQ_retiming.hh
   SEQ_select.h
   SEQ_sequencer.h
   SEQ_sound.h
@@ -76,6 +78,7 @@ set(SRC
   intern/strip_add.c
   intern/strip_edit.c
   intern/strip_relations.c
+  intern/strip_retiming.cc
   intern/strip_select.c
   intern/strip_time.c
   intern/strip_time.h
@@ -87,6 +90,7 @@ set(SRC
 set(LIB
   bf_blenkernel
   bf_blenlib
+  PRIVATE bf::intern::atomic
 )
 
 if(WITH_AUDASPACE)

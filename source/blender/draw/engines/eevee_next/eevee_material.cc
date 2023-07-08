@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation.
- */
+/* SPDX-FileCopyrightText: 2021 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup eevee
@@ -10,7 +10,7 @@
 
 #include "BKE_lib_id.h"
 #include "BKE_material.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "NOD_shader.h"
 
 #include "eevee_instance.hh"
@@ -73,7 +73,7 @@ MaterialModule::MaterialModule(Instance &inst) : inst_(inst)
 {
   {
     diffuse_mat = (::Material *)BKE_id_new_nomain(ID_MA, "EEVEE default diffuse");
-    bNodeTree *ntree = ntreeAddTreeEmbedded(
+    bNodeTree *ntree = bke::ntreeAddTreeEmbedded(
         nullptr, &diffuse_mat->id, "Shader Nodetree", ntreeType_Shader->idname);
     diffuse_mat->use_nodes = true;
     /* To use the forward pipeline. */
@@ -95,7 +95,7 @@ MaterialModule::MaterialModule(Instance &inst) : inst_(inst)
   }
   {
     glossy_mat = (::Material *)BKE_id_new_nomain(ID_MA, "EEVEE default metal");
-    bNodeTree *ntree = ntreeAddTreeEmbedded(
+    bNodeTree *ntree = bke::ntreeAddTreeEmbedded(
         nullptr, &glossy_mat->id, "Shader Nodetree", ntreeType_Shader->idname);
     glossy_mat->use_nodes = true;
     /* To use the forward pipeline. */
@@ -119,7 +119,7 @@ MaterialModule::MaterialModule(Instance &inst) : inst_(inst)
   }
   {
     error_mat_ = (::Material *)BKE_id_new_nomain(ID_MA, "EEVEE default error");
-    bNodeTree *ntree = ntreeAddTreeEmbedded(
+    bNodeTree *ntree = bke::ntreeAddTreeEmbedded(
         nullptr, &error_mat_->id, "Shader Nodetree", ntreeType_Shader->idname);
     error_mat_->use_nodes = true;
 
@@ -164,9 +164,11 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
                          blender_mat->nodetree :
                          default_surface_ntree_.nodetree_get(blender_mat);
 
+  bool use_deferred_compilation = inst_.is_viewport();
+
   MaterialPass matpass = MaterialPass();
   matpass.gpumat = inst_.shaders.material_shader_get(
-      blender_mat, ntree, pipeline_type, geometry_type, true);
+      blender_mat, ntree, pipeline_type, geometry_type, use_deferred_compilation);
 
   switch (GPU_material_status(matpass.gpumat)) {
     case GPU_MAT_SUCCESS:
@@ -193,21 +195,17 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
     inst_.sampling.reset();
   }
 
-  if ((pipeline_type == MAT_PIPE_DEFERRED) &&
-      GPU_material_flag_get(matpass.gpumat, GPU_MATFLAG_SHADER_TO_RGBA)) {
-    pipeline_type = MAT_PIPE_FORWARD;
-  }
-
   if (ELEM(pipeline_type,
            MAT_PIPE_FORWARD,
            MAT_PIPE_FORWARD_PREPASS,
            MAT_PIPE_FORWARD_PREPASS_VELOCITY) &&
-      GPU_material_flag_get(matpass.gpumat, GPU_MATFLAG_TRANSPARENT)) {
+      GPU_material_flag_get(matpass.gpumat, GPU_MATFLAG_TRANSPARENT))
+  {
     /* Transparent pass is generated later. */
     matpass.sub_pass = nullptr;
   }
   else {
-    ShaderKey shader_key(matpass.gpumat, geometry_type, pipeline_type);
+    ShaderKey shader_key(matpass.gpumat, geometry_type, pipeline_type, blender_mat->blend_flag);
 
     PassMain::Sub *shader_sub = shader_map_.lookup_or_add_cb(shader_key, [&]() {
       /* First time encountering this shader. Create a sub that will contain materials using it. */
@@ -240,17 +238,24 @@ Material &MaterialModule::material_sync(Object *ob,
                                        (has_motion ? MAT_PIPE_DEFERRED_PREPASS_VELOCITY :
                                                      MAT_PIPE_DEFERRED_PREPASS);
 
-  /* TEST until we have deferred pipeline up and running. */
-  surface_pipe = MAT_PIPE_FORWARD;
-  prepass_pipe = has_motion ? MAT_PIPE_FORWARD_PREPASS_VELOCITY : MAT_PIPE_FORWARD_PREPASS;
-
   MaterialKey material_key(blender_mat, geometry_type, surface_pipe);
 
   Material &mat = material_map_.lookup_or_add_cb(material_key, [&]() {
     Material mat;
-    /* Order is important for transparent. */
-    mat.prepass = material_pass_get(ob, blender_mat, prepass_pipe, geometry_type);
-    mat.shading = material_pass_get(ob, blender_mat, surface_pipe, geometry_type);
+    if (inst_.is_baking()) {
+      mat.prepass = MaterialPass();
+      /* TODO(fclem): Still need the shading pass for correct attribute extraction. Would be better
+       * to avoid this shader compilation in another context. */
+      mat.shading = material_pass_get(ob, blender_mat, surface_pipe, geometry_type);
+      mat.capture = material_pass_get(ob, blender_mat, MAT_PIPE_CAPTURE, geometry_type);
+    }
+    else {
+      /* Order is important for transparent. */
+      mat.prepass = material_pass_get(ob, blender_mat, prepass_pipe, geometry_type);
+      mat.shading = material_pass_get(ob, blender_mat, surface_pipe, geometry_type);
+      mat.capture = MaterialPass();
+    }
+
     if (blender_mat->blend_shadow == MA_BS_NONE) {
       mat.shadow = MaterialPass();
     }
@@ -260,6 +265,12 @@ Material &MaterialModule::material_sync(Object *ob,
     mat.is_alpha_blend_transparent = (blender_mat->blend_method == MA_BM_BLEND) &&
                                      GPU_material_flag_get(mat.shading.gpumat,
                                                            GPU_MATFLAG_TRANSPARENT);
+    if (inst_.is_baking()) {
+      /* WORKAROUND(fclem): This is to request the shadow for the surfels. This will well
+       * over-request the number of shadow tiles. A better way would be to request from the surfels
+       * directly. */
+      mat.is_alpha_blend_transparent = true;
+    }
     return mat;
   });
 

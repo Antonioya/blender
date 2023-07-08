@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved.
- *           2003-2009 Blender Foundation.
- *           2005-2006 Peter Schlaile <peter [at] schlaile [dot] de> */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ * SPDX-FileCopyrightText: 2003-2009 Blender Foundation
+ * SPDX-FileCopyrightText: 2005-2006 Peter Schlaile <peter [at] schlaile [dot] de>
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -138,7 +139,7 @@ void SEQ_sound_update(Scene *scene, bSound *sound)
 
 float SEQ_sound_pitch_get(const Scene *scene, const Sequence *seq)
 {
-  Sequence *meta_parent = seq_sequence_lookup_meta_by_seq(scene, seq);
+  const Sequence *meta_parent = seq_sequence_lookup_meta_by_seq(scene, seq);
   if (meta_parent != NULL) {
     return seq->speed_factor * SEQ_sound_pitch_get(scene, meta_parent);
   }

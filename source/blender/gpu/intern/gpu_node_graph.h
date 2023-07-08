@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -189,6 +190,19 @@ typedef struct GPUNodeGraph {
 void gpu_nodes_tag(GPUNodeLink *link, eGPUNodeTag tag);
 void gpu_node_graph_prune_unused(GPUNodeGraph *graph);
 void gpu_node_graph_finalize_uniform_attrs(GPUNodeGraph *graph);
+
+/**
+ * Optimize node graph for optimized material shader path.
+ * Once the base material has been generated, we can modify the shader
+ * node graph to create one which will produce an optimally performing shader.
+ * This currently involves baking uniform data into constant data to enable
+ * aggressive constant folding by the compiler in order to reduce complexity and
+ * shader core memory pressure.
+ *
+ * NOTE: Graph optimizations will produce a shader which needs to be re-compiled
+ * more frequently, however, the default material pass will always exist to fall
+ * back on. */
+void gpu_node_graph_optimize(GPUNodeGraph *graph);
 
 /**
  * Free intermediate node graph.

@@ -1,12 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_map.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_noise.hh"
+#include "BLI_rand.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
 #include "BLI_timeit.hh"
 #include "BLI_vector_set.hh"
+
+#include "PIL_time.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_modifier_types.h"
@@ -15,14 +20,15 @@
 #include "BKE_anim_data.h"
 #include "BKE_image.h"
 #include "BKE_main.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_node_tree_anonymous_attributes.hh"
 #include "BKE_node_tree_update.h"
 
 #include "MOD_nodes.h"
 
 #include "NOD_node_declaration.hh"
-#include "NOD_socket.h"
+#include "NOD_socket.hh"
 #include "NOD_texture.h"
 
 #include "DEG_depsgraph_query.h"
@@ -53,6 +59,7 @@ static void add_tree_tag(bNodeTree *ntree, const eNodeTreeChangedFlag flag)
 {
   ntree->runtime->changed_flag |= flag;
   ntree->runtime->topology_cache_mutex.tag_dirty();
+  ntree->runtime->tree_zones_cache_mutex.tag_dirty();
 }
 
 static void add_node_tag(bNodeTree *ntree, bNode *node, const eNodeTreeChangedFlag flag)
@@ -172,9 +179,7 @@ struct NodeTreeRelations {
   std::optional<MultiValueMap<bNodeTree *, ObjectModifierPair>> modifiers_users_;
 
  public:
-  NodeTreeRelations(Main *bmain) : bmain_(bmain)
-  {
-  }
+  NodeTreeRelations(Main *bmain) : bmain_(bmain) {}
 
   void ensure_all_trees()
   {
@@ -484,12 +489,17 @@ class NodeTreeMainUpdater {
     this->update_socket_link_and_use(ntree);
     this->update_link_validation(ntree);
 
+    if (this->update_nested_node_refs(ntree)) {
+      result.interface_changed = true;
+    }
+
     if (ntree.type == NTREE_TEXTURE) {
       ntreeTexCheckCyclics(&ntree);
     }
 
     if (ntree.runtime->changed_flag & NTREE_CHANGED_INTERFACE ||
-        ntree.runtime->changed_flag & NTREE_CHANGED_ANY) {
+        ntree.runtime->changed_flag & NTREE_CHANGED_ANY)
+    {
       result.interface_changed = true;
     }
 
@@ -527,20 +537,15 @@ class NodeTreeMainUpdater {
   {
     tree.ensure_topology_cache();
     for (bNodeSocket *socket : tree.all_sockets()) {
-      socket->flag &= ~SOCK_IS_LINKED;
-      for (const bNodeLink *link : socket->directly_linked_links()) {
-        if (!link->is_muted()) {
-          socket->flag |= SOCK_IS_LINKED;
-          break;
-        }
-      }
+      const bool socket_is_linked = !socket->directly_linked_links().is_empty();
+      SET_FLAG_FROM_TEST(socket->flag, socket_is_linked, SOCK_IS_LINKED);
     }
   }
 
   void update_individual_nodes(bNodeTree &ntree)
   {
     for (bNode *node : ntree.all_nodes()) {
-      nodeDeclarationEnsure(&ntree, node);
+      blender::bke::nodeDeclarationEnsure(&ntree, node);
       if (this->should_update_individual_node(ntree, *node)) {
         bNodeType &ntype = *node->typeinfo;
         if (ntype.group_update_func) {
@@ -571,6 +576,16 @@ class NodeTreeMainUpdater {
     if (ntree.runtime->changed_flag & NTREE_CHANGED_INTERFACE) {
       if (ELEM(node.type, NODE_GROUP_INPUT, NODE_GROUP_OUTPUT)) {
         return true;
+      }
+    }
+    /* Check paired simulation zone nodes. */
+    if (node.type == GEO_NODE_SIMULATION_INPUT) {
+      const NodeGeometrySimulationInput *data = static_cast<const NodeGeometrySimulationInput *>(
+          node.storage);
+      if (const bNode *output_node = ntree.node_by_id(data->output_node_id)) {
+        if (output_node->runtime->changed_flag & NTREE_CHANGED_NODE_PROPERTY) {
+          return true;
+        }
       }
     }
     return false;
@@ -691,7 +706,7 @@ class NodeTreeMainUpdater {
     if ((ntree.runtime->changed_flag & allowed_flags) == ntree.runtime->changed_flag) {
       return;
     }
-    BKE_node_preview_remove_unused(&ntree);
+    blender::bke::node_preview_remove_unused(&ntree);
   }
 
   void propagate_runtime_flags(const bNodeTree &ntree)
@@ -699,36 +714,42 @@ class NodeTreeMainUpdater {
     ntree.ensure_topology_cache();
 
     ntree.runtime->runtime_flag = 0;
-    if (ntree.type != NTREE_SHADER) {
-      return;
-    }
 
-    /* Check if a used node group has an animated image. */
-    for (const bNode *group_node : ntree.nodes_by_type("ShaderNodeGroup")) {
+    for (const bNode *group_node : ntree.group_nodes()) {
       const bNodeTree *group = reinterpret_cast<bNodeTree *>(group_node->id);
       if (group != nullptr) {
         ntree.runtime->runtime_flag |= group->runtime->runtime_flag;
       }
     }
-    /* Check if the tree itself has an animated image. */
-    for (const StringRefNull idname : {"ShaderNodeTexImage", "ShaderNodeTexEnvironment"}) {
-      for (const bNode *node : ntree.nodes_by_type(idname)) {
-        Image *image = reinterpret_cast<Image *>(node->id);
-        if (image != nullptr && BKE_image_is_animated(image)) {
-          ntree.runtime->runtime_flag |= NTREE_RUNTIME_FLAG_HAS_IMAGE_ANIMATION;
+
+    if (ntree.type == NTREE_SHADER) {
+      /* Check if the tree itself has an animated image. */
+      for (const StringRefNull idname : {"ShaderNodeTexImage", "ShaderNodeTexEnvironment"}) {
+        for (const bNode *node : ntree.nodes_by_type(idname)) {
+          Image *image = reinterpret_cast<Image *>(node->id);
+          if (image != nullptr && BKE_image_is_animated(image)) {
+            ntree.runtime->runtime_flag |= NTREE_RUNTIME_FLAG_HAS_IMAGE_ANIMATION;
+            break;
+          }
+        }
+      }
+      /* Check if the tree has a material output. */
+      for (const StringRefNull idname : {"ShaderNodeOutputMaterial",
+                                         "ShaderNodeOutputLight",
+                                         "ShaderNodeOutputWorld",
+                                         "ShaderNodeOutputAOV"})
+      {
+        const Span<const bNode *> nodes = ntree.nodes_by_type(idname);
+        if (!nodes.is_empty()) {
+          ntree.runtime->runtime_flag |= NTREE_RUNTIME_FLAG_HAS_MATERIAL_OUTPUT;
           break;
         }
       }
     }
-    /* Check if the tree has a material output. */
-    for (const StringRefNull idname : {"ShaderNodeOutputMaterial",
-                                       "ShaderNodeOutputLight",
-                                       "ShaderNodeOutputWorld",
-                                       "ShaderNodeOutputAOV"}) {
-      const Span<const bNode *> nodes = ntree.nodes_by_type(idname);
-      if (!nodes.is_empty()) {
-        ntree.runtime->runtime_flag |= NTREE_RUNTIME_FLAG_HAS_MATERIAL_OUTPUT;
-        break;
+    if (ntree.type == NTREE_GEOMETRY) {
+      /* Check if there is a simulation zone. */
+      if (!ntree.nodes_by_type("GeometryNodeSimulationOutput").is_empty()) {
+        ntree.runtime->runtime_flag |= NTREE_RUNTIME_FLAG_HAS_SIMULATION_ZONE;
       }
     }
   }
@@ -746,6 +767,10 @@ class NodeTreeMainUpdater {
 
     LISTBASE_FOREACH (bNodeLink *, link, &ntree.links) {
       link->flag |= NODE_LINK_VALID;
+      if (!link->fromsock->is_available() || !link->tosock->is_available()) {
+        link->flag &= ~NODE_LINK_VALID;
+        continue;
+      }
       const bNode &from_node = *link->fromnode;
       const bNode &to_node = *link->tonode;
       if (toposort_indices[from_node.index()] > toposort_indices[to_node.index()]) {
@@ -808,7 +833,8 @@ class NodeTreeMainUpdater {
 
     /* The topology hash can only be used when only topology-changing operations have been done. */
     if (tree.runtime->changed_flag ==
-        (tree.runtime->changed_flag & (NTREE_CHANGED_LINK | NTREE_CHANGED_REMOVED_NODE))) {
+        (tree.runtime->changed_flag & (NTREE_CHANGED_LINK | NTREE_CHANGED_REMOVED_NODE)))
+    {
       if (old_topology_hash == new_topology_hash) {
         return false;
       }
@@ -849,7 +875,8 @@ class NodeTreeMainUpdater {
     if (node.type == NODE_GROUP) {
       const bNodeTree *node_group = reinterpret_cast<const bNodeTree *>(node.id);
       if (node_group != nullptr &&
-          node_group->runtime->runtime_flag & NTREE_RUNTIME_FLAG_HAS_MATERIAL_OUTPUT) {
+          node_group->runtime->runtime_flag & NTREE_RUNTIME_FLAG_HAS_MATERIAL_OUTPUT)
+      {
         return true;
       }
     }
@@ -1066,6 +1093,115 @@ class NodeTreeMainUpdater {
     return false;
   }
 
+  /**
+   * Make sure that the #bNodeTree::nested_node_refs is up to date. It's supposed to contain a
+   * reference to all (nested) simulation zones.
+   */
+  bool update_nested_node_refs(bNodeTree &ntree)
+  {
+    ntree.ensure_topology_cache();
+
+    /* Simplify lookup of old ids. */
+    Map<bNestedNodePath, int32_t> old_id_by_path;
+    Set<int32_t> old_ids;
+    for (const bNestedNodeRef &ref : ntree.nested_node_refs_span()) {
+      old_id_by_path.add(ref.path, ref.id);
+      old_ids.add(ref.id);
+    }
+
+    Vector<bNestedNodePath> nested_node_paths;
+
+    /* Don't forget nested node refs just because the linked file is not available right now. */
+    for (const bNestedNodePath &path : old_id_by_path.keys()) {
+      const bNode *node = ntree.node_by_id(path.node_id);
+      if (node && node->is_group() && node->id) {
+        if (node->id->tag & LIB_TAG_MISSING) {
+          nested_node_paths.append(path);
+        }
+      }
+    }
+    if (ntree.type == NTREE_GEOMETRY) {
+      /* Create references for simulations in geometry nodes. */
+      for (const bNode *node : ntree.nodes_by_type("GeometryNodeSimulationOutput")) {
+        nested_node_paths.append({node->identifier, -1});
+      }
+    }
+    /* Propagate references to nested nodes in group nodes. */
+    for (const bNode *node : ntree.group_nodes()) {
+      const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
+      if (group == nullptr) {
+        continue;
+      }
+      for (const int i : group->nested_node_refs_span().index_range()) {
+        const bNestedNodeRef &child_ref = group->nested_node_refs[i];
+        nested_node_paths.append({node->identifier, child_ref.id});
+      }
+    }
+
+    /* Used to generate new unique IDs if necessary. */
+    RandomNumberGenerator rng(PIL_check_seconds_timer_i() & UINT_MAX);
+
+    Map<int32_t, bNestedNodePath> new_path_by_id;
+    for (const bNestedNodePath &path : nested_node_paths) {
+      const int32_t old_id = old_id_by_path.lookup_default(path, -1);
+      if (old_id != -1) {
+        /* The same path existed before, it should keep the same ID as before. */
+        new_path_by_id.add(old_id, path);
+        continue;
+      }
+      int32_t new_id;
+      while (true) {
+        new_id = rng.get_int32(INT32_MAX);
+        if (!old_ids.contains(new_id) && !new_path_by_id.contains(new_id)) {
+          break;
+        }
+      }
+      /* The path is new, it should get a new ID that does not collide with any existing IDs. */
+      new_path_by_id.add(new_id, path);
+    }
+
+    /* Check if the old and new references are identical. */
+    if (!this->nested_node_refs_changed(ntree, new_path_by_id)) {
+      return false;
+    }
+
+    MEM_SAFE_FREE(ntree.nested_node_refs);
+    if (new_path_by_id.is_empty()) {
+      ntree.nested_node_refs_num = 0;
+      return true;
+    }
+
+    /* Allocate new array for the nested node references contained in the node tree. */
+    bNestedNodeRef *new_refs = static_cast<bNestedNodeRef *>(
+        MEM_malloc_arrayN(new_path_by_id.size(), sizeof(bNestedNodeRef), __func__));
+    int index = 0;
+    for (const auto item : new_path_by_id.items()) {
+      bNestedNodeRef &ref = new_refs[index];
+      ref.id = item.key;
+      ref.path = item.value;
+      index++;
+    }
+
+    ntree.nested_node_refs = new_refs;
+    ntree.nested_node_refs_num = new_path_by_id.size();
+
+    return true;
+  }
+
+  bool nested_node_refs_changed(const bNodeTree &ntree,
+                                const Map<int32_t, bNestedNodePath> &new_path_by_id)
+  {
+    if (ntree.nested_node_refs_num != new_path_by_id.size()) {
+      return true;
+    }
+    for (const bNestedNodeRef &ref : ntree.nested_node_refs_span()) {
+      if (!new_path_by_id.contains(ref.id)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void reset_changed_flags(bNodeTree &ntree)
   {
     ntree.runtime->changed_flag = NTREE_CHANGED_NOTHING;
@@ -1205,6 +1341,16 @@ void BKE_ntree_update_tag_image_user_changed(bNodeTree *ntree, ImageUser * /*ius
 {
   /* Would have to search for the node that uses the image user for a more detailed tag. */
   add_tree_tag(ntree, NTREE_CHANGED_ANY);
+}
+
+uint64_t bNestedNodePath::hash() const
+{
+  return blender::get_default_hash_2(this->node_id, this->id_in_node);
+}
+
+bool operator==(const bNestedNodePath &a, const bNestedNodePath &b)
+{
+  return a.node_id == b.node_id && a.id_in_node == b.id_in_node;
 }
 
 /**

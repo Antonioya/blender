@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -128,6 +130,10 @@ class Operation {
    * output results. */
   virtual void execute() = 0;
 
+  /* Compute and set a preview of the operation if needed. This method defaults to an empty
+   * implementation and should be implemented by operations which can have previews. */
+  virtual void compute_preview();
+
   /* Get a reference to the result connected to the input identified by the given identifier. */
   Result &get_input(StringRef identifier) const;
 
@@ -170,6 +176,12 @@ class Operation {
    * evaluation of the operation to declare that the results are no longer needed by this
    * operation. */
   void release_inputs();
+
+  /* Release the results that were allocated in the execute method but are not actually needed.
+   * This can be the case if the execute method allocated a dummy texture for an unneeded result,
+   * see the description of Result::allocate_texture() for more information. This is called after
+   * the evaluation of the operation. */
+  void release_unneeded_results();
 };
 
 }  // namespace blender::realtime_compositor

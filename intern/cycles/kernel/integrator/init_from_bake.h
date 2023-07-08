@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -8,6 +9,7 @@
 #include "kernel/film/adaptive_sampling.h"
 #include "kernel/film/light_passes.h"
 
+#include "kernel/integrator/intersect_closest.h"
 #include "kernel/integrator/path_state.h"
 
 #include "kernel/sample/pattern.h"
@@ -204,7 +206,7 @@ ccl_device bool integrator_init_from_bake(KernelGlobals kg,
     ray.time = 0.5f;
     ray.dP = differential_zero_compact();
     ray.dD = differential_zero_compact();
-    integrator_state_write_ray(kg, state, &ray);
+    integrator_state_write_ray(state, &ray);
 
     /* Setup next kernel to execute. */
     integrator_path_init(kg, state, DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND);
@@ -299,7 +301,7 @@ ccl_device bool integrator_init_from_bake(KernelGlobals kg,
     ray.dD = differential_zero_compact();
 
     /* Write ray. */
-    integrator_state_write_ray(kg, state, &ray);
+    integrator_state_write_ray(state, &ray);
 
     /* Setup and write intersection. */
     Intersection isect ccl_optional_struct_init;
@@ -309,7 +311,7 @@ ccl_device bool integrator_init_from_bake(KernelGlobals kg,
     isect.v = v;
     isect.t = 1.0f;
     isect.type = PRIMITIVE_TRIANGLE;
-    integrator_state_write_isect(kg, state, &isect);
+    integrator_state_write_isect(state, &isect);
 
     /* Setup next kernel to execute. */
     const bool use_caustics = kernel_data.integrator.use_caustics &&
@@ -327,6 +329,8 @@ ccl_device bool integrator_init_from_bake(KernelGlobals kg,
     else {
       integrator_path_init_sorted(kg, state, DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE, shader_index);
     }
+
+    integrator_split_shadow_catcher(kg, state, &isect, render_buffer);
   }
 
   return true;

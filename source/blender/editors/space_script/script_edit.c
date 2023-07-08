@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2008 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spscript
@@ -13,6 +14,8 @@
 
 #include "BKE_context.h"
 #include "BKE_report.h"
+
+#include "BLT_translation.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -31,10 +34,10 @@
 
 static int run_pyfile_exec(bContext *C, wmOperator *op)
 {
-  char path[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", path);
+  char filepath[FILE_MAX];
+  RNA_string_get(op->ptr, "filepath", filepath);
 #ifdef WITH_PYTHON
-  if (BPY_run_filepath(C, path, op->reports)) {
+  if (BPY_run_filepath(C, filepath, op->reports)) {
     ARegion *region = CTX_wm_region(C);
     if (region != NULL) {
       ED_region_tag_redraw(region);
@@ -49,6 +52,8 @@ static int run_pyfile_exec(bContext *C, wmOperator *op)
 
 void SCRIPT_OT_python_file_run(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
   /* identifiers */
   ot->name = "Run Python File";
   ot->description = "Run Python file";
@@ -60,7 +65,8 @@ void SCRIPT_OT_python_file_run(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 
-  RNA_def_string_file_path(ot->srna, "filepath", NULL, FILE_MAX, "Path", "");
+  prop = RNA_def_string_file_path(ot->srna, "filepath", NULL, FILE_MAX, "Path", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_EDITOR_FILEBROWSER);
 }
 
 #ifdef WITH_PYTHON
@@ -108,7 +114,7 @@ static int script_reload_exec(bContext *C, wmOperator *op)
   if (true) {
     /* Postpone when called from Python so this can be called from an operator
      * that might be re-registered, crashing Blender when we try to read from the
-     * freed operator type which, see T80694. */
+     * freed operator type which, see #80694. */
     BPY_run_string_exec(C,
                         (const char *[]){"bpy", NULL},
                         "def fn():\n"

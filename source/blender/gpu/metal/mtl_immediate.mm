@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2022-2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup gpu
@@ -26,9 +28,7 @@ MTLImmediate::MTLImmediate(MTLContext *ctx)
   context_ = ctx;
 }
 
-MTLImmediate::~MTLImmediate()
-{
-}
+MTLImmediate::~MTLImmediate() {}
 
 uchar *MTLImmediate::begin()
 {
@@ -68,12 +68,13 @@ void MTLImmediate::end()
 
     /* Skip draw if Metal shader is not valid. */
     if (active_mtl_shader == nullptr || !active_mtl_shader->is_valid() ||
-        active_mtl_shader->get_interface() == nullptr) {
+        active_mtl_shader->get_interface() == nullptr)
+    {
 
       const char *ptr = (active_mtl_shader) ? active_mtl_shader->name_get() : nullptr;
       MTL_LOG_WARNING(
           "MTLImmediate::end -- cannot perform draw as active shader is NULL or invalid (likely "
-          "unimplemented) (shader %p '%s')\n",
+          "unimplemented) (shader %p '%s')",
           active_mtl_shader,
           ptr);
       return;
@@ -163,7 +164,7 @@ void MTLImmediate::end()
       if (attr == nullptr) {
         MTL_LOG_ERROR(
             "MTLImmediate::end Could not find matching attribute '%s' from Shader Interface in "
-            "Vertex Format! - TODO: Bind Dummy attribute\n",
+            "Vertex Format! - TODO: Bind Dummy attribute",
             interface->get_name_at_offset(mtl_shader_attribute.name_offset));
         return;
       }
@@ -239,6 +240,17 @@ void MTLImmediate::end()
     desc.vertex_descriptor.buffer_layouts[0].stride = this->vertex_format.stride;
     BLI_assert(this->vertex_format.stride > 0);
 
+    /* Emulate LineLoop using LineStrip. */
+    if (this->prim_type == GPU_PRIM_LINE_LOOP) {
+      /* Patch final vertex of line loop to close. Rendered using LineStrip.
+       * NOTE: vertex_len represents original length, however, allocated Metal
+       * buffer contains space for one extra vertex when LineLoop is used. */
+      uchar *buffer_data = reinterpret_cast<uchar *>(current_allocation_.data);
+      memcpy(buffer_data + (vertex_len)*vertex_format.stride, buffer_data, vertex_format.stride);
+      this->vertex_idx++;
+      this->prim_type = GPU_PRIM_LINE_STRIP;
+    }
+
     /* SSBO Vertex Fetch -- Verify Attributes. */
     if (active_mtl_shader->get_uses_ssbo_vertex_fetch()) {
       active_mtl_shader->ssbo_vertex_fetch_bind_attributes_end(rec);
@@ -248,16 +260,16 @@ void MTLImmediate::end()
                      "ssbo_input_prim_type uniform location invalid!");
       BLI_assert_msg(active_mtl_shader->uni_ssbo_input_vert_count_loc != -1,
                      "ssbo_input_vert_count uniform location invalid!");
-      GPU_shader_uniform_vector_int(reinterpret_cast<GPUShader *>(wrap(active_mtl_shader)),
-                                    active_mtl_shader->uni_ssbo_input_prim_type_loc,
-                                    1,
-                                    1,
-                                    (const int *)(&this->prim_type));
-      GPU_shader_uniform_vector_int(reinterpret_cast<GPUShader *>(wrap(active_mtl_shader)),
-                                    active_mtl_shader->uni_ssbo_input_vert_count_loc,
-                                    1,
-                                    1,
-                                    (const int *)(&this->vertex_idx));
+      GPU_shader_uniform_int_ex(reinterpret_cast<GPUShader *>(wrap(active_mtl_shader)),
+                                active_mtl_shader->uni_ssbo_input_prim_type_loc,
+                                1,
+                                1,
+                                (const int *)(&this->prim_type));
+      GPU_shader_uniform_int_ex(reinterpret_cast<GPUShader *>(wrap(active_mtl_shader)),
+                                active_mtl_shader->uni_ssbo_input_vert_count_loc,
+                                1,
+                                1,
+                                (const int *)(&this->vertex_idx));
     }
 
     MTLPrimitiveType mtl_prim_type = gpu_prim_type_to_metal(this->prim_type);
@@ -312,7 +324,7 @@ void MTLImmediate::end()
             @autoreleasepool {
 
               id<MTLBuffer> index_buffer_mtl = nil;
-              uint32_t index_buffer_offset = 0;
+              uint64_t index_buffer_offset = 0;
 
               /* Region of scratch buffer used for topology emulation element data.
                * NOTE(Metal): We do not need to manually flush as the entire scratch
@@ -336,16 +348,6 @@ void MTLImmediate::end()
               context_->main_command_buffer.register_draw_counters(fan_index_count);
             }
             rendered = true;
-          } break;
-          case GPU_PRIM_LINE_LOOP: {
-            /* Patch final vertex of line loop to close. Rendered using LineStrip.
-             * Note: vertex_len represents original length, however, allocated Metal
-             * buffer contains space for one extra vertex when LineLoop is used. */
-            uchar *buffer_data = reinterpret_cast<uchar *>(current_allocation_.data);
-            memcpy(buffer_data + (vertex_len)*vertex_format.stride,
-                   buffer_data,
-                   vertex_format.stride);
-            this->vertex_idx++;
           } break;
           default: {
             BLI_assert_unreachable();
@@ -423,4 +425,4 @@ void MTLImmediate::end()
   }
 }
 
-}  // blender::gpu
+}  // namespace blender::gpu

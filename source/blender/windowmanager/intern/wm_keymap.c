@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2007 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup wm
@@ -21,6 +22,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_string_utils.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_api.h"
@@ -102,7 +104,7 @@ static void wm_keymap_item_properties_set(wmKeyMapItem *kmi)
 
 /**
  * Similar to #wm_keymap_item_properties_set
- * but checks for the #wmOperatorType having changed, see T38042.
+ * but checks for the #wmOperatorType having changed, see #38042.
  */
 static void wm_keymap_item_properties_update_ot(wmKeyMapItem *kmi)
 {
@@ -176,7 +178,7 @@ static bool wm_keymap_item_equals(wmKeyMapItem *a, wmKeyMapItem *b)
            (a->flag & KMI_REPEAT_IGNORE) == (b->flag & KMI_REPEAT_IGNORE)));
 }
 
-void WM_keymap_item_properties_reset(wmKeyMapItem *kmi, struct IDProperty *properties)
+void WM_keymap_item_properties_reset(wmKeyMapItem *kmi, IDProperty *properties)
 {
   if (LIKELY(kmi->ptr)) {
     WM_operator_properties_free(kmi->ptr);
@@ -279,7 +281,7 @@ wmKeyConfig *WM_keyconfig_new(wmWindowManager *wm, const char *idname, bool user
 
   /* Create new configuration. */
   keyconf = MEM_callocN(sizeof(wmKeyConfig), "wmKeyConfig");
-  BLI_strncpy(keyconf->idname, idname, sizeof(keyconf->idname));
+  STRNCPY(keyconf->idname, idname);
   BLI_addtail(&wm->keyconfigs, keyconf);
 
   if (user_defined) {
@@ -298,7 +300,7 @@ bool WM_keyconfig_remove(wmWindowManager *wm, wmKeyConfig *keyconf)
 {
   if (BLI_findindex(&wm->keyconfigs, keyconf) != -1) {
     if (STREQLEN(U.keyconfigstr, keyconf->idname, sizeof(U.keyconfigstr))) {
-      BLI_strncpy(U.keyconfigstr, wm->defaultconf->idname, sizeof(U.keyconfigstr));
+      STRNCPY(U.keyconfigstr, wm->defaultconf->idname);
       U.runtime.is_dirty = true;
       WM_keyconfig_update_tag(NULL, NULL);
     }
@@ -347,8 +349,8 @@ void WM_keyconfig_set_active(wmWindowManager *wm, const char *idname)
 
   WM_keyconfig_update(wm);
 
-  BLI_strncpy(U.keyconfigstr, idname, sizeof(U.keyconfigstr));
-  if (wm->initialized & WM_KEYCONFIG_IS_INIT) {
+  STRNCPY(U.keyconfigstr, idname);
+  if (wm->init_flag & WM_INIT_FLAG_KEYCONFIG) {
     U.runtime.is_dirty = true;
   }
 
@@ -366,16 +368,16 @@ void WM_keyconfig_set_active(wmWindowManager *wm, const char *idname)
 
 static wmKeyMap *wm_keymap_new(const char *idname, int spaceid, int regionid)
 {
-  wmKeyMap *km = MEM_callocN(sizeof(struct wmKeyMap), "keymap list");
+  wmKeyMap *km = MEM_callocN(sizeof(wmKeyMap), "keymap list");
 
-  BLI_strncpy(km->idname, idname, KMAP_MAX_NAME);
+  STRNCPY(km->idname, idname);
   km->spaceid = spaceid;
   km->regionid = regionid;
 
   {
     const char *owner_id = RNA_struct_state_owner_get();
     if (owner_id) {
-      BLI_strncpy(km->owner_id, owner_id, sizeof(km->owner_id));
+      STRNCPY(km->owner_id, owner_id);
     }
   }
   return km;
@@ -450,7 +452,8 @@ bool WM_keymap_poll(bContext *C, wmKeyMap *keymap)
         !BLI_str_endswith(keymap->idname, " (fallback)") &&
         /* This is an exception which may be empty.
          * Longer term we might want a flag to indicate an empty key-map is intended. */
-        !STREQ(keymap->idname, "Node Tool: Tweak")) {
+        !STREQ(keymap->idname, "Node Tool: Tweak"))
+    {
       CLOG_WARN(WM_LOG_KEYMAPS, "empty keymap '%s'", keymap->idname);
     }
   }
@@ -511,7 +514,7 @@ wmKeyMapItem *WM_keymap_add_item(wmKeyMap *keymap,
   wmKeyMapItem *kmi = MEM_callocN(sizeof(wmKeyMapItem), "keymap entry");
 
   BLI_addtail(&keymap->items, kmi);
-  BLI_strncpy(kmi->idname, idname, OP_MAX_TYPENAME);
+  STRNCPY(kmi->idname, idname);
 
   keymap_event_set(kmi, params);
   wm_keymap_item_properties_set(kmi);
@@ -523,7 +526,7 @@ wmKeyMapItem *WM_keymap_add_item(wmKeyMap *keymap,
   return kmi;
 }
 
-wmKeyMapItem *WM_keymap_add_item_copy(struct wmKeyMap *keymap, wmKeyMapItem *kmi_src)
+wmKeyMapItem *WM_keymap_add_item_copy(wmKeyMap *keymap, wmKeyMapItem *kmi_src)
 {
   wmKeyMapItem *kmi_dst = wm_keymap_item_copy(kmi_src);
 
@@ -652,13 +655,13 @@ static void wm_keymap_patch(wmKeyMap *km, wmKeyMap *diff_km)
 
     /* add item */
     if (kmdi->add_item) {
-      /* Do not re-add an already existing keymap item! See T42088. */
-      /* We seek only for exact copy here! See T42137. */
+      /* Do not re-add an already existing keymap item! See #42088. */
+      /* We seek only for exact copy here! See #42137. */
       wmKeyMapItem *kmi_add = wm_keymap_find_item_equals(km, kmdi->add_item);
 
-      /** If kmi_add is same as kmi_remove (can happen in some cases,
+      /* If kmi_add is same as kmi_remove (can happen in some cases,
        * typically when we got kmi_remove from #wm_keymap_find_item_equals_result()),
-       * no need to add or remove anything, see T45579. */
+       * no need to add or remove anything, see #45579. */
 
       /**
        * \note This typically happens when we apply user-defined keymap diff to a base one that
@@ -949,7 +952,7 @@ wmKeyMapItem *WM_modalkeymap_add_item_str(wmKeyMap *km,
   wmKeyMapItem *kmi = MEM_callocN(sizeof(wmKeyMapItem), "keymap entry");
 
   BLI_addtail(&km->items, kmi);
-  BLI_strncpy(kmi->propvalue_str, value, sizeof(kmi->propvalue_str));
+  STRNCPY(kmi->propvalue_str, value);
 
   keymap_event_set(kmi, params);
 
@@ -1070,7 +1073,7 @@ const char *WM_key_event_string(const short type, const bool compact)
       case EVT_LEFTSHIFTKEY:
       case EVT_RIGHTSHIFTKEY: {
         if (platform == MACOS) {
-          single_glyph = "\xe2\x87\xa7";
+          single_glyph = BLI_STR_UTF8_UPWARDS_WHITE_ARROW;
         }
         return key_event_glyph_or_text(
             font_id, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Shift"), single_glyph);
@@ -1078,47 +1081,50 @@ const char *WM_key_event_string(const short type, const bool compact)
       case EVT_LEFTCTRLKEY:
       case EVT_RIGHTCTRLKEY:
         if (platform == MACOS) {
-          return key_event_glyph_or_text(font_id, "^", "\xe2\x8c\x83");
+          return key_event_glyph_or_text(font_id, "^", BLI_STR_UTF8_UP_ARROWHEAD);
         }
         return IFACE_("Ctrl");
       case EVT_LEFTALTKEY:
       case EVT_RIGHTALTKEY: {
         if (platform == MACOS) {
           /* Option symbol on Mac keyboard. */
-          single_glyph = "\xe2\x8c\xa5";
+          single_glyph = BLI_STR_UTF8_OPTION_KEY;
         }
         return key_event_glyph_or_text(font_id, IFACE_("Alt"), single_glyph);
       }
       case EVT_OSKEY: {
         if (platform == MACOS) {
-          return key_event_glyph_or_text(font_id, IFACE_("Cmd"), "\xe2\x8c\x98");
+          return key_event_glyph_or_text(
+              font_id, IFACE_("Cmd"), BLI_STR_UTF8_PLACE_OF_INTEREST_SIGN);
         }
         if (platform == MSWIN) {
-          return key_event_glyph_or_text(font_id, IFACE_("Win"), "\xe2\x9d\x96");
+          return key_event_glyph_or_text(
+              font_id, IFACE_("Win"), BLI_STR_UTF8_BLACK_DIAMOND_MINUS_WHITE_X);
         }
         return IFACE_("OS");
       } break;
       case EVT_TABKEY:
-        return key_event_glyph_or_text(font_id, IFACE_("Tab"), "\xe2\xad\xbe");
+        return key_event_glyph_or_text(
+            font_id, CTX_N_(BLT_I18NCONTEXT_UI_EVENTS, "Tab"), BLI_STR_UTF8_HORIZONTAL_TAB_KEY);
       case EVT_BACKSPACEKEY:
-        return key_event_glyph_or_text(font_id, IFACE_("Bksp"), "\xe2\x8c\xab");
+        return key_event_glyph_or_text(font_id, IFACE_("Bksp"), BLI_STR_UTF8_ERASE_TO_THE_LEFT);
       case EVT_ESCKEY:
         if (platform == MACOS) {
-          single_glyph = "\xe2\x8e\x8b";
+          single_glyph = BLI_STR_UTF8_BROKEN_CIRCLE_WITH_NORTHWEST_ARROW;
         }
         return key_event_glyph_or_text(font_id, IFACE_("Esc"), single_glyph);
       case EVT_RETKEY:
-        return key_event_glyph_or_text(font_id, IFACE_("Enter"), "\xe2\x86\xb5");
+        return key_event_glyph_or_text(font_id, IFACE_("Enter"), BLI_STR_UTF8_RETURN_SYMBOL);
       case EVT_SPACEKEY:
-        return key_event_glyph_or_text(font_id, IFACE_("Space"), "\xe2\x90\xa3");
+        return key_event_glyph_or_text(font_id, IFACE_("Space"), BLI_STR_UTF8_OPEN_BOX);
       case EVT_LEFTARROWKEY:
-        return key_event_glyph_or_text(font_id, IFACE_("Left"), "\xe2\x86\x90");
+        return key_event_glyph_or_text(font_id, IFACE_("Left"), BLI_STR_UTF8_LEFTWARDS_ARROW);
       case EVT_UPARROWKEY:
-        return key_event_glyph_or_text(font_id, IFACE_("Up"), "\xe2\x86\x91");
+        return key_event_glyph_or_text(font_id, IFACE_("Up"), BLI_STR_UTF8_UPWARDS_ARROW);
       case EVT_RIGHTARROWKEY:
-        return key_event_glyph_or_text(font_id, IFACE_("Right"), "\xe2\x86\x92");
+        return key_event_glyph_or_text(font_id, IFACE_("Right"), BLI_STR_UTF8_RIGHTWARDS_ARROW);
       case EVT_DOWNARROWKEY:
-        return key_event_glyph_or_text(font_id, IFACE_("Down"), "\xe2\x86\x93");
+        return key_event_glyph_or_text(font_id, IFACE_("Down"), BLI_STR_UTF8_DOWNWARDS_ARROW);
     }
   }
 
@@ -1149,76 +1155,66 @@ int WM_keymap_item_raw_to_string(const short shift,
                                  const short type,
                                  const bool compact,
                                  char *result,
-                                 const int result_len)
+                                 const int result_maxncpy)
 {
   /* TODO: also support (some) value, like e.g. double-click? */
+  const char *result_array[12];
+  int i = 0;
 
-#define ADD_SEP \
-  if (p != buf) { \
-    *p++ = ' '; \
-  } \
-  (void)0
-
-  char buf[128];
-  char *p = buf;
-
-  buf[0] = '\0';
+  const char *space = " ";
 
   if (shift == KM_ANY && ctrl == KM_ANY && alt == KM_ANY && oskey == KM_ANY) {
     /* Don't show anything for any mapping. */
   }
   else {
     if (shift) {
-      ADD_SEP;
-      p += BLI_strcpy_rlen(p, WM_key_event_string(EVT_LEFTSHIFTKEY, true));
+      result_array[i++] = WM_key_event_string(EVT_LEFTSHIFTKEY, true);
+      result_array[i++] = space;
     }
-
     if (ctrl) {
-      ADD_SEP;
-      p += BLI_strcpy_rlen(p, WM_key_event_string(EVT_LEFTCTRLKEY, true));
+      result_array[i++] = WM_key_event_string(EVT_LEFTCTRLKEY, true);
+      result_array[i++] = space;
     }
-
     if (alt) {
-      ADD_SEP;
-      p += BLI_strcpy_rlen(p, WM_key_event_string(EVT_LEFTALTKEY, true));
+      result_array[i++] = WM_key_event_string(EVT_LEFTALTKEY, true);
+      result_array[i++] = space;
     }
-
     if (oskey) {
-      ADD_SEP;
-      p += BLI_strcpy_rlen(p, WM_key_event_string(EVT_OSKEY, true));
+      result_array[i++] = WM_key_event_string(EVT_OSKEY, true);
+      result_array[i++] = space;
     }
   }
 
   if (keymodifier) {
-    ADD_SEP;
-    p += BLI_strcpy_rlen(p, WM_key_event_string(keymodifier, compact));
+    result_array[i++] = WM_key_event_string(keymodifier, compact);
+    result_array[i++] = space;
   }
 
   if (type) {
-    ADD_SEP;
     if (val == KM_DBL_CLICK) {
-      p += BLI_strcpy_rlen(p, IFACE_("dbl-"));
+      result_array[i++] = IFACE_("dbl-");
     }
     else if (val == KM_CLICK_DRAG) {
-      p += BLI_strcpy_rlen(p, IFACE_("drag-"));
+      result_array[i++] = IFACE_("drag-");
     }
-    p += BLI_strcpy_rlen(p, WM_key_event_string(type, compact));
+    result_array[i++] = WM_key_event_string(type, compact);
   }
 
   /* We assume size of buf is enough to always store any possible shortcut,
    * but let's add a debug check about it! */
-  BLI_assert(p - buf < sizeof(buf));
+  BLI_assert(i < ARRAY_SIZE(result_array));
 
-  /* We need utf8 here, otherwise we may 'cut' some unicode chars like arrows... */
-  return BLI_strncpy_utf8_rlen(result, buf, result_len);
+  if (i > 0 && result_array[i - 1] == space) {
+    i--;
+  }
 
-#undef ADD_SEP
+  return BLI_string_join_array(result, result_maxncpy, result_array, i);
 }
 
 int WM_keymap_item_to_string(const wmKeyMapItem *kmi,
                              const bool compact,
                              char *result,
-                             const int result_len)
+                             const int result_maxncpy)
 {
   return WM_keymap_item_raw_to_string(kmi->shift,
                                       kmi->ctrl,
@@ -1229,16 +1225,17 @@ int WM_keymap_item_to_string(const wmKeyMapItem *kmi,
                                       kmi->type,
                                       compact,
                                       result,
-                                      result_len);
+                                      result_maxncpy);
 }
 
 int WM_modalkeymap_items_to_string(const wmKeyMap *km,
                                    const int propvalue,
                                    const bool compact,
                                    char *result,
-                                   const int result_len)
+                                   const int result_maxncpy)
 {
-  BLI_assert(result_len > 0);
+  BLI_string_debug_size(result, result_maxncpy);
+  BLI_assert(result_maxncpy > 0);
 
   const wmKeyMapItem *kmi;
   if (km == NULL || (kmi = WM_modalkeymap_find_propvalue(km, propvalue)) == NULL) {
@@ -1248,10 +1245,11 @@ int WM_modalkeymap_items_to_string(const wmKeyMap *km,
 
   int totlen = 0;
   do {
-    totlen += WM_keymap_item_to_string(kmi, compact, &result[totlen], result_len - totlen);
+    totlen += WM_keymap_item_to_string(kmi, compact, &result[totlen], result_maxncpy - totlen);
 
     if ((kmi = wm_modalkeymap_find_propvalue_iter(km, kmi, propvalue)) == NULL ||
-        totlen >= (result_len - 2)) {
+        totlen >= (result_maxncpy - 2))
+    {
       break;
     }
 
@@ -1266,25 +1264,27 @@ int WM_modalkeymap_operator_items_to_string(wmOperatorType *ot,
                                             const int propvalue,
                                             const bool compact,
                                             char *result,
-                                            const int result_len)
+                                            const int result_maxncpy)
 {
+  BLI_string_debug_size_after_nil(result, result_maxncpy);
   wmWindowManager *wm = G_MAIN->wm.first;
   wmKeyMap *keymap = WM_keymap_active(wm, ot->modalkeymap);
-  return WM_modalkeymap_items_to_string(keymap, propvalue, compact, result, result_len);
+  return WM_modalkeymap_items_to_string(keymap, propvalue, compact, result, result_maxncpy);
 }
 
 char *WM_modalkeymap_operator_items_to_string_buf(wmOperatorType *ot,
                                                   const int propvalue,
                                                   const bool compact,
-                                                  const int max_len,
+                                                  const int result_maxncpy,
                                                   int *r_available_len,
                                                   char **r_result)
 {
+  BLI_string_debug_size(*r_result, result_maxncpy);
   char *ret = *r_result;
 
   if (*r_available_len > 1) {
     int used_len = WM_modalkeymap_operator_items_to_string(
-                       ot, propvalue, compact, ret, min_ii(*r_available_len, max_len)) +
+                       ot, propvalue, compact, ret, min_ii(*r_available_len, result_maxncpy)) +
                    1;
 
     *r_available_len -= used_len;
@@ -1313,7 +1313,7 @@ static wmKeyMapItem *wm_keymap_item_find_in_keymap(wmKeyMap *keymap,
                                                    const struct wmKeyMapItemFind_Params *params)
 {
   LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
-    /* skip disabled keymap items [T38447] */
+    /* skip disabled keymap items [#38447] */
     if (kmi->flag & KMI_INACTIVE) {
       continue;
     }
@@ -1566,7 +1566,7 @@ static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
    * Otherwise:
    *     * If non-strict, unset properties always match set ones in IDP_EqualsProperties_ex.
    *     * If strict, unset properties never match set ones in IDP_EqualsProperties_ex,
-   *       and we do not want that to change (else we get things like T41757)!
+   *       and we do not want that to change (else we get things like #41757)!
    * ...so in either case, re-running a comparison with unset props set to default is useless.
    */
   if (!found && properties) {
@@ -1645,7 +1645,7 @@ char *WM_key_event_operator_string(const bContext *C,
                                    IDProperty *properties,
                                    const bool is_strict,
                                    char *result,
-                                   const int result_len)
+                                   const int result_maxncpy)
 {
   wmKeyMapItem *kmi = wm_keymap_item_find(C,
                                           opname,
@@ -1658,12 +1658,12 @@ char *WM_key_event_operator_string(const bContext *C,
                                           },
                                           NULL);
   if (kmi) {
-    WM_keymap_item_to_string(kmi, false, result, result_len);
+    WM_keymap_item_to_string(kmi, false, result, result_maxncpy);
     return result;
   }
 
   /* Check UI state (non key-map actions for UI regions). */
-  if (UI_key_event_operator_string(C, opname, properties, is_strict, result, result_len)) {
+  if (UI_key_event_operator_string(C, opname, properties, is_strict, result, result_maxncpy)) {
     return result;
   }
 
@@ -1998,7 +1998,7 @@ void WM_keymap_item_restore_to_default(wmWindowManager *wm, wmKeyMap *keymap, wm
   if (orig) {
     /* restore to original */
     if (!STREQ(orig->idname, kmi->idname)) {
-      BLI_strncpy(kmi->idname, orig->idname, sizeof(kmi->idname));
+      STRNCPY(kmi->idname, orig->idname);
       WM_keymap_item_properties_reset(kmi, NULL);
     }
 

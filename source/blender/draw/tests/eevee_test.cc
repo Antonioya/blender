@@ -1,11 +1,13 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "testing/testing.h"
 
 #include "BKE_context.h"
 #include "BKE_idtype.h"
 #include "BKE_main.h"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_object.h"
 #include "DEG_depsgraph.h"
 #include "RNA_define.h"
@@ -25,8 +27,11 @@ using ShadowTileDataBuf = draw::StorageArrayBuffer<ShadowTileDataPacked, SHADOW_
 
 static void test_eevee_shadow_shift_clear()
 {
+  GPU_render_begin();
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
   ShadowTileDataBuf tiles_data = {"tiles_data"};
+  ShadowTileMapClipBuf tilemaps_clip = {"tilemaps_clip"};
+  ShadowPageCacheBuf pages_cached_data_ = {"pages_cached_data_"};
 
   int tiles_index = 1;
   int tile_lod0 = tiles_index * SHADOW_TILEDATA_PER_TILEMAP + 5;
@@ -63,12 +68,14 @@ static void test_eevee_shadow_shift_clear()
   PassSimple pass("Test");
   pass.shader_set(sh);
   pass.bind_ssbo("tilemaps_buf", tilemaps_data);
+  pass.bind_ssbo("tilemaps_clip_buf", tilemaps_clip);
   pass.bind_ssbo("tiles_buf", tiles_data);
+  pass.bind_ssbo("pages_cached_buf", pages_cached_data_);
   pass.dispatch(int3(1, 1, tilemaps_data.size()));
 
   Manager manager;
   manager.submit(pass);
-  GPU_finish();
+  GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
 
   tilemaps_data.read();
   tiles_data.read();
@@ -83,13 +90,17 @@ static void test_eevee_shadow_shift_clear()
 
   GPU_shader_free(sh);
   DRW_shaders_free();
+  GPU_render_end();
 }
 DRAW_TEST(eevee_shadow_shift_clear)
 
 static void test_eevee_shadow_shift()
 {
+  GPU_render_begin();
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
   ShadowTileDataBuf tiles_data = {"tiles_data"};
+  ShadowTileMapClipBuf tilemaps_clip = {"tilemaps_clip"};
+  ShadowPageCacheBuf pages_cached_data_ = {"pages_cached_data_"};
 
   {
     ShadowTileMapData tilemap = {};
@@ -124,12 +135,14 @@ static void test_eevee_shadow_shift()
   PassSimple pass("Test");
   pass.shader_set(sh);
   pass.bind_ssbo("tilemaps_buf", tilemaps_data);
+  pass.bind_ssbo("tilemaps_clip_buf", tilemaps_clip);
   pass.bind_ssbo("tiles_buf", tiles_data);
+  pass.bind_ssbo("pages_cached_buf", pages_cached_data_);
   pass.dispatch(int3(1, 1, tilemaps_data.size()));
 
   Manager manager;
   manager.submit(pass);
-  GPU_finish();
+  GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
 
   tilemaps_data.read();
   tiles_data.read();
@@ -155,11 +168,13 @@ static void test_eevee_shadow_shift()
 
   GPU_shader_free(sh);
   DRW_shaders_free();
+  GPU_render_end();
 }
 DRAW_TEST(eevee_shadow_shift)
 
 static void test_eevee_shadow_tag_update()
 {
+  GPU_render_begin();
   using namespace blender::math;
   StorageVectorBuffer<uint, 128> past_casters_updated = {"PastCastersUpdated"};
   StorageVectorBuffer<uint, 128> curr_casters_updated = {"CurrCastersUpdated"};
@@ -221,7 +236,7 @@ static void test_eevee_shadow_tag_update()
   pass.dispatch(int3(curr_casters_updated.size(), 1, tilemaps_data.size()));
 
   manager.submit(pass);
-  GPU_finish();
+  GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
 
   tiles_data.read();
 
@@ -319,11 +334,13 @@ static void test_eevee_shadow_tag_update()
 
   GPU_shader_free(sh);
   DRW_shaders_free();
+  GPU_render_end();
 }
 DRAW_TEST(eevee_shadow_tag_update)
 
 static void test_eevee_shadow_free()
 {
+  GPU_render_begin();
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
   ShadowTileDataBuf tiles_data = {"tiles_data"};
   ShadowPageHeapBuf pages_free_data = {"PagesFreeBuf"};
@@ -422,7 +439,7 @@ static void test_eevee_shadow_free()
 
   Manager manager;
   manager.submit(pass);
-  GPU_finish();
+  GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
 
   tiles_data.read();
   pages_infos_data.read();
@@ -448,6 +465,7 @@ static void test_eevee_shadow_free()
 
   GPU_shader_free(sh);
   DRW_shaders_free();
+  GPU_render_end();
 }
 DRAW_TEST(eevee_shadow_free)
 
@@ -457,6 +475,8 @@ class TestDefrag {
   ShadowPageHeapBuf pages_free_data = {"PagesFreeBuf"};
   ShadowPageCacheBuf pages_cached_data = {"PagesCachedBuf"};
   ShadowPagesInfoDataBuf pages_infos_data = {"PagesInfosBuf"};
+  StorageBuffer<DispatchCommand> clear_dispatch_buf;
+  ShadowStatisticsBuf statistics_buf = {"statistics_buf"};
 
  public:
   TestDefrag(int allocation_count,
@@ -525,11 +545,13 @@ class TestDefrag {
     pass.bind_ssbo("pages_infos_buf", pages_infos_data);
     pass.bind_ssbo("pages_free_buf", pages_free_data);
     pass.bind_ssbo("pages_cached_buf", pages_cached_data);
+    pass.bind_ssbo("statistics_buf", statistics_buf);
+    pass.bind_ssbo("clear_dispatch_buf", clear_dispatch_buf);
     pass.dispatch(int3(1, 1, 1));
 
     Manager manager;
     manager.submit(pass);
-    GPU_finish();
+    GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
 
     tiles_data.read();
     pages_cached_data.read();
@@ -589,10 +611,12 @@ class TestAlloc {
   ShadowPageHeapBuf pages_free_data = {"PagesFreeBuf"};
   ShadowPageCacheBuf pages_cached_data = {"PagesCachedBuf"};
   ShadowPagesInfoDataBuf pages_infos_data = {"PagesInfosBuf"};
+  ShadowStatisticsBuf statistics_buf = {"statistics_buf"};
 
  public:
   TestAlloc(int page_free_count)
   {
+    GPU_render_begin();
     int tiles_index = 1;
 
     for (uint i : IndexRange(0, page_free_count)) {
@@ -646,11 +670,12 @@ class TestAlloc {
     pass.bind_ssbo("pages_infos_buf", pages_infos_data);
     pass.bind_ssbo("pages_free_buf", pages_free_data);
     pass.bind_ssbo("pages_cached_buf", pages_cached_data);
+    pass.bind_ssbo("statistics_buf", statistics_buf);
     pass.dispatch(int3(1, 1, tilemaps_data.size()));
 
     Manager manager;
     manager.submit(pass);
-    GPU_finish();
+    GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
 
     tiles_data.read();
     pages_infos_data.read();
@@ -665,6 +690,7 @@ class TestAlloc {
 
     GPU_shader_free(sh);
     DRW_shaders_free();
+    GPU_render_end();
   }
 };
 
@@ -678,11 +704,14 @@ DRAW_TEST(eevee_shadow_alloc)
 
 static void test_eevee_shadow_finalize()
 {
+  GPU_render_begin();
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
   ShadowTileDataBuf tiles_data = {"tiles_data"};
   ShadowPageHeapBuf pages_free_data = {"PagesFreeBuf"};
   ShadowPageCacheBuf pages_cached_data = {"PagesCachedBuf"};
   ShadowPagesInfoDataBuf pages_infos_data = {"PagesInfosBuf"};
+  ShadowStatisticsBuf statistics_buf = {"statistics_buf"};
+  ShadowTileMapClipBuf tilemaps_clip = {"tilemaps_clip"};
 
   const uint lod0_len = SHADOW_TILEMAP_LOD0_LEN;
   const uint lod1_len = SHADOW_TILEMAP_LOD1_LEN;
@@ -765,7 +794,7 @@ static void test_eevee_shadow_finalize()
   Texture render_map_tx = {"ShadowRenderMap",
                            GPU_R32UI,
                            GPU_TEXTURE_USAGE_HOST_READ | GPU_TEXTURE_USAGE_SHADER_READ |
-                               GPU_TEXTURE_USAGE_SHADER_WRITE,
+                               GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW,
                            int2(SHADOW_TILEMAP_RES),
                            1, /* Only one layer for the test. */
                            nullptr,
@@ -787,6 +816,8 @@ static void test_eevee_shadow_finalize()
   pass.bind_ssbo("view_infos_buf", shadow_multi_view.matrices_ubo_get());
   pass.bind_ssbo("clear_dispatch_buf", clear_dispatch_buf);
   pass.bind_ssbo("clear_page_buf", clear_page_buf);
+  pass.bind_ssbo("statistics_buf", statistics_buf);
+  pass.bind_ssbo("tilemaps_clip_buf", tilemaps_clip);
   pass.bind_image("render_map_lod0_img", render_map_tx.mip_view(0));
   pass.bind_image("render_map_lod1_img", render_map_tx.mip_view(1));
   pass.bind_image("render_map_lod2_img", render_map_tx.mip_view(2));
@@ -797,9 +828,7 @@ static void test_eevee_shadow_finalize()
 
   Manager manager;
   manager.submit(pass);
-  GPU_finish();
-
-  GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+  GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE | GPU_BARRIER_TEXTURE_UPDATE);
 
   {
     uint *pixels = tilemap_tx.read<uint32_t>(GPU_DATA_UINT);
@@ -963,11 +992,13 @@ static void test_eevee_shadow_finalize()
 
   GPU_shader_free(sh);
   DRW_shaders_free();
+  GPU_render_end();
 }
 DRAW_TEST(eevee_shadow_finalize)
 
 static void test_eevee_shadow_page_mask()
 {
+  GPU_render_begin();
   ShadowTileMapDataBuf tilemaps_data = {"tilemaps_data"};
   ShadowTileDataBuf tiles_data = {"tiles_data"};
 
@@ -1052,7 +1083,7 @@ static void test_eevee_shadow_page_mask()
 
   Manager manager;
   manager.submit(pass);
-  GPU_finish();
+  GPU_memory_barrier(GPU_BARRIER_BUFFER_UPDATE);
 
   tiles_data.read();
 
@@ -1143,7 +1174,119 @@ static void test_eevee_shadow_page_mask()
 
   GPU_shader_free(sh);
   DRW_shaders_free();
+  GPU_render_end();
 }
 DRAW_TEST(eevee_shadow_page_mask)
+
+static void test_eevee_surfel_list()
+{
+  GPU_render_begin();
+  StorageArrayBuffer<int> list_start_buf = {"list_start_buf"};
+  StorageVectorBuffer<Surfel> surfel_buf = {"surfel_buf"};
+  CaptureInfoBuf capture_info_buf = {"capture_info_buf"};
+  SurfelListInfoBuf list_info_buf = {"list_info_buf"};
+
+  /**
+   * Simulate surfels on a 2x2 projection grid covering [0..2] on the Z axis.
+   */
+  {
+    Surfel surfel;
+    /* NOTE: Expected link assumes linear increasing processing order [0->5]. But this is
+     * multithreaded and we can't know the execution order in advance. */
+    /* 0: Project to (1, 0) = list 1. Unsorted Next = -1; Next = -1; Previous = 3. */
+    surfel.position = {1.1f, 0.1f, 0.1f};
+    surfel_buf.append(surfel);
+    /* 1: Project to (1, 0) = list 1. Unsorted Next = 0; Next = 2; Previous = -1. */
+    surfel.position = {1.1f, 0.2f, 0.5f};
+    surfel_buf.append(surfel);
+    /* 2: Project to (1, 0) = list 1. Unsorted Next = 1; Next = 3; Previous = 1. */
+    surfel.position = {1.1f, 0.3f, 0.3f};
+    surfel_buf.append(surfel);
+    /* 3: Project to (1, 0) = list 1. Unsorted Next = 2; Next = 0; Previous = 2. */
+    surfel.position = {1.2f, 0.4f, 0.2f};
+    surfel_buf.append(surfel);
+    /* 4: Project to (1, 1) = list 3. Unsorted Next = -1; Next = -1; Previous = -1. */
+    surfel.position = {1.0f, 1.0f, 0.5f};
+    surfel_buf.append(surfel);
+    /* 5: Project to (0, 1) = list 2. Unsorted Next = -1; Next = -1; Previous = -1. */
+    surfel.position = {0.1f, 1.1f, 0.5f};
+    surfel_buf.append(surfel);
+
+    surfel_buf.push_update();
+  }
+  {
+    capture_info_buf.surfel_len = surfel_buf.size();
+    capture_info_buf.push_update();
+  }
+  {
+    list_info_buf.ray_grid_size = int2(2);
+    list_info_buf.list_max = list_info_buf.ray_grid_size.x * list_info_buf.ray_grid_size.y;
+    list_info_buf.push_update();
+  }
+  {
+    list_start_buf.resize(ceil_to_multiple_u(list_info_buf.list_max, 4u));
+    list_start_buf.push_update();
+    GPU_storagebuf_clear(list_start_buf, -1);
+  }
+
+  /* Top-down view. */
+  View view = {"RayProjectionView"};
+  view.sync(float4x4::identity(), math::projection::orthographic<float>(0, 2, 0, 2, 0, 1));
+
+  GPUShader *sh_build = GPU_shader_create_from_info_name("eevee_surfel_list_build");
+  GPUShader *sh_sort = GPU_shader_create_from_info_name("eevee_surfel_list_sort");
+
+  PassSimple pass("Build_and_Sort");
+  pass.shader_set(sh_build);
+  pass.bind_ssbo("list_start_buf", list_start_buf);
+  pass.bind_ssbo("surfel_buf", surfel_buf);
+  pass.bind_ssbo("capture_info_buf", capture_info_buf);
+  pass.bind_ssbo("list_info_buf", list_info_buf);
+  pass.dispatch(int3(1, 1, 1));
+  pass.barrier(GPU_BARRIER_SHADER_STORAGE);
+
+  pass.shader_set(sh_sort);
+  pass.bind_ssbo("list_start_buf", list_start_buf);
+  pass.bind_ssbo("surfel_buf", surfel_buf);
+  pass.bind_ssbo("list_info_buf", list_info_buf);
+  pass.dispatch(int3(1, 1, 1));
+  pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
+
+  Manager manager;
+  manager.submit(pass, view);
+
+  list_start_buf.read();
+  surfel_buf.read();
+
+  /* NOTE: All of these are unstable by definition (atomic + multi-thread).
+   * But should be consistent since we only dispatch one thread-group. */
+  /* Expect last added surfel index. It is the list start index before sorting. */
+  Vector<int> expect_list_start = {-1, 3, 5, 4};
+  /* Expect surfel list. */
+  Vector<int> expect_link_next = {-1, +2, +3, +0, -1, -1};
+  Vector<int> expect_link_prev = {+3, -1, +1, +2, -1, -1};
+
+  Vector<int> link_next, link_prev;
+  for (auto &surfel : Span<Surfel>(surfel_buf.data(), surfel_buf.size())) {
+    link_next.append(surfel.next);
+    link_prev.append(surfel.prev);
+  }
+
+#if 0 /* Useful for debugging */
+  // Span<int>(list_start_buf.data(), expect_list_start.size()).print_as_lines("list_start");
+  // link_next.as_span().print_as_lines("link_next");
+  // link_prev.as_span().print_as_lines("link_prev");
+#endif
+
+  EXPECT_EQ_ARRAY(list_start_buf.data(), expect_list_start.data(), expect_list_start.size());
+  EXPECT_EQ_ARRAY(link_next.data(), expect_link_next.data(), expect_link_next.size());
+  EXPECT_EQ_ARRAY(link_prev.data(), expect_link_prev.data(), expect_link_prev.size());
+
+  GPU_shader_free(sh_build);
+  GPU_shader_free(sh_sort);
+  DRW_shaders_free();
+  GPU_render_end();
+}
+DRAW_TEST(eevee_surfel_list)
 
 }  // namespace blender::draw

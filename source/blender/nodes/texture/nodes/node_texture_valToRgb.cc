@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup texnodes
@@ -43,13 +44,13 @@ static void valtorgb_init(bNodeTree * /*ntree*/, bNode *node)
   node->storage = BKE_colorband_add(true);
 }
 
-void register_node_type_tex_valtorgb(void)
+void register_node_type_tex_valtorgb()
 {
   static bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_VALTORGB, "ColorRamp", NODE_CLASS_CONVERTER);
-  node_type_socket_templates(&ntype, valtorgb_in, valtorgb_out);
-  node_type_size_preset(&ntype, NODE_SIZE_LARGE);
+  tex_node_type_base(&ntype, TEX_NODE_VALTORGB, "Color Ramp", NODE_CLASS_CONVERTER);
+  blender::bke::node_type_socket_templates(&ntype, valtorgb_in, valtorgb_out);
+  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::LARGE);
   ntype.initfunc = valtorgb_init;
   node_type_storage(&ntype, "ColorBand", node_free_standard_storage, node_copy_standard_storage);
   ntype.exec_fn = valtorgb_exec;
@@ -85,12 +86,12 @@ static void rgbtobw_exec(void *data,
   tex_output(node, execdata, in, out[0], &rgbtobw_valuefn, static_cast<TexCallData *>(data));
 }
 
-void register_node_type_tex_rgbtobw(void)
+void register_node_type_tex_rgbtobw()
 {
   static bNodeType ntype;
 
   tex_node_type_base(&ntype, TEX_NODE_RGBTOBW, "RGB to BW", NODE_CLASS_CONVERTER);
-  node_type_socket_templates(&ntype, rgbtobw_in, rgbtobw_out);
+  blender::bke::node_type_socket_templates(&ntype, rgbtobw_in, rgbtobw_out);
   ntype.exec_fn = rgbtobw_exec;
 
   nodeRegisterType(&ntype);

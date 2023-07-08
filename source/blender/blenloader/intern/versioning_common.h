@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup blenloader
@@ -11,18 +13,36 @@
 #endif
 
 struct ARegion;
+struct bNodeSocket;
+struct bNodeTree;
+struct ID;
+struct IDProperty;
 struct ListBase;
 struct Main;
-struct bNodeTree;
+struct ViewLayer;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/**
+ * Check if a region of type \a region_type exists in \a regionbase. Otherwise add it after the
+ * first region of type \a link_after_region_type.
+ * \returns null if a region of the given type already existed, otherwise the newly added region.
+ */
 struct ARegion *do_versions_add_region_if_not_found(struct ListBase *regionbase,
                                                     int region_type,
-                                                    const char *name,
+                                                    const char *allocname,
                                                     int link_after_region_type);
+/**
+ * Check if a region of type \a region_type exists in \a regionbase. Otherwise add it after the
+ * first region of type \a link_after_region_type.
+ * \returns either a new, or already existing region.
+ */
+ARegion *do_versions_ensure_region(ListBase *regionbase,
+                                   int region_type,
+                                   const char *allocname,
+                                   int link_after_region_type);
 
 /**
  * Rename if the ID doesn't exist.
@@ -30,6 +50,8 @@ struct ARegion *do_versions_add_region_if_not_found(struct ListBase *regionbase,
  * \return the ID (if found).
  */
 ID *do_versions_rename_id(Main *bmain, short id_type, const char *name_src, const char *name_dst);
+
+bool version_node_socket_is_used(struct bNodeSocket *sock);
 
 void version_node_socket_name(struct bNodeTree *ntree,
                               int node_type,
@@ -93,6 +115,30 @@ struct bNodeSocket *version_node_add_socket_if_not_exist(struct bNodeTree *ntree
  */
 void version_socket_update_is_used(bNodeTree *ntree);
 ARegion *do_versions_add_region(int regiontype, const char *name);
+
+void sequencer_init_preview_region(ARegion *region);
+
+void add_realize_instances_before_socket(bNodeTree *ntree,
+                                         bNode *node,
+                                         bNodeSocket *geometry_socket);
+
+float *version_cycles_node_socket_float_value(struct bNodeSocket *socket);
+float *version_cycles_node_socket_rgba_value(struct bNodeSocket *socket);
+float *version_cycles_node_socket_vector_value(struct bNodeSocket *socket);
+
+struct IDProperty *version_cycles_properties_from_ID(struct ID *id);
+struct IDProperty *version_cycles_properties_from_view_layer(struct ViewLayer *view_layer);
+struct IDProperty *version_cycles_visibility_properties_from_ID(ID *id);
+
+float version_cycles_property_float(struct IDProperty *idprop,
+                                    const char *name,
+                                    float default_value);
+int version_cycles_property_int(struct IDProperty *idprop, const char *name, int default_value);
+void version_cycles_property_int_set(struct IDProperty *idprop, const char *name, int value);
+bool version_cycles_property_boolean(struct IDProperty *idprop,
+                                     const char *name,
+                                     bool default_value);
+void version_cycles_property_boolean_set(struct IDProperty *idprop, const char *name, bool value);
 
 #ifdef __cplusplus
 }

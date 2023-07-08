@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -36,9 +37,7 @@ struct DeviceKernelArguments {
   size_t sizes[MAX_ARGS];
   size_t count = 0;
 
-  DeviceKernelArguments()
-  {
-  }
+  DeviceKernelArguments() {}
 
   template<class T> DeviceKernelArguments(const T *arg)
   {

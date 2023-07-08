@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #ifndef GPU_SHADER
 #  include "GPU_shader_shared_utils.h"
@@ -59,6 +61,6 @@ struct ExtrudedFrustum {
 
 struct ShadowPassData {
   float4 far_plane;
-  float3 light_direction_ws;
+  packed_float3 light_direction_ws;
   int _padding;
 };

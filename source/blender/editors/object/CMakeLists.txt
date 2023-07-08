@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2023 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
@@ -9,7 +11,7 @@ set(INC
   ../../bmesh
   ../../depsgraph
   ../../functions
-  ../../gpencil_modifiers
+  ../../gpencil_modifiers_legacy
   ../../gpu
   ../../ikplugin
   ../../imbuf
@@ -36,28 +38,29 @@ set(SRC
   object_add.cc
   object_bake.cc
   object_bake_api.cc
-  object_collection.c
-  object_constraint.c
-  object_data_transfer.c
-  object_data_transform.c
-  object_edit.c
-  object_facemap_ops.c
-  object_gpencil_modifier.c
-  object_hook.c
-  object_modes.c
+  object_bake_simulation.cc
+  object_collection.cc
+  object_constraint.cc
+  object_data_transfer.cc
+  object_data_transform.cc
+  object_edit.cc
+  object_gpencil_modifier.cc
+  object_hook.cc
+  object_light_linking_ops.cc
+  object_modes.cc
   object_modifier.cc
-  object_ops.c
-  object_random.c
-  object_relations.c
+  object_ops.cc
+  object_random.cc
+  object_relations.cc
   object_remesh.cc
-  object_select.c
-  object_shader_fx.c
-  object_shapekey.c
+  object_select.cc
+  object_shader_fx.cc
+  object_shapekey.cc
   object_transform.cc
-  object_utils.c
+  object_utils.cc
   object_vgroup.cc
-  object_volume.c
-  object_warp.c
+  object_volume.cc
+  object_warp.cc
 
   object_intern.h
 )
@@ -66,6 +69,7 @@ set(LIB
   bf_blenkernel
   bf_blenlib
   bf_editor_mesh
+  bf_editor_grease_pencil
   bf_render
   bf_windowmanager
 )
@@ -78,6 +82,7 @@ endif()
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_SIMULATION_DATABLOCK)
   add_definitions(-DWITH_POINT_CLOUD)
+  add_definitions(-DWITH_GREASE_PENCIL_V3)
 endif()
 
 blender_add_lib(bf_editor_object "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2016 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2016 Blender Foundation. All rights reserved.
 
 # Libraries configuration for Apple.
 
@@ -152,9 +153,12 @@ if(WITH_CODEC_FFMPEG)
     avcodec avdevice avformat avutil
     mp3lame ogg opus swresample swscale
     theora theoradec theoraenc vorbis vorbisenc
-    vorbisfile vpx x264 xvidcore)
+    vorbisfile vpx x264)
   if(EXISTS ${LIBDIR}/ffmpeg/lib/libaom.a)
     list(APPEND FFMPEG_FIND_COMPONENTS aom)
+  endif()
+  if(EXISTS ${LIBDIR}/ffmpeg/lib/libxvidcore.a)
+    list(APPEND FFMPEG_FIND_COMPONENTS xvidcore)
   endif()
   find_package(FFmpeg)
 endif()
@@ -174,7 +178,7 @@ if(SYSTEMSTUBS_LIBRARY)
   list(APPEND PLATFORM_LINKLIBS SystemStubs)
 endif()
 
-string(APPEND PLATFORM_CFLAGS " -pipe -funsigned-char -fno-strict-aliasing")
+string(APPEND PLATFORM_CFLAGS " -pipe -funsigned-char -fno-strict-aliasing -ffp-contract=off")
 set(PLATFORM_LINKFLAGS
   "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Cocoa -framework Carbon -framework AudioUnit -framework AudioToolbox -framework CoreAudio -framework Metal -framework QuartzCore"
 )
@@ -221,10 +225,8 @@ find_package(PNG REQUIRED)
 set(JPEG_ROOT ${LIBDIR}/jpeg)
 find_package(JPEG REQUIRED)
 
-if(WITH_IMAGE_TIFF)
-  set(TIFF_ROOT ${LIBDIR}/tiff)
-  find_package(TIFF REQUIRED)
-endif()
+set(TIFF_ROOT ${LIBDIR}/tiff)
+find_package(TIFF REQUIRED)
 
 if(WITH_IMAGE_WEBP)
   set(WEBP_ROOT_DIR ${LIBDIR}/webp)
@@ -245,6 +247,7 @@ if(WITH_BOOST)
   if(WITH_USD AND USD_PYTHON_SUPPORT)
     list(APPEND _boost_FIND_COMPONENTS python${PYTHON_VERSION_NO_DOTS})
   endif()
+  set(Boost_NO_WARN_NEW_VERSIONS ON)
   find_package(Boost COMPONENTS ${_boost_FIND_COMPONENTS})
 
   # Boost Python is separate to avoid linking Python into tests that don't need it.
@@ -270,19 +273,7 @@ if(WITH_PUGIXML)
   find_package(PugiXML REQUIRED)
 endif()
 
-if(WITH_OPENIMAGEIO)
-  find_package(OpenImageIO)
-  list(APPEND OPENIMAGEIO_LIBRARIES
-    ${PNG_LIBRARIES}
-    ${JPEG_LIBRARIES}
-    ${TIFF_LIBRARY}
-    ${OPENEXR_LIBRARIES}
-    ${OPENJPEG_LIBRARIES}
-    ${ZLIB_LIBRARIES}
-  )
-  set(OPENIMAGEIO_DEFINITIONS "-DOIIO_STATIC_BUILD")
-  set(OPENIMAGEIO_IDIFF "${LIBDIR}/openimageio/bin/idiff")
-endif()
+find_package(OpenImageIO REQUIRED)
 add_bundled_libraries(openimageio/lib)
 
 if(WITH_OPENCOLORIO)
@@ -341,6 +332,7 @@ if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
   endforeach()
   set(EMBREE_LIBRARIES ${_embree_libraries_force_load})
 endif()
+add_bundled_libraries(embree/lib)
 
 if(WITH_OPENIMAGEDENOISE)
   find_package(OpenImageDenoise REQUIRED)
@@ -440,7 +432,7 @@ string(APPEND PLATFORM_LINKFLAGS " -stdlib=libc++")
 # Make stack size more similar to Embree, required for Embree.
 string(APPEND PLATFORM_LINKFLAGS_EXECUTABLE " -Wl,-stack_size,0x100000")
 
-# Suppress ranlib "has no symbols" warnings (workaround for T48250)
+# Suppress ranlib "has no symbols" warnings (workaround for #48250).
 set(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
 set(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
 # llvm-ranlib doesn't support this flag. Xcode's libtool does.
@@ -462,6 +454,31 @@ if(WITH_COMPILER_CCACHE)
     endif()
   endif()
 endif()
+
+unset(_custom_LINKER_FUSE_FLAG)
+if(WITH_LINKER_LLD)
+  find_program(LLD_PROGRAM ld.lld)
+  if(LLD_PROGRAM)
+    set(_custom_LINKER_FUSE_FLAG "-fuse-ld=lld")
+  else()
+    message(WARNING "LLD linker NOT found, disabling WITH_LINKER_LLD")
+    set(WITH_LINKER_LLD OFF)
+  endif()
+endif()
+if(WITH_LINKER_MOLD)
+  find_program(MOLD_PROGRAM mold)
+  if(MOLD_PROGRAM)
+    set(_custom_LINKER_FUSE_FLAG "-fuse-ld=mold")
+  else()
+    message(WARNING "Mold linker NOT found, disabling WITH_LINKER_MOLD")
+    set(WITH_LINKER_MOLD OFF)
+  endif()
+endif()
+
+if(_custom_LINKER_FUSE_FLAG)
+  add_link_options(${_custom_LINKER_FUSE_FLAG})
+endif()
+
 
 if(WITH_COMPILER_ASAN)
   list(APPEND PLATFORM_BUNDLED_LIBRARIES ${COMPILER_ASAN_LIBRARY})

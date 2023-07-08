@@ -82,8 +82,7 @@ LightData debug_light_get()
   }
   LIGHT_FOREACH_END
 
-  LIGHT_FOREACH_BEGIN_DIRECTIONAL(light_cull_buf, l_idx)
-  {
+  LIGHT_FOREACH_BEGIN_DIRECTIONAL (light_cull_buf, l_idx) {
     LightData light = light_buf[l_idx];
     if (light.tilemap_index == debug_tilemap_index) {
       return light;
@@ -105,13 +104,13 @@ bool debug_tilemaps(vec3 P, LightData light)
     int tile_index = shadow_tile_offset(px % SHADOW_TILEMAP_RES, tilemap.tiles_index, 0);
     ShadowTileData tile = shadow_tile_unpack(tiles_buf[tile_index]);
     /* Leave 1 px border between tilemaps. */
-    if (!any(
-            equal(ivec2(gl_FragCoord.xy) % (SHADOW_TILEMAP_RES * debug_tile_size_px), ivec2(0)))) {
+    if (!any(equal(ivec2(gl_FragCoord.xy) % (SHADOW_TILEMAP_RES * debug_tile_size_px), ivec2(0))))
+    {
       gl_FragDepth = 0.0;
       out_color_add = vec4(debug_tile_state_color(tile), 0.0);
       out_color_mul = vec4(0.0);
 
-      if (ivec2(gl_FragCoord.xy) == ivec2(0)) {
+      if (all(equal(ivec2(gl_FragCoord.xy), ivec2(0)))) {
         drw_print(light.object_mat);
       }
       return true;

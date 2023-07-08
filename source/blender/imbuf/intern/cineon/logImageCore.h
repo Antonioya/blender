@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 1999-2001 David Hodson <hodsond@acm.org>. */
+/* SPDX-FileCopyrightText: 1999-2001 David Hodson <hodsond@acm.org>.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup imbcineon
@@ -67,7 +68,7 @@ typedef struct LogImageFile {
   float referenceWhite;
   float gamma;
 
-  /* io stuff */
+  /* IO stuff. */
   FILE *file;
   unsigned char *memBuffer;
   uintptr_t memBufferSize;

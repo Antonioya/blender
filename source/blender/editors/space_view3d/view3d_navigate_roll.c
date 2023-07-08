@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spview3d
@@ -93,6 +95,9 @@ static int viewroll_modal(bContext *C, wmOperator *op, const wmEvent *event)
       case VIEW_MODAL_CONFIRM:
         event_code = VIEW_CONFIRM;
         break;
+      case VIEW_MODAL_CANCEL:
+        event_code = VIEW_CANCEL;
+        break;
       case VIEWROT_MODAL_SWITCH_MOVE:
         WM_operator_name_call(C, "VIEW3D_OT_move", WM_OP_INVOKE_DEFAULT, NULL, event);
         event_code = VIEW_CONFIRM;
@@ -109,12 +114,12 @@ static int viewroll_modal(bContext *C, wmOperator *op, const wmEvent *event)
     }
     else if (event->type == vod->init.event_type) {
       /* Check `vod->init.event_type` first in case RMB was used to invoke.
-       * in this case confirming takes precedence over canceling, see: T102937. */
+       * in this case confirming takes precedence over canceling, see: #102937. */
       if (event->val == KM_RELEASE) {
         event_code = VIEW_CONFIRM;
       }
     }
-    else if (ELEM(event->type, EVT_ESCKEY, RIGHTMOUSE)) {
+    else if (event->type == EVT_ESCKEY) {
       if (event->val == KM_PRESS) {
         event_code = VIEW_CANCEL;
       }
@@ -135,9 +140,7 @@ static int viewroll_modal(bContext *C, wmOperator *op, const wmEvent *event)
       break;
     }
     case VIEW_CANCEL: {
-      /* Note this does not remove auto-keys on locked cameras. */
-      copy_qt_qt(vod->rv3d->viewquat, vod->init.quat);
-      ED_view3d_camera_lock_sync(vod->depsgraph, vod->v3d, vod->rv3d);
+      viewops_data_state_restore(vod);
       ret = OPERATOR_CANCELLED;
       break;
     }
@@ -250,7 +253,7 @@ static int viewroll_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   }
   else {
     /* makes op->customdata */
-    vod = op->customdata = viewops_data_create(C, event, viewops_flag_from_prefs());
+    vod = op->customdata = viewops_data_create(C, event, V3D_OP_MODE_VIEW_ROLL, false);
     vod->init.dial = BLI_dial_init((const float[2]){BLI_rcti_cent_x(&vod->region->winrct),
                                                     BLI_rcti_cent_y(&vod->region->winrct)},
                                    FLT_EPSILON);
@@ -277,12 +280,6 @@ static int viewroll_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return OPERATOR_FINISHED;
 }
 
-static void viewroll_cancel(bContext *C, wmOperator *op)
-{
-  viewops_data_free(C, op->customdata);
-  op->customdata = NULL;
-}
-
 void VIEW3D_OT_view_roll(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -290,14 +287,14 @@ void VIEW3D_OT_view_roll(wmOperatorType *ot)
   /* identifiers */
   ot->name = "View Roll";
   ot->description = "Roll the view";
-  ot->idname = "VIEW3D_OT_view_roll";
+  ot->idname = viewops_operator_idname_get(V3D_OP_MODE_VIEW_ROLL);
 
   /* api callbacks */
   ot->invoke = viewroll_invoke;
   ot->exec = viewroll_exec;
   ot->modal = viewroll_modal;
   ot->poll = ED_operator_rv3d_user_region_poll;
-  ot->cancel = viewroll_cancel;
+  ot->cancel = view3d_navigate_cancel_fn;
 
   /* flags */
   ot->flag = 0;

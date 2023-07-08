@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2008 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup editors
@@ -186,9 +187,7 @@ void ED_image_draw_info(struct Scene *scene,
                         int y,
                         const unsigned char cp[4],
                         const float fp[4],
-                        const float linearcol[4],
-                        const int *zp,
-                        const float *zpf);
+                        const float linearcol[4]);
 
 bool ED_space_image_show_cache(const struct SpaceImage *sima);
 bool ED_space_image_show_cache_and_mval_over(const struct SpaceImage *sima,

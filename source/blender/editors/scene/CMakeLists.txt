@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2023 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
@@ -10,6 +12,7 @@ set(INC
   ../../makesrna
   ../../sequencer
   ../../windowmanager
+  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
@@ -17,7 +20,7 @@ set(INC_SYS
 )
 
 set(SRC
-  scene_edit.c
+  scene_edit.cc
 )
 
 set(LIB

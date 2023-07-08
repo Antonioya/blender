@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2010-2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup collada
@@ -16,7 +18,7 @@
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_global.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 
 #include "ED_armature.h"
 
@@ -257,7 +259,7 @@ void ArmatureExporter::add_bone_transform(Object *ob_arm, Bone *bone, COLLADASW:
 
   if (!has_restmat) {
 
-    /* Have no restpose matrix stored, try old style <= Blender 2.78 */
+    /* Have no rest-pose matrix stored, try old style <= Blender 2.78. */
 
     bc_create_restpose_mat(this->export_settings, bone, bone_rest_mat, bone->arm_mat, true);
 

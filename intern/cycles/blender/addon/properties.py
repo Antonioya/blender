@@ -1,5 +1,7 @@
+# SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2022 Blender Foundation
+
 from __future__ import annotations
 
 import bpy
@@ -11,6 +13,10 @@ from bpy.props import (
     IntProperty,
     PointerProperty,
     StringProperty,
+)
+from bpy.app.translations import (
+    contexts as i18n_contexts,
+    pgettext_iface as iface_
 )
 
 from math import pi
@@ -208,6 +214,21 @@ enum_guiding_distribution = (
     ('VMM', "VMM", "Use von Mises-Fisher models as directional distribution", 2),
 )
 
+enum_guiding_directional_sampling_types = (
+    ('MIS',
+     "Diffuse Product MIS",
+     "Guided diffuse BSDF component based on the incoming light distribution and the cosine product (closed form product)",
+     0),
+    ('RIS',
+     "Re-sampled Importance Sampling",
+     "Perform RIS sampling to guided based on the product of the incoming light distribution and the BSDF",
+     1),
+    ('ROUGHNESS',
+     "Roughness-based",
+     "Adjust the guiding probability based on the roughness of the material components",
+     2),
+)
+
 
 def enum_openimagedenoise_denoiser(self, context):
     import _cycles
@@ -402,7 +423,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
 
     time_limit: FloatProperty(
         name="Time Limit",
-        description="Limit the render time (excluding synchronization time)."
+        description="Limit the render time (excluding synchronization time). "
         "Zero disables the limit",
         min=0.0,
         default=0.0,
@@ -567,6 +588,13 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         default='PARALLAX_AWARE_VMM',
     )
 
+    guiding_directional_sampling_type: EnumProperty(
+        name="Directional Sampling Type",
+        description="Type of the directional sampling used for guiding",
+        items=enum_guiding_directional_sampling_types,
+        default='RIS',
+    )
+
     use_surface_guiding: BoolProperty(
         name="Surface Guiding",
         description="Use guiding when sampling directions on a surface",
@@ -614,6 +642,13 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         name="Use MIS Weights",
         description="Use the MIS weight to weight the contribution of directly visible light sources during guiding",
         default=True,
+    )
+
+    guiding_roughness_threshold: FloatProperty(
+        name="Guiding Roughness Threshold",
+        description="The minimal roughness value of a material to apply guiding",
+        min=0.0, max=1.0,
+        default=0.05,
     )
 
     max_bounces: IntProperty(
@@ -1073,6 +1108,7 @@ class CyclesMaterialSettings(bpy.types.PropertyGroup):
     emission_sampling: EnumProperty(
         name="Emission Sampling",
         description="Sampling strategy for emissive surfaces",
+        translation_context=i18n_contexts.id_light,
         items=enum_emission_sampling,
         default="AUTO",
     )
@@ -1506,7 +1542,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
     def get_device_types(self, context):
         import _cycles
-        has_cuda, has_optix, has_hip, has_metal, has_oneapi = _cycles.get_device_types()
+        has_cuda, has_optix, has_hip, has_metal, has_oneapi, has_hiprt = _cycles.get_device_types()
 
         list = [('NONE', "None", "Don't use compute device", 0)]
         if has_cuda:
@@ -1541,6 +1577,19 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         description="MetalRT for ray tracing uses less memory for scenes which use curves extensively, and can give better "
                     "performance in specific cases. However this support is experimental and some scenes may render incorrectly",
         default=False,
+    )
+
+    use_hiprt: BoolProperty(
+        name="HIP RT (Experimental)",
+        description="HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. "
+                    "This feature is experimental and some scenes may render incorrectly",
+        default=False,
+    )
+
+    use_oneapirt: BoolProperty(
+        name="Embree on GPU",
+        description="Embree on GPU enables the use of hardware ray tracing on Intel GPUs, providing better overall performance",
+        default=True,
     )
 
     kernel_optimization_level: EnumProperty(
@@ -1664,30 +1713,48 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             col.label(text="No compatible GPUs found for Cycles", icon='INFO')
 
             if device_type == 'CUDA':
-                col.label(text="Requires NVIDIA GPU with compute capability 3.0", icon='BLANK1')
+                compute_capability = "3.0"
+                col.label(text=iface_("Requires NVIDIA GPU with compute capability %s") % compute_capability,
+                          icon='BLANK1', translate=False)
             elif device_type == 'OPTIX':
-                col.label(text="Requires NVIDIA GPU with compute capability 5.0", icon='BLANK1')
-                col.label(text="and NVIDIA driver version 470 or newer", icon='BLANK1')
+                compute_capability = "5.0"
+                driver_version = "470"
+                col.label(text=iface_("Requires NVIDIA GPU with compute capability %s") % compute_capability,
+                          icon='BLANK1', translate=False)
+                col.label(text=iface_("and NVIDIA driver version %s or newer") % driver_version,
+                          icon='BLANK1', translate=False)
             elif device_type == 'HIP':
                 import sys
                 if sys.platform[:3] == "win":
-                    col.label(text="Requires AMD GPU with RDNA architecture", icon='BLANK1')
-                    col.label(text="and AMD Radeon Pro 21.Q4 driver or newer", icon='BLANK1')
+                    driver_version = "21.Q4"
+                    col.label(text="Requires AMD GPU with Vega or RDNA architecture", icon='BLANK1')
+                    col.label(text=iface_("and AMD Radeon Pro %s driver or newer") % driver_version,
+                              icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
-                    col.label(text="Requires AMD GPU with RDNA architecture", icon='BLANK1')
-                    col.label(text="and AMD driver version 22.10 or newer", icon='BLANK1')
+                    driver_version = "22.10"
+                    col.label(text="Requires AMD GPU with Vega or RDNA architecture", icon='BLANK1')
+                    col.label(text=iface_("and AMD driver version %s or newer") % driver_version, icon='BLANK1',
+                              translate=False)
             elif device_type == 'ONEAPI':
                 import sys
                 if sys.platform.startswith("win"):
+                    driver_version = "XX.X.101.4314"
                     col.label(text="Requires Intel GPU with Xe-HPG architecture", icon='BLANK1')
-                    col.label(text="and Windows driver version 101.4032 or newer", icon='BLANK1')
+                    col.label(text=iface_("and Windows driver version %s or newer") % driver_version,
+                              icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
+                    driver_version = "XX.XX.25812.14"
                     col.label(text="Requires Intel GPU with Xe-HPG architecture and", icon='BLANK1')
-                    col.label(text="  - intel-level-zero-gpu version 1.3.24931 or newer", icon='BLANK1')
+                    col.label(text="  - intel-level-zero-gpu or intel-compute-runtime version", icon='BLANK1')
+                    col.label(text=iface_("    %s or newer") % driver_version, icon='BLANK1', translate=False)
                     col.label(text="  - oneAPI Level-Zero Loader", icon='BLANK1')
             elif device_type == 'METAL':
-                col.label(text="Requires Apple Silicon with macOS 12.2 or newer", icon='BLANK1')
-                col.label(text="or AMD with macOS 12.3 or newer", icon='BLANK1')
+                silicon_mac_version = "12.2"
+                amd_mac_version = "12.3"
+                col.label(text=iface_("Requires Apple Silicon with macOS %s or newer") % silicon_mac_version,
+                          icon='BLANK1', translate=False)
+                col.label(text=iface_("or AMD with macOS %s or newer") % amd_mac_version, icon='BLANK1',
+                          translate=False)
             return
 
         for device in devices:
@@ -1697,7 +1764,8 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 .replace('(TM)', unicodedata.lookup('TRADE MARK SIGN'))
                 .replace('(tm)', unicodedata.lookup('TRADE MARK SIGN'))
                 .replace('(R)', unicodedata.lookup('REGISTERED SIGN'))
-                .replace('(C)', unicodedata.lookup('COPYRIGHT SIGN'))
+                .replace('(C)', unicodedata.lookup('COPYRIGHT SIGN')),
+                translate=False
             )
 
     def draw_impl(self, layout, context):
@@ -1739,6 +1807,16 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 if is_arm64:
                     col.prop(self, "kernel_optimization_level")
                 col.prop(self, "use_metalrt")
+
+        if compute_device_type == 'HIP':
+            has_cuda, has_optix, has_hip, has_metal, has_oneapi, has_hiprt = _cycles.get_device_types()
+            row = layout.row()
+            row.enabled = has_hiprt
+            row.prop(self, "use_hiprt")
+
+        elif compute_device_type == 'ONEAPI' and _cycles.with_embree_gpu:
+            row = layout.row()
+            row.prop(self, "use_oneapirt")
 
     def draw(self, context):
         self.draw_impl(self.layout, context)

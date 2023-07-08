@@ -1,4 +1,7 @@
+# SPDX-FileCopyrightText: 2002-2023 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
+
 set(TBB_EXTRA_ARGS
   -DTBB_BUILD_SHARED=On
   -DTBB_BUILD_TBBMALLOC=On
@@ -7,6 +10,12 @@ set(TBB_EXTRA_ARGS
   -DTBB_BUILD_TESTS=Off
   -DCMAKE_DEBUG_POSTFIX=_debug
 )
+# TBB does not use soversion by default unlike other libs, but it's needed
+# to avoid conflicts with incompatible TBB system libs in LD_LIBRARY_PATH
+# or the Steam environment.
+if(UNIX AND NOT APPLE)
+  list(APPEND TBB_EXTRA_ARGS -DTBB_SET_SOVERSION=ON)
+endif()
 set(TBB_LIBRARY tbb)
 set(TBB_STATIC_LIBRARY Off)
 

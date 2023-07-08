@@ -1,10 +1,9 @@
-/* SPDX-License-Identifier: BSD-3-Clause
+/* SPDX-FileCopyrightText: 2009-2010 Sony Pictures Imageworks Inc., et al. All Rights Reserved.
+ * SPDX-FileCopyrightText: 2011-2022 Blender Foundation
  *
- * Adapted from Open Shading Language
- * Copyright (c) 2009-2010 Sony Pictures Imageworks Inc., et al.
- * All Rights Reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
  *
- * Modifications Copyright 2011-2022 Blender Foundation. */
+ * Adapted code from Open Shading Language. */
 
 #pragma once
 
@@ -161,7 +160,11 @@ ccl_device_inline void osl_eval_nodes(KernelGlobals kg,
                         /* shadeindex = */ 0);
 #  endif
 
+#  if __cplusplus < 201703L
+  if (type == SHADER_TYPE_DISPLACEMENT) {
+#  else
   if constexpr (type == SHADER_TYPE_DISPLACEMENT) {
+#  endif
     sd->P = globals.P;
   }
   else if (globals.Ci) {

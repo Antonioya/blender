@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation.
- */
+/* SPDX-FileCopyrightText: 2021 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup eevee
@@ -169,6 +169,7 @@ class SyncModule {
                    ObjectHandle &ob_handle,
                    ResourceHandle res_handle,
                    ModifierData *modifier_data = nullptr);
+  void sync_light_probe(Object *ob, ObjectHandle &ob_handle);
 };
 
 /** \} */

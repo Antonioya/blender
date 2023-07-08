@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2009 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup editors
@@ -50,6 +51,9 @@ void ED_node_cursor_location_get(const struct SpaceNode *snode, float value[2]);
 void ED_node_cursor_location_set(struct SpaceNode *snode, const float value[2]);
 
 int ED_node_tree_path_length(struct SpaceNode *snode);
+/**
+ * \param value: The path output at least the size of `ED_node_tree_path_length(snode) + 1`.
+ */
 void ED_node_tree_path_get(struct SpaceNode *snode, char *value);
 
 void ED_node_tree_start(struct SpaceNode *snode,
@@ -73,6 +77,7 @@ void ED_init_node_socket_type_virtual(struct bNodeSocketType *stype);
 void ED_node_sample_set(const float col[4]);
 void ED_node_draw_snap(
     struct View2D *v2d, const float cent[2], float size, NodeBorder border, unsigned int pos);
+void ED_node_type_draw_color(const char *idname, float *r_color);
 
 /* node_draw.cc */
 

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "scene/image_oiio.h"
 
@@ -9,13 +10,9 @@
 
 CCL_NAMESPACE_BEGIN
 
-OIIOImageLoader::OIIOImageLoader(const string &filepath) : filepath(filepath)
-{
-}
+OIIOImageLoader::OIIOImageLoader(const string &filepath) : filepath(filepath) {}
 
-OIIOImageLoader::~OIIOImageLoader()
-{
-}
+OIIOImageLoader::~OIIOImageLoader() {}
 
 bool OIIOImageLoader::load_metadata(const ImageDeviceFeatures & /*features*/,
                                     ImageMetaData &metadata)

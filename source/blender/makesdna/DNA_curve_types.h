@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
@@ -29,7 +30,7 @@ struct Material;
 struct Object;
 struct VFont;
 
-/* These two Lines with # tell makesdna this struct can be excluded. */
+/* These two Lines with # tell `makesdna` this struct can be excluded. */
 #
 #
 typedef struct BevPoint {
@@ -41,7 +42,7 @@ typedef struct BevPoint {
   short dupe_tag;
 } BevPoint;
 
-/* These two Lines with # tell makesdna this struct can be excluded. */
+/* These two Lines with # tell `makesdna` this struct can be excluded. */
 #
 #
 typedef struct BevList {
@@ -158,18 +159,18 @@ typedef struct Nurb {
 } Nurb;
 
 typedef struct CharInfo {
-  short kern;
+  float kern;
   /** Index start at 1, unlike mesh & nurbs. */
   short mat_nr;
   char flag;
-  char _pad[3];
+  char _pad[1];
 } CharInfo;
 
 typedef struct TextBox {
   float x, y, w, h;
 } TextBox;
 
-/* These two Lines with # tell makesdna this struct can be excluded. */
+/* These two Lines with # tell `makesdna` this struct can be excluded. */
 #
 #
 typedef struct EditNurb {
@@ -602,11 +603,15 @@ enum {
   CU_CHINFO_OVERFLOW = 1 << 6,
 };
 
+/** User adjustable as styles (not relating to run-time layout calculation). */
+#define CU_CHINFO_STYLE_ALL \
+  (CU_CHINFO_BOLD | CU_CHINFO_ITALIC | CU_CHINFO_UNDERLINE | CU_CHINFO_SMALLCAPS)
+
 /* mixed with KEY_LINEAR but define here since only curve supports */
 #define KEY_CU_EASE 3
 
 /* indicates point has been seen during surface duplication */
-#define SURF_SEEN 4
+#define SURF_SEEN (1 << 2)
 
 #ifdef __cplusplus
 }

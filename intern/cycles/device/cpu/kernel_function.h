@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -40,9 +41,7 @@ template<typename FunctionType> class CPUKernelFunction {
    * pointer. */
   class KernelInfo {
    public:
-    KernelInfo() : KernelInfo("", nullptr)
-    {
-    }
+    KernelInfo() : KernelInfo("", nullptr) {}
 
     /* TODO(sergey): Use string view, to have higher-level functionality (i.e. comparison) without
      * memory allocation. */

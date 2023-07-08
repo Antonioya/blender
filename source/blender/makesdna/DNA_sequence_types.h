@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 /** \file
  * \ingroup DNA
  *
@@ -43,7 +44,8 @@ typedef struct StripAnim {
 } StripAnim;
 
 typedef struct StripElem {
-  char name[256];
+  /** File name concatenated onto #Strip::dirpath. */
+  char filename[256];
   /** Ignore when zeroed. */
   int orig_width, orig_height;
   float orig_fps;
@@ -82,10 +84,10 @@ typedef struct StripColorBalance {
 } StripColorBalance;
 
 typedef struct StripProxy {
-  char dir[768]; /* custom directory for index and proxy files */
-                 /* (defaults to BL_proxy) */
-
-  char file[256];    /* custom file */
+  /** Custom directory for index and proxy files (defaults to "BL_proxy"). */
+  char dirpath[768];
+  /** Custom file. */
+  char filename[256];
   struct anim *anim; /* custom proxy anim file */
 
   short tc; /* time code in use */
@@ -110,7 +112,7 @@ typedef struct Strip {
    * NULL for all other strip-types.
    */
   StripElem *stripdata;
-  char dir[768];
+  char dirpath[768];
   StripProxy *proxy;
   StripCrop *crop;
   StripTransform *transform;
@@ -119,6 +121,21 @@ typedef struct Strip {
   /* color management */
   ColorManagedColorspaceSettings colorspace_settings;
 } Strip;
+
+typedef enum eSeqRetimingHandleFlag {
+  SPEED_TRANSITION = (1 << 0),
+  FREEZE_FRAME = (1 << 1),
+} eSeqRetimingHandleFlag;
+
+typedef struct SeqRetimingHandle {
+  int strip_frame_index;
+  int flag; /* eSeqRetimingHandleFlag */
+  int _pad0;
+  float retiming_factor; /* Value between 0-1 mapped to original content range. */
+
+  int original_strip_frame_index; /* Used for transition handles only. */
+  float original_retiming_factor; /* Used for transition handles only. */
+} SeqRetimingHandle;
 
 typedef struct SequenceRuntime {
   SessionUUID session_uuid;
@@ -149,7 +166,7 @@ typedef struct Sequence {
   int len;
   /**
    * Start frame of contents of strip in absolute frame coordinates.
-   * For metastrips start of first strip startdisp.
+   * For meta-strips start of first strip startdisp.
    */
   float start;
   /**
@@ -164,17 +181,17 @@ typedef struct Sequence {
   float startstill, endstill;
   /** Machine: the strip channel */
   int machine;
-  int _pad3;
+  int _pad;
   /** Starting and ending points of the effect strip. Undefined for other strip types. */
   int startdisp, enddisp;
   float sat;
   float mul;
-  float _pad;
+  float _pad1;
 
   short anim_preseek; /* UNUSED. */
-  /** Streamindex for movie or sound files with several streams. */
+  /** Stream-index for movie or sound files with several streams. */
   short streamindex;
-  /** For multicam source selection. */
+  /** For multi-camera source selection. */
   int multicam_source;
   /** MOVIECLIP render flags. */
   int clip_flag;
@@ -231,7 +248,7 @@ typedef struct Sequence {
   int8_t color_tag;
 
   char alpha_mode;
-  char _pad4[2];
+  char _pad2[2];
 
   int cache_flag;
 
@@ -241,7 +258,7 @@ typedef struct Sequence {
 
   /* Multiview */
   char views_format;
-  char _pad1[3];
+  char _pad3[3];
   struct Stereo3dFormat *stereo3d_format;
 
   struct IDProperty *prop;
@@ -251,8 +268,12 @@ typedef struct Sequence {
 
   /* Playback rate of strip content in frames per second. */
   float media_playback_rate;
-  /* Multiply strip playback speed. */
   float speed_factor;
+
+  struct SeqRetimingHandle *retiming_handles;
+  void *_pad5;
+  int retiming_handle_num;
+  char _pad6[4];
 
   SequenceRuntime runtime;
 } Sequence;
@@ -522,22 +543,28 @@ typedef struct SequencerScopes {
 
 #define MAXSEQ 128
 
-/** #Editor.overlay_frame_flag */
-#define SEQ_EDIT_OVERLAY_FRAME_SHOW 1
-#define SEQ_EDIT_OVERLAY_FRAME_ABS 2
+/** #Editor::overlay_frame_flag */
+enum {
+  SEQ_EDIT_OVERLAY_FRAME_SHOW = 1,
+  SEQ_EDIT_OVERLAY_FRAME_ABS = 2,
+};
 
 #define SEQ_STRIP_OFSBOTTOM 0.05f
 #define SEQ_STRIP_OFSTOP 0.95f
 
-/* Editor->proxy_storage */
-/* store proxies in project directory */
-#define SEQ_EDIT_PROXY_DIR_STORAGE 1
+/** #Editor::proxy_storage */
+enum {
+  /** Store proxies in project directory. */
+  SEQ_EDIT_PROXY_DIR_STORAGE = 1,
+};
 
-/* SpeedControlVars->flags */
-#define SEQ_SPEED_UNUSED_2 (1 << 0) /* cleared */
-#define SEQ_SPEED_UNUSED_1 (1 << 1) /* cleared */
-#define SEQ_SPEED_UNUSED_3 (1 << 2) /* cleared */
-#define SEQ_SPEED_USE_INTERPOLATION (1 << 3)
+/** #SpeedControlVars::flags */
+enum {
+  SEQ_SPEED_UNUSED_2 = 1 << 0, /* cleared */
+  SEQ_SPEED_UNUSED_1 = 1 << 1, /* cleared */
+  SEQ_SPEED_UNUSED_3 = 1 << 2, /* cleared */
+  SEQ_SPEED_USE_INTERPOLATION = 1 << 3,
+};
 
 /** \} */
 
@@ -570,7 +597,7 @@ enum {
   SEQ_USE_PROXY = (1 << 15),
   SEQ_IGNORE_CHANNEL_LOCK = (1 << 16),
   SEQ_AUTO_PLAYBACK_RATE = (1 << 17),
-  SEQ_FLAG_UNUSED_18 = (1 << 18), /* cleared */
+  SEQ_SINGLE_FRAME_CONTENT = (1 << 18),
   SEQ_FLAG_UNUSED_19 = (1 << 19), /* cleared */
   SEQ_FLAG_UNUSED_21 = (1 << 21), /* cleared */
 
@@ -605,26 +632,36 @@ enum {
 /* Deprecated, don't use a flag anymore. */
 // #define SEQ_ACTIVE 1048576
 
-#define SEQ_COLOR_BALANCE_INVERSE_GAIN 1
-#define SEQ_COLOR_BALANCE_INVERSE_GAMMA 2
-#define SEQ_COLOR_BALANCE_INVERSE_LIFT 4
-#define SEQ_COLOR_BALANCE_INVERSE_SLOPE 8
-#define SEQ_COLOR_BALANCE_INVERSE_OFFSET 16
-#define SEQ_COLOR_BALANCE_INVERSE_POWER 32
+enum {
+  SEQ_COLOR_BALANCE_INVERSE_GAIN = 1 << 0,
+  SEQ_COLOR_BALANCE_INVERSE_GAMMA = 1 << 1,
+  SEQ_COLOR_BALANCE_INVERSE_LIFT = 1 << 2,
+  SEQ_COLOR_BALANCE_INVERSE_SLOPE = 1 << 3,
+  SEQ_COLOR_BALANCE_INVERSE_OFFSET = 1 << 4,
+  SEQ_COLOR_BALANCE_INVERSE_POWER = 1 << 5,
+};
 
-/* !!! has to be same as IMB_imbuf.h IMB_PROXY_... and IMB_TC_... */
+/**
+ * \warning has to be same as `IMB_imbuf.h`: `IMB_PROXY_*` and `IMB_TC_*`.
+ */
+enum {
+  SEQ_PROXY_IMAGE_SIZE_25 = 1 << 0,
+  SEQ_PROXY_IMAGE_SIZE_50 = 1 << 1,
+  SEQ_PROXY_IMAGE_SIZE_75 = 1 << 2,
+  SEQ_PROXY_IMAGE_SIZE_100 = 1 << 3,
+};
 
-#define SEQ_PROXY_IMAGE_SIZE_25 1
-#define SEQ_PROXY_IMAGE_SIZE_50 2
-#define SEQ_PROXY_IMAGE_SIZE_75 4
-#define SEQ_PROXY_IMAGE_SIZE_100 8
-
-#define SEQ_PROXY_TC_NONE 0
-#define SEQ_PROXY_TC_RECORD_RUN 1
-#define SEQ_PROXY_TC_FREE_RUN 2
-#define SEQ_PROXY_TC_INTERP_REC_DATE_FREE_RUN 4
-#define SEQ_PROXY_TC_RECORD_RUN_NO_GAPS 8
-#define SEQ_PROXY_TC_ALL 15
+/**
+ * \warning has to be same as `IMB_imbuf.h`: `IMB_TC_*`.
+ */
+enum {
+  SEQ_PROXY_TC_NONE = 0,
+  SEQ_PROXY_TC_RECORD_RUN = 1 << 0,
+  SEQ_PROXY_TC_FREE_RUN = 1 << 1,
+  SEQ_PROXY_TC_INTERP_REC_DATE_FREE_RUN = 1 << 2,
+  SEQ_PROXY_TC_RECORD_RUN_NO_GAPS = 1 << 3,
+  SEQ_PROXY_TC_ALL = (1 << 4) - 1,
+};
 
 /** SeqProxy.build_flags */
 enum {
@@ -696,10 +733,14 @@ enum {
   SEQ_TYPE_MAX = 60,
 };
 
-#define SEQ_MOVIECLIP_RENDER_UNDISTORTED (1 << 0)
-#define SEQ_MOVIECLIP_RENDER_STABILIZED (1 << 1)
+enum {
+  SEQ_MOVIECLIP_RENDER_UNDISTORTED = 1 << 0,
+  SEQ_MOVIECLIP_RENDER_STABILIZED = 1 << 1,
+};
 
-#define SEQ_BLEND_REPLACE 0
+enum {
+  SEQ_BLEND_REPLACE = 0,
+};
 /* all other BLEND_MODEs are simple SEQ_TYPE_EFFECT ids and therefore identical
  * to the table above. (Only those effects that handle _exactly_ two inputs,
  * otherwise, you can't really blend, right :) !)

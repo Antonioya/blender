@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2023 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
@@ -19,9 +21,9 @@ set(INC_SYS
 )
 
 set(SRC
-  editmball_undo.c
-  mball_edit.c
-  mball_ops.c
+  editmball_undo.cc
+  mball_edit.cc
+  mball_ops.cc
 
   mball_intern.h
 )

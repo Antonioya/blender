@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "scene/pass.h"
 
@@ -134,9 +135,7 @@ NODE_DEFINE(Pass)
   return type;
 }
 
-Pass::Pass() : Node(get_node_type()), is_auto_(false)
-{
-}
+Pass::Pass() : Node(get_node_type()), is_auto_(false) {}
 
 PassInfo Pass::get_info() const
 {
@@ -404,7 +403,8 @@ int Pass::get_offset(const vector<Pass *> &passes, const Pass *pass)
     /* Note that pass name is allowed to be empty. This is why we check for type and mode. */
     if (current_pass->get_type() == pass->get_type() &&
         current_pass->get_mode() == pass->get_mode() &&
-        current_pass->get_name() == pass->get_name()) {
+        current_pass->get_name() == pass->get_name())
+    {
       if (current_pass->is_written()) {
         return pass_offset;
       }

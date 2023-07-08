@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
 #include "BLI_map.hh"
@@ -14,7 +16,7 @@
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_instances.hh"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_pointcloud.h"
 
 #include "node_geometry_util.hh"
@@ -28,20 +30,17 @@ NODE_STORAGE_FUNCS(NodeGeometryDuplicateElements);
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>(N_("Geometry"));
-  b.add_input<decl::Bool>(N_("Selection")).hide_value().default_value(true).field_on_all();
-  b.add_input<decl::Int>(N_("Amount"))
-      .min(0)
-      .default_value(1)
-      .field_on_all()
-      .description(N_("The number of duplicates to create for each element"));
+  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Bool>("Selection").hide_value().default_value(true).field_on_all();
+  b.add_input<decl::Int>("Amount").min(0).default_value(1).field_on_all().description(
+      "The number of duplicates to create for each element");
 
-  b.add_output<decl::Geometry>(N_("Geometry"))
+  b.add_output<decl::Geometry>("Geometry")
       .propagate_all()
-      .description(N_("The duplicated geometry, not including the original geometry"));
-  b.add_output<decl::Int>(N_("Duplicate Index"))
+      .description("The duplicated geometry, not including the original geometry");
+  b.add_output<decl::Int>("Duplicate Index")
       .field_on_all()
-      .description(N_("The indices of the duplicates for each element"));
+      .description("The indices of the duplicates for each element");
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -57,44 +56,23 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 }
 
 struct IndexAttributes {
-  AutoAnonymousAttributeID duplicate_index;
+  AnonymousAttributeIDPtr duplicate_index;
 };
 
 /* -------------------------------------------------------------------- */
 /** \name Utility Functions
  * \{ */
 
-static Map<AttributeIDRef, AttributeKind> gather_attributes_without_id(
-    const GeometrySet &geometry_set,
-    const GeometryComponentType component_type,
-    const AnonymousAttributePropagationInfo &propagation_info)
-{
-  Map<AttributeIDRef, AttributeKind> attributes;
-  geometry_set.gather_attributes_for_propagation(
-      {component_type}, component_type, false, propagation_info, attributes);
-  attributes.remove("id");
-  return attributes;
-};
-
-static OffsetIndices<int> accumulate_counts_to_offsets(const IndexMask selection,
+static OffsetIndices<int> accumulate_counts_to_offsets(const IndexMask &selection,
                                                        const VArray<int> &counts,
                                                        Array<int> &r_offset_data)
 {
   r_offset_data.reinitialize(selection.size() + 1);
-  if (counts.is_single()) {
-    const int count = counts.get_internal_single();
-    threading::parallel_for(selection.index_range(), 1024, [&](const IndexRange range) {
-      for (const int64_t i : range) {
-        r_offset_data[i] = count * i;
-      }
-    });
-    r_offset_data.last() = count * selection.size();
+  if (const std::optional<int> count = counts.get_if_single()) {
+    offset_indices::fill_constant_group_size(*count, 0, r_offset_data);
   }
   else {
-    threading::parallel_for(selection.index_range(), 1024, [&](const IndexRange range) {
-      counts.materialize_compressed(selection.slice(range),
-                                    r_offset_data.as_mutable_span().slice(range));
-    });
+    array_utils::gather(counts, selection, r_offset_data.as_mutable_span().drop_back(1), 1024);
     offset_indices::accumulate_counts_to_offsets(r_offset_data);
   }
   return OffsetIndices<int>(r_offset_data);
@@ -103,15 +81,24 @@ static OffsetIndices<int> accumulate_counts_to_offsets(const IndexMask selection
 /* Utility functions for threaded copying of attribute data where possible. */
 template<typename T>
 static void threaded_slice_fill(const OffsetIndices<int> offsets,
-                                const IndexMask selection,
+                                const IndexMask &selection,
                                 const Span<T> src,
                                 MutableSpan<T> dst)
 {
   BLI_assert(offsets.total_size() == dst.size());
-  threading::parallel_for(selection.index_range(), 512, [&](IndexRange range) {
-    for (const int i : range) {
-      dst.slice(offsets[i]).fill(src[selection[i]]);
-    }
+  selection.foreach_index(GrainSize(512), [&](const int64_t index, const int64_t i) {
+    dst.slice(offsets[i]).fill(src[index]);
+  });
+}
+
+static void threaded_slice_fill(const OffsetIndices<int> offsets,
+                                const IndexMask &selection,
+                                const GSpan src,
+                                GMutableSpan dst)
+{
+  bke::attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
+    using T = decltype(dummy);
+    threaded_slice_fill<T>(offsets, selection, src.typed<T>(), dst.typed<T>());
   });
 }
 
@@ -127,7 +114,7 @@ static void threaded_id_offset_copy(const OffsetIndices<int> offsets,
                                     MutableSpan<int> all_dst)
 {
   BLI_assert(offsets.total_size() == all_dst.size());
-  threading::parallel_for(IndexRange(offsets.ranges_num()), 512, [&](IndexRange range) {
+  threading::parallel_for(offsets.index_range(), 512, [&](IndexRange range) {
     for (const int i : range) {
       MutableSpan<int> dst = all_dst.slice(offsets[i]);
       if (dst.is_empty()) {
@@ -144,7 +131,7 @@ static void threaded_id_offset_copy(const OffsetIndices<int> offsets,
 /** Create the copy indices for the duplication domain. */
 static void create_duplicate_index_attribute(bke::MutableAttributeAccessor attributes,
                                              const eAttrDomain output_domain,
-                                             const IndexMask selection,
+                                             const IndexMask &selection,
                                              const IndexAttributes &attribute_outputs,
                                              const OffsetIndices<int> offsets)
 {
@@ -183,39 +170,18 @@ static void copy_stable_id_point(const OffsetIndices<int> offsets,
   dst_attribute.finish();
 }
 
-static void copy_attributes_without_id(GeometrySet &geometry_set,
-                                       const GeometryComponentType component_type,
-                                       const eAttrDomain domain,
-                                       const OffsetIndices<int> offsets,
-                                       const IndexMask selection,
+static void copy_attributes_without_id(const OffsetIndices<int> offsets,
+                                       const IndexMask &selection,
                                        const AnonymousAttributePropagationInfo &propagation_info,
+                                       const eAttrDomain domain,
                                        const bke::AttributeAccessor src_attributes,
                                        bke::MutableAttributeAccessor dst_attributes)
 {
-  const Map<AttributeIDRef, AttributeKind> attributes = gather_attributes_without_id(
-      geometry_set, component_type, propagation_info);
-
-  for (const Map<AttributeIDRef, AttributeKind>::Item entry : attributes.items()) {
-    const AttributeIDRef attribute_id = entry.key;
-    GAttributeReader src_attribute = src_attributes.lookup(attribute_id);
-    if (!src_attribute || src_attribute.domain != domain) {
-      continue;
-    }
-    eAttrDomain out_domain = src_attribute.domain;
-    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(
-        src_attribute.varray.type());
-    GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span(
-        attribute_id, out_domain, data_type);
-    if (!dst_attribute) {
-      continue;
-    }
-    attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
-      using T = decltype(dummy);
-      VArraySpan<T> src = src_attribute.varray.typed<T>();
-      MutableSpan<T> dst = dst_attribute.span.typed<T>();
-      threaded_slice_fill<T>(offsets, selection, src, dst);
-    });
-    dst_attribute.finish();
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_attributes, dst_attributes, ATTR_DOMAIN_AS_MASK(domain), propagation_info, {"id"}))
+  {
+    threaded_slice_fill(offsets, selection, attribute.src, attribute.dst.span);
+    attribute.dst.finish();
   }
 }
 
@@ -230,61 +196,44 @@ static void copy_attributes_without_id(GeometrySet &geometry_set,
  * copied with an offset fill, otherwise a mapping is used.
  */
 static void copy_curve_attributes_without_id(
-    const GeometrySet &geometry_set,
     const bke::CurvesGeometry &src_curves,
-    const IndexMask selection,
+    const IndexMask &selection,
     const OffsetIndices<int> curve_offsets,
     const AnonymousAttributePropagationInfo &propagation_info,
     bke::CurvesGeometry &dst_curves)
 {
-  Map<AttributeIDRef, AttributeKind> attributes = gather_attributes_without_id(
-      geometry_set, GEO_COMPONENT_TYPE_CURVE, propagation_info);
-
   const OffsetIndices src_points_by_curve = src_curves.points_by_curve();
   const OffsetIndices dst_points_by_curve = dst_curves.points_by_curve();
 
-  for (const Map<AttributeIDRef, AttributeKind>::Item entry : attributes.items()) {
-    const AttributeIDRef attribute_id = entry.key;
-    GAttributeReader src_attribute = src_curves.attributes().lookup(attribute_id);
-    if (!src_attribute) {
-      continue;
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(src_curves.attributes(),
+                                                               dst_curves.attributes_for_write(),
+                                                               ATTR_DOMAIN_MASK_ALL,
+                                                               propagation_info,
+                                                               {"id"}))
+  {
+    switch (attribute.meta_data.domain) {
+      case ATTR_DOMAIN_CURVE:
+        threaded_slice_fill(curve_offsets, selection, attribute.src, attribute.dst.span);
+        break;
+      case ATTR_DOMAIN_POINT:
+        bke::attribute_math::convert_to_static_type(attribute.src.type(), [&](auto dummy) {
+          using T = decltype(dummy);
+          const Span<T> src = attribute.src.typed<T>();
+          MutableSpan<T> dst = attribute.dst.span.typed<T>();
+          selection.foreach_index(
+              GrainSize(512), [&](const int64_t index, const int64_t i_selection) {
+                const Span<T> curve_src = src.slice(src_points_by_curve[index]);
+                for (const int dst_curve_index : curve_offsets[i_selection]) {
+                  dst.slice(dst_points_by_curve[dst_curve_index]).copy_from(curve_src);
+                }
+              });
+        });
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
     }
-
-    eAttrDomain out_domain = src_attribute.domain;
-    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(
-        src_attribute.varray.type());
-    GSpanAttributeWriter dst_attribute =
-        dst_curves.attributes_for_write().lookup_or_add_for_write_only_span(
-            attribute_id, out_domain, data_type);
-    if (!dst_attribute) {
-      continue;
-    }
-
-    attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
-      using T = decltype(dummy);
-      VArraySpan<T> src{src_attribute.varray.typed<T>()};
-      MutableSpan<T> dst = dst_attribute.span.typed<T>();
-
-      switch (out_domain) {
-        case ATTR_DOMAIN_CURVE:
-          threaded_slice_fill<T>(curve_offsets, selection, src, dst);
-          break;
-        case ATTR_DOMAIN_POINT:
-          threading::parallel_for(selection.index_range(), 512, [&](IndexRange range) {
-            for (const int i_selection : range) {
-              const int i_src_curve = selection[i_selection];
-              const Span<T> curve_src = src.slice(src_points_by_curve[i_src_curve]);
-              for (const int i_dst_curve : curve_offsets[i_selection]) {
-                dst.slice(dst_points_by_curve[i_dst_curve]).copy_from(curve_src);
-              }
-            }
-          });
-          break;
-        default:
-          break;
-      }
-    });
-    dst_attribute.finish();
+    attribute.dst.finish();
   }
 }
 
@@ -295,7 +244,7 @@ static void copy_curve_attributes_without_id(
  * then loop over the remaining ones point by point, hashing their ids to the new ids.
  */
 static void copy_stable_id_curves(const bke::CurvesGeometry &src_curves,
-                                  const IndexMask selection,
+                                  const IndexMask &selection,
                                   const OffsetIndices<int> offsets,
                                   bke::CurvesGeometry &dst_curves)
 {
@@ -316,17 +265,16 @@ static void copy_stable_id_curves(const bke::CurvesGeometry &src_curves,
   const OffsetIndices src_points_by_curve = src_curves.points_by_curve();
   const OffsetIndices dst_points_by_curve = dst_curves.points_by_curve();
 
-  threading::parallel_for(selection.index_range(), 512, [&](IndexRange range) {
-    for (const int i_selection : range) {
-      const int i_src_curve = selection[i_selection];
-      const Span<int> curve_src = src.slice(src_points_by_curve[i_src_curve]);
-      const IndexRange duplicates_range = offsets[i_selection];
-      for (const int i_duplicate : IndexRange(offsets.size(i_selection)).drop_front(1)) {
-        const int i_dst_curve = duplicates_range[i_duplicate];
-        copy_hashed_ids(curve_src, i_duplicate, dst.slice(dst_points_by_curve[i_dst_curve]));
-      }
-    }
-  });
+  selection.foreach_index(
+      GrainSize(512), [&](const int64_t i_src_curve, const int64_t i_selection) {
+        const Span<int> curve_src = src.slice(src_points_by_curve[i_src_curve]);
+        const IndexRange duplicates_range = offsets[i_selection];
+        for (const int i_duplicate : IndexRange(offsets[i_selection].size()).drop_front(1)) {
+          const int i_dst_curve = duplicates_range[i_duplicate];
+          copy_hashed_ids(curve_src, i_duplicate, dst.slice(dst_points_by_curve[i_dst_curve]));
+        }
+      });
+
   dst_attribute.finish();
 }
 
@@ -340,13 +288,13 @@ static void duplicate_curves(GeometrySet &geometry_set,
     geometry_set.remove_geometry_during_modify();
     return;
   }
-  geometry_set.keep_only_during_modify({GEO_COMPONENT_TYPE_CURVE});
+  geometry_set.keep_only_during_modify({GeometryComponent::Type::Curve});
   GeometryComponentEditData::remember_deformed_curve_positions_if_necessary(geometry_set);
 
   const Curves &curves_id = *geometry_set.get_curves_for_read();
   const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
 
-  bke::CurvesFieldContext field_context{curves, ATTR_DOMAIN_CURVE};
+  const bke::CurvesFieldContext field_context{curves, ATTR_DOMAIN_CURVE};
   FieldEvaluator evaluator{field_context, curves.curves_num()};
   evaluator.add(count_field);
   evaluator.set_selection(selection_field);
@@ -362,13 +310,20 @@ static void duplicate_curves(GeometrySet &geometry_set,
 
   int dst_curves_num = 0;
   int dst_points_num = 0;
-  for (const int i_curve : selection.index_range()) {
-    const int count = std::max(counts[selection[i_curve]], 0);
+
+  selection.foreach_index_optimized<int>([&](const int index, const int i_curve) {
+    const int count = counts[index];
     curve_offset_data[i_curve] = dst_curves_num;
     point_offset_data[i_curve] = dst_points_num;
     dst_curves_num += count;
-    dst_points_num += count * points_by_curve.size(selection[i_curve]);
+    dst_points_num += count * points_by_curve[index].size();
+  });
+
+  if (dst_points_num == 0) {
+    geometry_set.remove_geometry_during_modify();
+    return;
   }
+
   curve_offset_data.last() = dst_curves_num;
   point_offset_data.last() = dst_points_num;
 
@@ -380,22 +335,20 @@ static void duplicate_curves(GeometrySet &geometry_set,
   bke::CurvesGeometry &new_curves = new_curves_id->geometry.wrap();
   MutableSpan<int> all_dst_offsets = new_curves.offsets_for_write();
 
-  threading::parallel_for(selection.index_range(), 512, [&](IndexRange range) {
-    for (const int i_selection : range) {
-      const int i_src_curve = selection[i_selection];
-      const IndexRange src_curve_range = points_by_curve[i_src_curve];
-      const IndexRange dst_curves_range = curve_offsets[i_selection];
-      MutableSpan<int> dst_offsets = all_dst_offsets.slice(dst_curves_range);
-      for (const int i_duplicate : IndexRange(dst_curves_range.size())) {
-        dst_offsets[i_duplicate] = point_offsets[i_selection].start() +
-                                   src_curve_range.size() * i_duplicate;
-      }
-    }
-  });
+  selection.foreach_index(GrainSize(512),
+                          [&](const int64_t i_src_curve, const int64_t i_selection) {
+                            const IndexRange src_curve_range = points_by_curve[i_src_curve];
+                            const IndexRange dst_curves_range = curve_offsets[i_selection];
+                            MutableSpan<int> dst_offsets = all_dst_offsets.slice(dst_curves_range);
+                            for (const int i_duplicate : IndexRange(dst_curves_range.size())) {
+                              dst_offsets[i_duplicate] = point_offsets[i_selection].start() +
+                                                         src_curve_range.size() * i_duplicate;
+                            }
+                          });
+
   all_dst_offsets.last() = dst_points_num;
 
-  copy_curve_attributes_without_id(
-      geometry_set, curves, selection, curve_offsets, propagation_info, new_curves);
+  copy_curve_attributes_without_id(curves, selection, curve_offsets, propagation_info, new_curves);
 
   copy_stable_id_curves(curves, selection, curve_offsets, new_curves);
 
@@ -407,6 +360,7 @@ static void duplicate_curves(GeometrySet &geometry_set,
                                      curve_offsets);
   }
 
+  new_curves.update_curve_types();
   geometry_set.replace_curves(new_curves_id);
 }
 
@@ -421,58 +375,40 @@ static void duplicate_curves(GeometrySet &geometry_set,
  * copied with an offset fill, otherwise a mapping is used.
  */
 static void copy_face_attributes_without_id(
-    GeometrySet &geometry_set,
     const Span<int> edge_mapping,
     const Span<int> vert_mapping,
     const Span<int> loop_mapping,
     const OffsetIndices<int> offsets,
-    const IndexMask selection,
+    const IndexMask &selection,
     const AnonymousAttributePropagationInfo &propagation_info,
     const bke::AttributeAccessor src_attributes,
     bke::MutableAttributeAccessor dst_attributes)
 {
-  Map<AttributeIDRef, AttributeKind> attributes = gather_attributes_without_id(
-      geometry_set, GEO_COMPONENT_TYPE_MESH, propagation_info);
-
-  for (const Map<AttributeIDRef, AttributeKind>::Item entry : attributes.items()) {
-    const AttributeIDRef attribute_id = entry.key;
-    GAttributeReader src_attribute = src_attributes.lookup(attribute_id);
-    if (!src_attribute) {
-      continue;
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_attributes,
+           dst_attributes,
+           ATTR_DOMAIN_MASK_ALL,
+           propagation_info,
+           {"id", ".corner_vert", ".corner_edge", ".edge_verts"}))
+  {
+    switch (attribute.meta_data.domain) {
+      case ATTR_DOMAIN_POINT:
+        bke::attribute_math::gather(attribute.src, vert_mapping, attribute.dst.span);
+        break;
+      case ATTR_DOMAIN_EDGE:
+        bke::attribute_math::gather(attribute.src, edge_mapping, attribute.dst.span);
+        break;
+      case ATTR_DOMAIN_FACE:
+        threaded_slice_fill(offsets, selection, attribute.src, attribute.dst.span);
+        break;
+      case ATTR_DOMAIN_CORNER:
+        bke::attribute_math::gather(attribute.src, loop_mapping, attribute.dst.span);
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
     }
-
-    eAttrDomain out_domain = src_attribute.domain;
-    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(
-        src_attribute.varray.type());
-    GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span(
-        attribute_id, out_domain, data_type);
-    if (!dst_attribute) {
-      continue;
-    }
-
-    attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
-      using T = decltype(dummy);
-      VArraySpan<T> src{src_attribute.varray.typed<T>()};
-      MutableSpan<T> dst = dst_attribute.span.typed<T>();
-
-      switch (out_domain) {
-        case ATTR_DOMAIN_POINT:
-          array_utils::gather(src, vert_mapping, dst);
-          break;
-        case ATTR_DOMAIN_EDGE:
-          array_utils::gather(src, edge_mapping, dst);
-          break;
-        case ATTR_DOMAIN_FACE:
-          threaded_slice_fill<T>(offsets, selection, src, dst);
-          break;
-        case ATTR_DOMAIN_CORNER:
-          array_utils::gather(src, loop_mapping, dst);
-          break;
-        default:
-          break;
-      }
-    });
-    dst_attribute.finish();
+    attribute.dst.finish();
   }
 }
 
@@ -484,7 +420,7 @@ static void copy_face_attributes_without_id(
  * `face->edge->vert` mapping would mean creating a 1/1 mapping to allow for it, is it worth it?
  */
 static void copy_stable_id_faces(const Mesh &mesh,
-                                 const IndexMask selection,
+                                 const IndexMask &selection,
                                  const OffsetIndices<int> poly_offsets,
                                  const Span<int> vert_mapping,
                                  const bke::AttributeAccessor src_attributes,
@@ -503,16 +439,16 @@ static void copy_stable_id_faces(const Mesh &mesh,
   VArraySpan<int> src{src_attribute.varray.typed<int>()};
   MutableSpan<int> dst = dst_attribute.span.typed<int>();
 
-  const Span<MPoly> polys = mesh.polys();
+  const OffsetIndices polys = mesh.polys();
   int loop_index = 0;
   for (const int i_poly : selection.index_range()) {
     const IndexRange range = poly_offsets[i_poly];
     if (range.size() == 0) {
       continue;
     }
-    const MPoly &source = polys[i_poly];
+    const IndexRange source = polys[i_poly];
     for ([[maybe_unused]] const int i_duplicate : IndexRange(range.size())) {
-      for ([[maybe_unused]] const int i_loops : IndexRange(source.totloop)) {
+      for ([[maybe_unused]] const int i_loops : IndexRange(source.size())) {
         if (i_duplicate == 0) {
           dst[loop_index] = src[vert_mapping[loop_index]];
         }
@@ -537,14 +473,14 @@ static void duplicate_faces(GeometrySet &geometry_set,
     geometry_set.remove_geometry_during_modify();
     return;
   }
-  geometry_set.keep_only_during_modify({GEO_COMPONENT_TYPE_MESH});
+  geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
 
   const Mesh &mesh = *geometry_set.get_mesh_for_read();
-  const Span<MEdge> edges = mesh.edges();
-  const Span<MPoly> polys = mesh.polys();
-  const Span<MLoop> loops = mesh.loops();
+  const OffsetIndices polys = mesh.polys();
+  const Span<int> corner_verts = mesh.corner_verts();
+  const Span<int> corner_edges = mesh.corner_edges();
 
-  bke::MeshFieldContext field_context{mesh, ATTR_DOMAIN_FACE};
+  const bke::MeshFieldContext field_context{mesh, ATTR_DOMAIN_FACE};
   FieldEvaluator evaluator(field_context, polys.size());
   evaluator.add(count_field);
   evaluator.set_selection(selection_field);
@@ -555,59 +491,56 @@ static void duplicate_faces(GeometrySet &geometry_set,
   int total_polys = 0;
   int total_loops = 0;
   Array<int> offset_data(selection.size() + 1);
-  for (const int i_selection : selection.index_range()) {
-    const int count = std::max(counts[selection[i_selection]], 0);
+  selection.foreach_index_optimized<int>([&](const int index, const int i_selection) {
+    const int count = counts[index];
     offset_data[i_selection] = total_polys;
     total_polys += count;
-    total_loops += count * polys[selection[i_selection]].totloop;
-  }
+    total_loops += count * polys[index].size();
+  });
   offset_data[selection.size()] = total_polys;
 
   const OffsetIndices<int> duplicates(offset_data);
 
-  Mesh *new_mesh = BKE_mesh_new_nomain(total_loops, total_loops, 0, total_loops, total_polys);
-  MutableSpan<MEdge> new_edges = new_mesh->edges_for_write();
-  MutableSpan<MPoly> new_polys = new_mesh->polys_for_write();
-  MutableSpan<MLoop> new_loops = new_mesh->loops_for_write();
+  Mesh *new_mesh = BKE_mesh_new_nomain(total_loops, total_loops, total_polys, total_loops);
+  MutableSpan<int2> new_edges = new_mesh->edges_for_write();
+  MutableSpan<int> new_poly_offsets = new_mesh->poly_offsets_for_write();
+  MutableSpan<int> new_corner_verts = new_mesh->corner_verts_for_write();
+  MutableSpan<int> new_corner_edges = new_mesh->corner_edges_for_write();
 
   Array<int> vert_mapping(new_mesh->totvert);
   Array<int> edge_mapping(new_edges.size());
-  Array<int> loop_mapping(new_loops.size());
+  Array<int> loop_mapping(total_loops);
 
   int poly_index = 0;
   int loop_index = 0;
-  for (const int i_selection : selection.index_range()) {
+  selection.foreach_index_optimized<int>([&](const int index, const int i_selection) {
     const IndexRange poly_range = duplicates[i_selection];
-
-    const MPoly &source = polys[selection[i_selection]];
-    for ([[maybe_unused]] const int i_duplicate : IndexRange(poly_range.size())) {
-      new_polys[poly_index] = source;
-      new_polys[poly_index].loopstart = loop_index;
-      for (const int i_loops : IndexRange(source.totloop)) {
-        const MLoop &current_loop = loops[source.loopstart + i_loops];
-        loop_mapping[loop_index] = source.loopstart + i_loops;
-        vert_mapping[loop_index] = current_loop.v;
-        new_edges[loop_index] = edges[current_loop.e];
-        edge_mapping[loop_index] = current_loop.e;
-        new_edges[loop_index].v1 = loop_index;
-        if (i_loops + 1 != source.totloop) {
-          new_edges[loop_index].v2 = loop_index + 1;
+    const IndexRange source = polys[index];
+    for ([[maybe_unused]] const int i_duplicate : poly_range.index_range()) {
+      new_poly_offsets[poly_index] = loop_index;
+      for (const int src_corner : source) {
+        loop_mapping[loop_index] = src_corner;
+        vert_mapping[loop_index] = corner_verts[src_corner];
+        edge_mapping[loop_index] = corner_edges[src_corner];
+        new_edges[loop_index][0] = loop_index;
+        if (src_corner != source.last()) {
+          new_edges[loop_index][1] = loop_index + 1;
         }
         else {
-          new_edges[loop_index].v2 = new_polys[poly_index].loopstart;
+          new_edges[loop_index][1] = new_poly_offsets[poly_index];
         }
-        new_loops[loop_index].v = loop_index;
-        new_loops[loop_index].e = loop_index;
         loop_index++;
       }
       poly_index++;
     }
-  }
+  });
+  std::iota(new_corner_verts.begin(), new_corner_verts.end(), 0);
+  std::iota(new_corner_edges.begin(), new_corner_edges.end(), 0);
 
-  new_mesh->loose_edges_tag_none();
+  new_mesh->tag_loose_verts_none();
+  new_mesh->tag_loose_edges_none();
 
-  copy_face_attributes_without_id(geometry_set,
-                                  edge_mapping,
+  copy_face_attributes_without_id(edge_mapping,
                                   vert_mapping,
                                   loop_mapping,
                                   duplicates,
@@ -645,49 +578,32 @@ static void duplicate_faces(GeometrySet &geometry_set,
  * copied with an offset fill, for point domain a mapping is used.
  */
 static void copy_edge_attributes_without_id(
-    GeometrySet &geometry_set,
     const Span<int> point_mapping,
     const OffsetIndices<int> offsets,
-    const IndexMask selection,
+    const IndexMask &selection,
     const AnonymousAttributePropagationInfo &propagation_info,
     const bke::AttributeAccessor src_attributes,
     bke::MutableAttributeAccessor dst_attributes)
 {
-  Map<AttributeIDRef, AttributeKind> attributes = gather_attributes_without_id(
-      geometry_set, GEO_COMPONENT_TYPE_MESH, propagation_info);
-
-  for (const Map<AttributeIDRef, AttributeKind>::Item entry : attributes.items()) {
-    const AttributeIDRef attribute_id = entry.key;
-    GAttributeReader src_attribute = src_attributes.lookup(attribute_id);
-    if (!src_attribute) {
-      continue;
+  for (auto &attribute :
+       bke::retrieve_attributes_for_transfer(src_attributes,
+                                             dst_attributes,
+                                             ATTR_DOMAIN_MASK_POINT | ATTR_DOMAIN_MASK_EDGE,
+                                             propagation_info,
+                                             {"id", ".edge_verts"}))
+  {
+    switch (attribute.meta_data.domain) {
+      case ATTR_DOMAIN_EDGE:
+        threaded_slice_fill(offsets, selection, attribute.src, attribute.dst.span);
+        break;
+      case ATTR_DOMAIN_POINT:
+        bke::attribute_math::gather(attribute.src, point_mapping, attribute.dst.span);
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
     }
-
-    const eAttrDomain out_domain = src_attribute.domain;
-    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(
-        src_attribute.varray.type());
-    GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span(
-        attribute_id, out_domain, data_type);
-    if (!dst_attribute) {
-      continue;
-    }
-    attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
-      using T = decltype(dummy);
-      VArraySpan<T> src{src_attribute.varray.typed<T>()};
-      MutableSpan<T> dst = dst_attribute.span.typed<T>();
-
-      switch (out_domain) {
-        case ATTR_DOMAIN_EDGE:
-          threaded_slice_fill<T>(offsets, selection, src, dst);
-          break;
-        case ATTR_DOMAIN_POINT:
-          array_utils::gather(src, point_mapping, dst);
-          break;
-        default:
-          break;
-      }
-    });
-    dst_attribute.finish();
+    attribute.dst.finish();
   }
 }
 
@@ -696,7 +612,7 @@ static void copy_edge_attributes_without_id(
  * and the duplicate number. This function is used for points when duplicating the edge domain.
  */
 static void copy_stable_id_edges(const Mesh &mesh,
-                                 const IndexMask selection,
+                                 const IndexMask &selection,
                                  const OffsetIndices<int> offsets,
                                  const bke::AttributeAccessor src_attributes,
                                  bke::MutableAttributeAccessor dst_attributes)
@@ -711,25 +627,23 @@ static void copy_stable_id_edges(const Mesh &mesh,
     return;
   }
 
-  const Span<MEdge> edges = mesh.edges();
+  const Span<int2> edges = mesh.edges();
 
   VArraySpan<int> src{src_attribute.varray.typed<int>()};
   MutableSpan<int> dst = dst_attribute.span.typed<int>();
-  threading::parallel_for(IndexRange(selection.size()), 1024, [&](IndexRange range) {
-    for (const int i_selection : range) {
-      const IndexRange edge_range = offsets[i_selection];
-      if (edge_range.size() == 0) {
-        continue;
-      }
-      const MEdge &edge = edges[selection[i_selection]];
-      const IndexRange vert_range = {edge_range.start() * 2, edge_range.size() * 2};
+  selection.foreach_index(GrainSize(1024), [&](const int64_t index, const int64_t i_selection) {
+    const IndexRange edge_range = offsets[i_selection];
+    if (edge_range.is_empty()) {
+      return;
+    }
+    const int2 &edge = edges[index];
+    const IndexRange vert_range = {edge_range.start() * 2, edge_range.size() * 2};
 
-      dst[vert_range[0]] = src[edge.v1];
-      dst[vert_range[1]] = src[edge.v2];
-      for (const int i_duplicate : IndexRange(1, edge_range.size() - 1)) {
-        dst[vert_range[i_duplicate * 2]] = noise::hash(src[edge.v1], i_duplicate);
-        dst[vert_range[i_duplicate * 2 + 1]] = noise::hash(src[edge.v2], i_duplicate);
-      }
+    dst[vert_range[0]] = src[edge[0]];
+    dst[vert_range[1]] = src[edge[1]];
+    for (const int i_duplicate : IndexRange(1, edge_range.size() - 1)) {
+      dst[vert_range[i_duplicate * 2]] = noise::hash(src[edge[0]], i_duplicate);
+      dst[vert_range[i_duplicate * 2 + 1]] = noise::hash(src[edge[1]], i_duplicate);
     }
   });
   dst_attribute.finish();
@@ -746,9 +660,9 @@ static void duplicate_edges(GeometrySet &geometry_set,
     return;
   };
   const Mesh &mesh = *geometry_set.get_mesh_for_read();
-  const Span<MEdge> edges = mesh.edges();
+  const Span<int2> edges = mesh.edges();
 
-  bke::MeshFieldContext field_context{mesh, ATTR_DOMAIN_EDGE};
+  const bke::MeshFieldContext field_context{mesh, ATTR_DOMAIN_EDGE};
   FieldEvaluator evaluator{field_context, edges.size()};
   evaluator.add(count_field);
   evaluator.set_selection(selection_field);
@@ -761,20 +675,18 @@ static void duplicate_edges(GeometrySet &geometry_set,
       selection, counts, offset_data);
   const int output_edges_num = duplicates.total_size();
 
-  Mesh *new_mesh = BKE_mesh_new_nomain(output_edges_num * 2, output_edges_num, 0, 0, 0);
-  MutableSpan<MEdge> new_edges = new_mesh->edges_for_write();
+  Mesh *new_mesh = BKE_mesh_new_nomain(output_edges_num * 2, output_edges_num, 0, 0);
+  MutableSpan<int2> new_edges = new_mesh->edges_for_write();
 
   Array<int> vert_orig_indices(output_edges_num * 2);
-  threading::parallel_for(selection.index_range(), 1024, [&](IndexRange range) {
-    for (const int i_selection : range) {
-      const MEdge &edge = edges[selection[i_selection]];
-      const IndexRange edge_range = duplicates[i_selection];
-      const IndexRange vert_range(edge_range.start() * 2, edge_range.size() * 2);
+  selection.foreach_index(GrainSize(1024), [&](const int64_t index, const int64_t i_selection) {
+    const int2 &edge = edges[index];
+    const IndexRange edge_range = duplicates[i_selection];
+    const IndexRange vert_range(edge_range.start() * 2, edge_range.size() * 2);
 
-      for (const int i_duplicate : IndexRange(edge_range.size())) {
-        vert_orig_indices[vert_range[i_duplicate * 2]] = edge.v1;
-        vert_orig_indices[vert_range[i_duplicate * 2 + 1]] = edge.v2;
-      }
+    for (const int i_duplicate : IndexRange(edge_range.size())) {
+      vert_orig_indices[vert_range[i_duplicate * 2]] = edge[0];
+      vert_orig_indices[vert_range[i_duplicate * 2 + 1]] = edge[1];
     }
   });
 
@@ -783,15 +695,14 @@ static void duplicate_edges(GeometrySet &geometry_set,
       const IndexRange edge_range = duplicates[i_selection];
       const IndexRange vert_range(edge_range.start() * 2, edge_range.size() * 2);
       for (const int i_duplicate : IndexRange(edge_range.size())) {
-        MEdge &new_edge = new_edges[edge_range[i_duplicate]];
-        new_edge.v1 = vert_range[i_duplicate * 2];
-        new_edge.v2 = vert_range[i_duplicate * 2] + 1;
+        int2 &new_edge = new_edges[edge_range[i_duplicate]];
+        new_edge[0] = vert_range[i_duplicate * 2];
+        new_edge[1] = vert_range[i_duplicate * 2] + 1;
       }
     }
   });
 
-  copy_edge_attributes_without_id(geometry_set,
-                                  vert_orig_indices,
+  copy_edge_attributes_without_id(vert_orig_indices,
                                   duplicates,
                                   selection,
                                   propagation_info,
@@ -830,7 +741,7 @@ static void duplicate_points_curve(GeometrySet &geometry_set,
     return;
   }
 
-  bke::CurvesFieldContext field_context{src_curves, ATTR_DOMAIN_POINT};
+  const bke::CurvesFieldContext field_context{src_curves, ATTR_DOMAIN_POINT};
   FieldEvaluator evaluator{field_context, src_curves.points_num()};
   evaluator.add(count_field);
   evaluator.set_selection(selection_field);
@@ -849,53 +760,35 @@ static void duplicate_points_curve(GeometrySet &geometry_set,
   bke::curves_copy_parameters(src_curves_id, *new_curves_id);
   bke::CurvesGeometry &new_curves = new_curves_id->geometry.wrap();
   MutableSpan<int> new_curve_offsets = new_curves.offsets_for_write();
-  for (const int i : new_curves.curves_range()) {
-    new_curve_offsets[i] = i;
-  }
-  new_curve_offsets.last() = dst_num;
+  std::iota(new_curve_offsets.begin(), new_curve_offsets.end(), 0);
 
-  Map<AttributeIDRef, AttributeKind> attributes = gather_attributes_without_id(
-      geometry_set, GEO_COMPONENT_TYPE_CURVE, propagation_info);
-
-  for (const Map<AttributeIDRef, AttributeKind>::Item entry : attributes.items()) {
-    const AttributeIDRef attribute_id = entry.key;
-    GAttributeReader src_attribute = src_curves.attributes().lookup(attribute_id);
-    if (!src_attribute) {
-      continue;
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(src_curves.attributes(),
+                                                               new_curves.attributes_for_write(),
+                                                               ATTR_DOMAIN_MASK_ALL,
+                                                               propagation_info,
+                                                               {"id"}))
+  {
+    switch (attribute.meta_data.domain) {
+      case ATTR_DOMAIN_CURVE:
+        bke::attribute_math::convert_to_static_type(attribute.src.type(), [&](auto dummy) {
+          using T = decltype(dummy);
+          const Span<T> src = attribute.src.typed<T>();
+          MutableSpan<T> dst = attribute.dst.span.typed<T>();
+          selection.foreach_index(GrainSize(512),
+                                  [&](const int64_t index, const int64_t i_selection) {
+                                    const T &src_value = src[point_to_curve_map[index]];
+                                    dst.slice(duplicates[i_selection]).fill(src_value);
+                                  });
+        });
+        break;
+      case ATTR_DOMAIN_POINT:
+        threaded_slice_fill(duplicates, selection, attribute.src, attribute.dst.span);
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
     }
-
-    eAttrDomain domain = src_attribute.domain;
-    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(
-        src_attribute.varray.type());
-    GSpanAttributeWriter dst_attribute =
-        new_curves.attributes_for_write().lookup_or_add_for_write_only_span(
-            attribute_id, domain, data_type);
-    if (!dst_attribute) {
-      continue;
-    }
-
-    attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
-      using T = decltype(dummy);
-      VArraySpan<T> src{src_attribute.varray.typed<T>()};
-      MutableSpan<T> dst = dst_attribute.span.typed<T>();
-
-      switch (domain) {
-        case ATTR_DOMAIN_CURVE:
-          threading::parallel_for(selection.index_range(), 512, [&](IndexRange range) {
-            for (const int i_selection : range) {
-              const T &src_value = src[point_to_curve_map[selection[i_selection]]];
-              dst.slice(duplicates[i_selection]).fill(src_value);
-            }
-          });
-          break;
-        case ATTR_DOMAIN_POINT:
-          threaded_slice_fill(duplicates, selection, src, dst);
-          break;
-        default:
-          break;
-      }
-    });
-    dst_attribute.finish();
+    attribute.dst.finish();
   }
 
   copy_stable_id_point(duplicates, src_curves.attributes(), new_curves.attributes_for_write());
@@ -925,7 +818,7 @@ static void duplicate_points_mesh(GeometrySet &geometry_set,
 {
   const Mesh &mesh = *geometry_set.get_mesh_for_read();
 
-  bke::MeshFieldContext field_context{mesh, ATTR_DOMAIN_POINT};
+  const bke::MeshFieldContext field_context{mesh, ATTR_DOMAIN_POINT};
   FieldEvaluator evaluator{field_context, mesh.totvert};
   evaluator.add(count_field);
   evaluator.set_selection(selection_field);
@@ -937,14 +830,12 @@ static void duplicate_points_mesh(GeometrySet &geometry_set,
   const OffsetIndices<int> duplicates = accumulate_counts_to_offsets(
       selection, counts, offset_data);
 
-  Mesh *new_mesh = BKE_mesh_new_nomain(duplicates.total_size(), 0, 0, 0, 0);
+  Mesh *new_mesh = BKE_mesh_new_nomain(duplicates.total_size(), 0, 0, 0);
 
-  copy_attributes_without_id(geometry_set,
-                             GEO_COMPONENT_TYPE_MESH,
-                             ATTR_DOMAIN_POINT,
-                             duplicates,
+  copy_attributes_without_id(duplicates,
                              selection,
                              propagation_info,
+                             ATTR_DOMAIN_POINT,
                              mesh.attributes(),
                              new_mesh->attributes_for_write());
 
@@ -975,7 +866,7 @@ static void duplicate_points_pointcloud(GeometrySet &geometry_set,
 {
   const PointCloud &src_points = *geometry_set.get_pointcloud_for_read();
 
-  bke::PointCloudFieldContext field_context{src_points};
+  const bke::PointCloudFieldContext field_context{src_points};
   FieldEvaluator evaluator{field_context, src_points.totpoint};
   evaluator.add(count_field);
   evaluator.set_selection(selection_field);
@@ -989,12 +880,10 @@ static void duplicate_points_pointcloud(GeometrySet &geometry_set,
 
   PointCloud *pointcloud = BKE_pointcloud_new_nomain(duplicates.total_size());
 
-  copy_attributes_without_id(geometry_set,
-                             GEO_COMPONENT_TYPE_POINT_CLOUD,
-                             ATTR_DOMAIN_POINT,
-                             duplicates,
+  copy_attributes_without_id(duplicates,
                              selection,
                              propagation_info,
+                             ATTR_DOMAIN_POINT,
                              src_points.attributes(),
                              pointcloud->attributes_for_write());
 
@@ -1022,22 +911,23 @@ static void duplicate_points(GeometrySet &geometry_set,
                              const IndexAttributes &attribute_outputs,
                              const AnonymousAttributePropagationInfo &propagation_info)
 {
-  Vector<GeometryComponentType> component_types = geometry_set.gather_component_types(true, true);
-  for (const GeometryComponentType component_type : component_types) {
+  Vector<GeometryComponent::Type> component_types = geometry_set.gather_component_types(true,
+                                                                                        true);
+  for (const GeometryComponent::Type component_type : component_types) {
     switch (component_type) {
-      case GEO_COMPONENT_TYPE_POINT_CLOUD:
+      case GeometryComponent::Type::PointCloud:
         if (geometry_set.has_pointcloud()) {
           duplicate_points_pointcloud(
               geometry_set, count_field, selection_field, attribute_outputs, propagation_info);
         }
         break;
-      case GEO_COMPONENT_TYPE_MESH:
+      case GeometryComponent::Type::Mesh:
         if (geometry_set.has_mesh()) {
           duplicate_points_mesh(
               geometry_set, count_field, selection_field, attribute_outputs, propagation_info);
         }
         break;
-      case GEO_COMPONENT_TYPE_CURVE:
+      case GeometryComponent::Type::Curve:
         if (geometry_set.has_curves()) {
           duplicate_points_curve(
               geometry_set, count_field, selection_field, attribute_outputs, propagation_info);
@@ -1047,7 +937,7 @@ static void duplicate_points(GeometrySet &geometry_set,
         break;
     }
   }
-  component_types.append(GEO_COMPONENT_TYPE_INSTANCES);
+  component_types.append(GeometryComponent::Type::Instance);
   geometry_set.keep_only_during_modify(component_types);
 }
 
@@ -1102,12 +992,10 @@ static void duplicate_instances(GeometrySet &geometry_set,
     dst_instances->reference_handles().slice(range).fill(new_handle);
   }
 
-  copy_attributes_without_id(geometry_set,
-                             GEO_COMPONENT_TYPE_INSTANCES,
-                             ATTR_DOMAIN_INSTANCE,
-                             duplicates,
+  copy_attributes_without_id(duplicates,
                              selection,
                              propagation_info,
+                             ATTR_DOMAIN_INSTANCE,
                              src_instances.attributes(),
                              dst_instances->attributes_for_write());
 
@@ -1135,7 +1023,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   const NodeGeometryDuplicateElements &storage = node_storage(params.node());
   const eAttrDomain duplicate_domain = eAttrDomain(storage.domain);
 
-  Field<int> count_field = params.extract_input<Field<int>>("Amount");
+  static auto max_zero_fn = mf::build::SI1_SO<int, int>(
+      "max_zero",
+      [](int value) { return std::max(0, value); },
+      mf::build::exec_presets::AllSpanOrSingle());
+  Field<int> count_field(
+      FieldOperation::Create(max_zero_fn, {params.extract_input<Field<int>>("Amount")}));
+
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   IndexAttributes attribute_outputs;
   attribute_outputs.duplicate_index = params.get_output_anonymous_attribute_id_if_needed(
@@ -1179,12 +1073,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  if (attribute_outputs.duplicate_index) {
-    params.set_output(
-        "Duplicate Index",
-        AnonymousAttributeFieldInput::Create<int>(std::move(attribute_outputs.duplicate_index),
-                                                  params.attribute_producer_name()));
-  }
   params.set_output("Geometry", std::move(geometry_set));
 }
 

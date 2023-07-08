@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -151,7 +152,7 @@ void BKE_lattice_deform_data_eval_co(LatticeDeformData *lattice_deform_data,
   /* vgroup influence */
   float co_prev[4] = {0}, weight_blend = 0.0f;
   copy_v3_v3(co_prev, co);
-#ifdef BLI_HAVE_SSE2
+#if BLI_HAVE_SSE2
   __m128 co_vec = _mm_loadu_ps(co_prev);
 #endif
 
@@ -212,7 +213,7 @@ void BKE_lattice_deform_data_eval_co(LatticeDeformData *lattice_deform_data,
         u = v * tu[uu - ui + 1];
         idx_u = CLAMPIS(uu, 0, idx_u_max);
         const int idx = idx_w + idx_v + idx_u;
-#ifdef BLI_HAVE_SSE2
+#if BLI_HAVE_SSE2
         {
           __m128 weight_vec = _mm_set1_ps(u);
           /* We need to address special case for last item to avoid accessing invalid memory. */
@@ -236,7 +237,7 @@ void BKE_lattice_deform_data_eval_co(LatticeDeformData *lattice_deform_data,
       }
     }
   }
-#ifdef BLI_HAVE_SSE2
+#if BLI_HAVE_SSE2
   {
     copy_v3_v3(co, (float *)&co_vec);
   }
@@ -441,14 +442,14 @@ void BKE_lattice_deform_coords_with_mesh(const Object *ob_lattice,
                              NULL);
 }
 
-void BKE_lattice_deform_coords_with_editmesh(const struct Object *ob_lattice,
-                                             const struct Object *ob_target,
+void BKE_lattice_deform_coords_with_editmesh(const Object *ob_lattice,
+                                             const Object *ob_target,
                                              float (*vert_coords)[3],
                                              const int vert_coords_len,
                                              const short flag,
                                              const char *defgrp_name,
                                              const float fac,
-                                             struct BMEditMesh *em_target)
+                                             BMEditMesh *em_target)
 {
   lattice_deform_coords_impl(ob_lattice,
                              ob_target,

@@ -1,9 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup DNA
- * \page makesdna makesdna
+ * \page makesdna Make Struct DNA (`makesdna`)
  *
  * \section aboutdna About the DNA module
  *
@@ -18,7 +19,7 @@
  * - Function pointers:
  *
  *   Because of historical reasons, some function pointers were
- *   untyped. The parser/dna generator has been modified to explicitly
+ *   untyped. The parser/DNA generator has been modified to explicitly
  *   handle these special cases. Most pointers have been given proper
  *   proto's by now. DNA_space_types.h::Spacefile::returnfunc may still
  *   be badly defined. The reason for this is that it is called with
@@ -59,7 +60,7 @@
  *
  * PLEASE READ INSTRUCTIONS ABOUT ADDING VARIABLES IN 'DNA' STRUCTS IN
  *
- * intern/dna_genfile.c
+ * intern/dna_genfile.cc
  * (ton)
  */
 

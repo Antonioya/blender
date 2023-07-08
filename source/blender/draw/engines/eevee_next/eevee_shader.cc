@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2021 Blender Foundation.
- */
+/* SPDX-FileCopyrightText: 2021 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup eevee
@@ -80,12 +80,16 @@ ShaderModule::~ShaderModule()
 const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_type)
 {
   switch (shader_type) {
+    case AMBIENT_OCCLUSION_PASS:
+      return "eevee_ambient_occlusion_pass";
     case FILM_FRAG:
       return "eevee_film_frag";
     case FILM_COMP:
       return "eevee_film_comp";
     case FILM_CRYPTOMATTE_POST:
       return "eevee_film_cryptomatte_post";
+    case DEFERRED_LIGHT:
+      return "eevee_deferred_light";
     case HIZ_DEBUG:
       return "eevee_hiz_debug";
     case HIZ_UPDATE:
@@ -98,6 +102,10 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_motion_blur_tiles_flatten_render";
     case MOTION_BLUR_TILE_FLATTEN_VIEWPORT:
       return "eevee_motion_blur_tiles_flatten_viewport";
+    case DEBUG_SURFELS:
+      return "eevee_debug_surfels";
+    case DISPLAY_PROBE_GRID:
+      return "eevee_display_probe_grid";
     case DOF_BOKEH_LUT:
       return "eevee_depth_of_field_bokeh_lut";
     case DOF_DOWNSAMPLE:
@@ -142,6 +150,16 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_light_culling_tile";
     case LIGHT_CULLING_ZBIN:
       return "eevee_light_culling_zbin";
+    case LIGHTPROBE_IRRADIANCE_BOUNDS:
+      return "eevee_lightprobe_irradiance_bounds";
+    case LIGHTPROBE_IRRADIANCE_RAY:
+      return "eevee_lightprobe_irradiance_ray";
+    case LIGHTPROBE_IRRADIANCE_LOAD:
+      return "eevee_lightprobe_irradiance_load";
+    case REFLECTION_PROBE_REMAP:
+      return "eevee_reflection_probe_remap";
+    case SHADOW_CLIPMAP_CLEAR:
+      return "eevee_shadow_clipmap_clear";
     case SHADOW_DEBUG:
       return "eevee_shadow_debug";
     case SHADOW_PAGE_ALLOCATE:
@@ -164,8 +182,20 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
       return "eevee_shadow_tag_update";
     case SHADOW_TILEMAP_TAG_USAGE_OPAQUE:
       return "eevee_shadow_tag_usage_opaque";
+    case SHADOW_TILEMAP_TAG_USAGE_SURFELS:
+      return "eevee_shadow_tag_usage_surfels";
     case SHADOW_TILEMAP_TAG_USAGE_TRANSPARENT:
       return "eevee_shadow_tag_usage_transparent";
+    case SUBSURFACE_EVAL:
+      return "eevee_subsurface_eval";
+    case SURFEL_LIGHT:
+      return "eevee_surfel_light";
+    case SURFEL_LIST_BUILD:
+      return "eevee_surfel_list_build";
+    case SURFEL_LIST_SORT:
+      return "eevee_surfel_list_sort";
+    case SURFEL_RAY:
+      return "eevee_surfel_ray";
     /* To avoid compiler warning about missing case. */
     case MAX_SHADER_TYPE:
       return "";
@@ -219,22 +249,25 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
     info.additional_info("draw_object_attribute_new");
   }
 
-  /* WORKAROUND: Avoid utility texture merge error. TODO: find a cleaner fix. */
+  /* First indices are reserved by the engine.
+   * Put material samplers in reverse order, starting from the last slot. */
+  int sampler_slot = GPU_max_textures_frag() - 1;
   for (auto &resource : info.batch_resources_) {
     if (resource.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
-      switch (resource.slot) {
-        case RBUFS_UTILITY_TEX_SLOT:
-          resource.slot = GPU_max_textures_frag() - 1;
-          break;
-        // case SHADOW_RENDER_MAP_SLOT: /* Does not compile because it is a define. */
-        case SHADOW_ATLAS_TEX_SLOT:
-          resource.slot = GPU_max_textures_frag() - 2;
-          break;
-        case SHADOW_TILEMAPS_TEX_SLOT:
-          resource.slot = GPU_max_textures_frag() - 3;
-          break;
-      }
+      resource.slot = sampler_slot--;
     }
+  }
+
+  /* WORKAROUND: Needed because node_tree isn't present in test shaders. */
+  if (pipeline_type == MAT_PIPE_DEFERRED) {
+    info.additional_info("eevee_render_pass_out");
+  }
+
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_AO) &&
+      ELEM(pipeline_type, MAT_PIPE_FORWARD, MAT_PIPE_DEFERRED) &&
+      ELEM(geometry_type, MAT_GEOM_MESH, MAT_GEOM_CURVES))
+  {
+    info.define("MAT_AMBIENT_OCCLUSION");
   }
 
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT)) {
@@ -246,11 +279,15 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
   }
 
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT) == false &&
-      pipeline_type == MAT_PIPE_FORWARD) {
+      pipeline_type == MAT_PIPE_FORWARD)
+  {
     /* Opaque forward do support AOVs and render pass if not using transparency. */
-    info.additional_info("eevee_aov_out");
     info.additional_info("eevee_render_pass_out");
     info.additional_info("eevee_cryptomatte_out");
+  }
+
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SUBSURFACE) && pipeline_type == MAT_PIPE_FORWARD) {
+    info.additional_info("eevee_transmittance_data");
   }
 
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_BARYCENTRIC)) {
@@ -283,7 +320,7 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
           global_vars << input.type << " " << input.name << ";\n";
         }
         else {
-          info.sampler(0, ImageType::FLOAT_BUFFER, input.name, Frequency::BATCH);
+          info.sampler(sampler_slot--, ImageType::FLOAT_BUFFER, input.name, Frequency::BATCH);
         }
       }
       info.vertex_inputs_.clear();
@@ -403,7 +440,6 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
       info.additional_info("eevee_geom_curves");
       break;
     case MAT_GEOM_MESH:
-    default:
       info.additional_info("eevee_geom_mesh");
       break;
   }
@@ -428,6 +464,9 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
         case MAT_PIPE_SHADOW:
           info.additional_info("eevee_surf_shadow");
           break;
+        case MAT_PIPE_CAPTURE:
+          info.additional_info("eevee_surf_capture");
+          break;
         case MAT_PIPE_DEFERRED:
           info.additional_info("eevee_surf_deferred");
           break;
@@ -435,7 +474,7 @@ void ShaderModule::material_create_info_ammend(GPUMaterial *gpumat, GPUCodegenOu
           info.additional_info("eevee_surf_forward");
           break;
         default:
-          BLI_assert(0);
+          BLI_assert_unreachable();
           break;
       }
       break;
@@ -450,7 +489,7 @@ static void codegen_callback(void *thunk, GPUMaterial *mat, GPUCodegenOutput *co
 }
 
 GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
-                                               struct bNodeTree *nodetree,
+                                               bNodeTree *nodetree,
                                                eMaterialPipeline pipeline_type,
                                                eMaterialGeometry geometry_type,
                                                bool deferred_compilation)
@@ -463,7 +502,7 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
       blender_mat, nodetree, shader_uuid, is_volume, deferred_compilation, codegen_callback, this);
 }
 
-GPUMaterial *ShaderModule::world_shader_get(::World *blender_world, struct bNodeTree *nodetree)
+GPUMaterial *ShaderModule::world_shader_get(::World *blender_world, bNodeTree *nodetree)
 {
   eMaterialPipeline pipeline_type = MAT_PIPE_DEFERRED; /* Unused. */
   eMaterialGeometry geometry_type = MAT_GEOM_WORLD;
@@ -486,7 +525,7 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world, struct bNode
  * materials and call GPU_material_free on it to update the material. */
 GPUMaterial *ShaderModule::material_shader_get(const char *name,
                                                ListBase &materials,
-                                               struct bNodeTree *nodetree,
+                                               bNodeTree *nodetree,
                                                eMaterialPipeline pipeline_type,
                                                eMaterialGeometry geometry_type,
                                                bool is_lookdev)
@@ -507,6 +546,8 @@ GPUMaterial *ShaderModule::material_shader_get(const char *name,
                                                    this);
   GPU_material_status_set(gpumat, GPU_MAT_QUEUED);
   GPU_material_compile(gpumat);
+  /* Queue deferred material optimization. */
+  DRW_shader_queue_optimize_material(gpumat);
   return gpumat;
 }
 

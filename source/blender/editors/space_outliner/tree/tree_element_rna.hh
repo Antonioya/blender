@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
@@ -26,7 +28,6 @@ class TreeElementRNACommon : public AbstractTreeElement {
 
  public:
   TreeElementRNACommon(TreeElement &legacy_te, PointerRNA &rna_ptr);
-  bool isExpandValid() const override;
   bool expandPoll(const SpaceOutliner &) const override;
 
   const PointerRNA &getPointerRNA() const;

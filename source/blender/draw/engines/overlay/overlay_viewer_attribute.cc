@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup draw_engine
@@ -59,7 +61,7 @@ static void populate_cache_for_instance(Object &object,
   const InstancesComponent &instances =
       *base_geometry.get_component_for_read<InstancesComponent>();
   const AttributeAccessor instance_attributes = *instances.attributes();
-  const VArray attribute = instance_attributes.lookup<ColorGeometry4f>(".viewer");
+  const VArray attribute = *instance_attributes.lookup<ColorGeometry4f>(".viewer");
   if (!attribute) {
     return;
   }
@@ -166,8 +168,8 @@ void OVERLAY_viewer_attribute_cache_populate(OVERLAY_Data *vedata, Object *objec
   DupliObject *dupli_object = DRW_object_get_dupli(object);
 
   if (dupli_object->preview_instance_index >= 0) {
-    const InstancesComponent &instances =
-        *dupli_object->preview_base_geometry->get_component_for_read<InstancesComponent>();
+    const auto &instances = *dupli_object->preview_base_geometry
+                                 ->get_component_for_read<blender::bke::InstancesComponent>();
     if (instances.attributes()->contains(".viewer")) {
       populate_cache_for_instance(*object, *pd, *dupli_object, opacity);
       return;

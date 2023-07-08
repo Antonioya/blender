@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_shader_util.hh"
 
@@ -14,8 +15,8 @@ namespace blender::nodes::node_shader_vertex_color_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Color>(N_("Color"));
-  b.add_output<decl::Float>(N_("Alpha"));
+  b.add_output<decl::Color>("Color");
+  b.add_output<decl::Float>("Alpha");
 }
 
 static void node_shader_buts_vertex_color(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -49,7 +50,7 @@ static int node_shader_gpu_vertex_color(GPUMaterial *mat,
   NodeShaderVertexColor *vertexColor = (NodeShaderVertexColor *)node->storage;
   /* NOTE: Using #CD_AUTO_FROM_NAME is necessary because there are multiple color attribute types,
    * and the type may change during evaluation anyway. This will also make EEVEE and Cycles
-   * consistent. See T93179. */
+   * consistent. See #93179. */
 
   GPUNodeLink *vertexColorLink;
 

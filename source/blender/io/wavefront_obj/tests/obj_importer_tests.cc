@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include <gtest/gtest.h>
 
@@ -9,13 +11,14 @@
 #include "BKE_customdata.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_object.h"
 #include "BKE_scene.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_string.h"
 
 #include "BLO_readfile.h"
 
@@ -67,13 +70,14 @@ class obj_importer_test : public BlendfileLoadingBaseTest {
                         int expect_mat_count,
                         int expect_image_count = 0)
   {
-    if (!blendfile_load("io_tests/blend_geometry/all_quads.blend")) {
+    if (!blendfile_load("io_tests" SEP_STR "blend_geometry" SEP_STR "all_quads.blend")) {
       ADD_FAILURE();
       return;
     }
 
-    std::string obj_path = blender::tests::flags_test_asset_dir() + "/io_tests/obj/" + path;
-    strncpy(params.filepath, obj_path.c_str(), FILE_MAX - 1);
+    std::string obj_path = blender::tests::flags_test_asset_dir() +
+                           SEP_STR "io_tests" SEP_STR "obj" SEP_STR + path;
+    STRNCPY(params.filepath, obj_path.c_str());
     const size_t read_buffer_size = 650;
     importer_main(bfile->main, bfile->curscene, bfile->cur_view_layer, params, read_buffer_size);
 
@@ -486,6 +490,15 @@ TEST_F(obj_importer_test, import_faces_invalid_or_with_holes)
   import_and_check("faces_invalid_or_with_holes.obj", expect, std::size(expect), 0);
 }
 
+TEST_F(obj_importer_test, import_invalid_faces)
+{
+  Expectation expect[] = {
+      {"OBCube", OB_MESH, 8, 12, 6, 24, float3(1, 1, -1), float3(-1, 1, 1)},
+      {"OBTheMesh", OB_MESH, 5, 3, 1, 3, float3(-2, 0, -2), float3(0, 2, 0)},
+  };
+  import_and_check("invalid_faces.obj", expect, std::size(expect), 0);
+}
+
 TEST_F(obj_importer_test, import_invalid_indices)
 {
   Expectation expect[] = {
@@ -867,6 +880,15 @@ TEST_F(obj_importer_test, import_split_options_none)
       {"OBsplit_options", OB_MESH, 13, 20, 11, 40, float3(1, 1, -1), float3(4, 0, 2)},
   };
   import_and_check("split_options.obj", expect, std::size(expect), 0);
+}
+
+TEST_F(obj_importer_test, import_polylines)
+{
+  Expectation expect[] = {
+      {"OBCube", OB_MESH, 8, 12, 6, 24, float3(1, 1, -1), float3(-1, 1, 1)},
+      {"OBpolylines", OB_MESH, 13, 8, 0, 0, float3(1, 0, 0), float3(.7, .7, 2)},
+  };
+  import_and_check("polylines.obj", expect, std::size(expect), 0);
 }
 
 }  // namespace blender::io::obj

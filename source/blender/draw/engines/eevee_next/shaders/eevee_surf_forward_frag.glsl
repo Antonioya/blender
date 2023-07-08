@@ -8,6 +8,7 @@
 #pragma BLENDER_REQUIRE(common_hair_lib.glsl)
 #pragma BLENDER_REQUIRE(common_math_lib.glsl)
 #pragma BLENDER_REQUIRE(common_view_lib.glsl)
+#pragma BLENDER_REQUIRE(eevee_ambient_occlusion_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_light_eval_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_nodetree_lib.glsl)
 #pragma BLENDER_REQUIRE(eevee_sampling_lib.glsl)
@@ -18,6 +19,7 @@ vec4 closure_to_rgba(Closure cl)
   vec3 diffuse_light = vec3(0.0);
   vec3 reflection_light = vec3(0.0);
   vec3 refraction_light = vec3(0.0);
+  float shadow = 1.0;
 
   float vP_z = dot(cameraForward, g_data.P) - dot(cameraForward, cameraPos);
 
@@ -29,7 +31,8 @@ vec4 closure_to_rgba(Closure cl)
              vP_z,
              0.01 /* TODO(fclem) thickness. */,
              diffuse_light,
-             reflection_light);
+             reflection_light,
+             shadow);
 
   vec4 out_color;
   out_color.rgb = g_emission;
@@ -47,6 +50,9 @@ vec4 closure_to_rgba(Closure cl)
 
 void main()
 {
+  /* Clear AOVs first. In case the material renders to them. */
+  clear_aovs();
+
   init_globals();
 
   float noise = utility_tx_fetch(utility_tx, gl_FragCoord.xy, UTIL_BLUE_NOISE_LAYER).r;
@@ -58,9 +64,12 @@ void main()
 
   g_holdout = saturate(g_holdout);
 
+  float thickness = nodetree_thickness();
+
   vec3 diffuse_light = vec3(0.0);
   vec3 reflection_light = vec3(0.0);
   vec3 refraction_light = vec3(0.0);
+  float shadow = 1.0;
 
   float vP_z = dot(cameraForward, g_data.P) - dot(cameraForward, cameraPos);
 
@@ -70,9 +79,10 @@ void main()
              g_data.Ng,
              cameraVec(g_data.P),
              vP_z,
-             0.01 /* TODO(fclem) thickness. */,
+             thickness,
              diffuse_light,
-             reflection_light);
+             reflection_light,
+             shadow);
 
   g_diffuse_data.color *= g_diffuse_data.weight;
   g_reflection_data.color *= g_reflection_data.weight;
@@ -101,17 +111,16 @@ void main()
 
 #ifdef MAT_RENDER_PASS_SUPPORT
   ivec2 out_texel = ivec2(gl_FragCoord.xy);
-  imageStore(rp_normal_img, out_texel, vec4(out_normal, 1.0));
-  imageStore(
-      rp_light_img, ivec3(out_texel, RENDER_PASS_LAYER_DIFFUSE_LIGHT), vec4(diffuse_light, 1.0));
-  imageStore(
-      rp_light_img, ivec3(out_texel, RENDER_PASS_LAYER_SPECULAR_LIGHT), vec4(specular_light, 1.0));
-  imageStore(rp_diffuse_color_img, out_texel, vec4(g_diffuse_data.color, 1.0));
-  imageStore(rp_specular_color_img, out_texel, vec4(specular_color, 1.0));
-  imageStore(rp_emission_img, out_texel, vec4(g_emission, 1.0));
-  imageStore(rp_cryptomatte_img,
-             out_texel,
-             vec4(cryptomatte_object_buf[resource_id], node_tree.crypto_hash, 0.0));
+  vec4 cryptomatte_output = vec4(cryptomatte_object_buf[resource_id], node_tree.crypto_hash, 0.0);
+  imageStore(rp_cryptomatte_img, out_texel, cryptomatte_output);
+  output_renderpass_color(rp_buf.normal_id, vec4(out_normal, 1.0));
+  output_renderpass_color(rp_buf.diffuse_color_id, vec4(g_diffuse_data.color, 1.0));
+  output_renderpass_color(rp_buf.diffuse_light_id, vec4(diffuse_light, 1.0));
+  output_renderpass_color(rp_buf.specular_color_id, vec4(specular_color, 1.0));
+  output_renderpass_color(rp_buf.specular_light_id, vec4(specular_light, 1.0));
+  output_renderpass_color(rp_buf.emission_id, vec4(g_emission, 1.0));
+  output_renderpass_value(rp_buf.shadow_id, shadow);
+  /** NOTE: AO is done on its own pass. */
 #endif
 
   out_radiance.rgb *= 1.0 - g_holdout;

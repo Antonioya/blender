@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -246,7 +247,7 @@ bool invert_m4_m4(float inverse[4][4], const float mat[4][4]);
  *
  * \note this has worse performance than #EIG_invert_m4_m4 (Eigen), but e.g.
  * for non-invertible scale matrices, finding a partial solution can
- * be useful to have a valid local transform center, see T57767.
+ * be useful to have a valid local transform center, see #57767.
  */
 bool invert_m4_m4_fallback(float inverse[4][4], const float mat[4][4]);
 
@@ -519,7 +520,7 @@ void blend_m4_m4m4(float out[4][4], const float dst[4][4], const float src[4][4]
  * (it typically remains below 2 usec on an average i74700,
  * while #blend_m3_m3m3 remains below 0.4 usec).
  * However, it gives expected results even with non-uniformly scaled matrices,
- * see T46418 for an example.
+ * see #46418 for an example.
  *
  * Based on "Matrix Animation and Polar Decomposition", by Ken Shoemake & Tom Duff
  *

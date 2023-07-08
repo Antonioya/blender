@@ -1,11 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
 #include <optional>
 
-#include "curves_sculpt_intern.h"
-#include "paint_intern.h"
+#include "paint_intern.hh"
 
 #include "BLI_math_vector.hh"
 #include "BLI_vector.hh"
@@ -144,4 +145,33 @@ void report_missing_uv_map_on_original_surface(ReportList *reports);
 void report_missing_uv_map_on_evaluated_surface(ReportList *reports);
 void report_invalid_uv_map(ReportList *reports);
 
+/**
+ * Utility class to make it easy for brushes to implement length preservation and surface
+ * collision.
+ */
+struct CurvesConstraintSolver {
+ private:
+  bool use_surface_collision_;
+  Array<float3> start_positions_;
+  Array<float> segment_lengths_;
+
+ public:
+  void initialize(const bke::CurvesGeometry &curves,
+                  const IndexMask &curve_selection,
+                  const bool use_surface_collision);
+
+  void solve_step(bke::CurvesGeometry &curves,
+                  const IndexMask &curve_selection,
+                  const Mesh *surface,
+                  const CurvesSurfaceTransforms &transforms);
+
+  Span<float> segment_lengths() const
+  {
+    return segment_lengths_;
+  }
+};
+
 }  // namespace blender::ed::sculpt_paint
+
+bool CURVES_SCULPT_mode_poll(struct bContext *C);
+bool CURVES_SCULPT_mode_poll_view3d(struct bContext *C);

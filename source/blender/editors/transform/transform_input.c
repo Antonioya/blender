@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edtransform
@@ -55,10 +57,10 @@ static void InputSpringFlip(TransInfo *t, MouseInput *mi, const double mval[2], 
   InputSpring(t, mi, mval, output);
 
   /* flip scale */
-  /* values can become really big when zoomed in so use longs T26598. */
+  /* values can become really big when zoomed in so use longs #26598. */
   if (((int64_t)((int)mi->center[0] - mval[0]) * (int64_t)((int)mi->center[0] - mi->imval[0]) +
-       (int64_t)((int)mi->center[1] - mval[1]) * (int64_t)((int)mi->center[1] - mi->imval[1])) <
-      0) {
+       (int64_t)((int)mi->center[1] - mval[1]) * (int64_t)((int)mi->center[1] - mi->imval[1])) < 0)
+  {
     output[0] *= -1.0f;
   }
 }
@@ -253,6 +255,27 @@ void setCustomPointsFromDirection(TransInfo *t, MouseInput *mi, const float dir[
 /** \name Setup & Handle Mouse Input
  * \{ */
 
+void transform_input_reset(TransInfo *t, const int mval[2])
+{
+  MouseInput *mi = &t->mouse;
+
+  mi->imval[0] = mval[0];
+  mi->imval[1] = mval[1];
+
+  if ((t->spacetype == SPACE_VIEW3D) && (t->region->regiontype == RGN_TYPE_WINDOW)) {
+    float delta[3] = {mval[0] - mi->center[0], mval[1] - mi->center[1]};
+    ED_view3d_win_to_delta(t->region, delta, t->zfac, delta);
+    add_v3_v3v3(mi->imval_unproj, t->center_global, delta);
+  }
+
+  if (mi->data && ELEM(mi->apply, InputAngle, InputAngleSpring)) {
+    struct InputAngle_Data *data = mi->data;
+    data->mval_prev[0] = mi->imval[0];
+    data->mval_prev[1] = mi->imval[1];
+    data->angle = 0.0f;
+  }
+}
+
 void initMouseInput(
     TransInfo *t, MouseInput *mi, const float center[2], const int mval[2], const bool precision)
 {
@@ -262,16 +285,9 @@ void initMouseInput(
   mi->center[0] = center[0];
   mi->center[1] = center[1];
 
-  mi->imval[0] = mval[0];
-  mi->imval[1] = mval[1];
-
-  if ((t->spacetype == SPACE_VIEW3D) && (t->region->regiontype == RGN_TYPE_WINDOW)) {
-    float delta[3] = {mval[0] - center[0], mval[1] - center[1]};
-    ED_view3d_win_to_delta(t->region, delta, t->zfac, delta);
-    add_v3_v3v3(mi->imval_unproj, t->center_global, delta);
-  }
-
   mi->post = NULL;
+
+  transform_input_reset(t, mval);
 }
 
 static void calcSpringFactor(MouseInput *mi)
@@ -402,7 +418,7 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
   }
 }
 
-void setInputPostFct(MouseInput *mi, void (*post)(struct TransInfo *t, float values[3]))
+void setInputPostFct(MouseInput *mi, void (*post)(TransInfo *t, float values[3]))
 {
   mi->post = post;
 }
@@ -491,6 +507,20 @@ void transform_input_update(TransInfo *t, const float fac)
   }
   else if (t->mode == TFM_VERT_SLIDE) {
     transform_mode_vert_slide_reproject_input(t);
+  }
+}
+
+void transform_input_virtual_mval_reset(TransInfo *t)
+{
+  MouseInput *mi = &t->mouse;
+  if (ELEM(mi->apply, InputAngle, InputAngleSpring)) {
+    struct InputAngle_Data *data = mi->data;
+    data->angle = 0.0;
+    data->mval_prev[0] = mi->imval[0];
+    data->mval_prev[1] = mi->imval[1];
+  }
+  else {
+    memset(&mi->virtual_mval, 0, sizeof(mi->virtual_mval));
   }
 }
 

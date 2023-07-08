@@ -1,11 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2008 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edlattice
  */
 
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* editlattice_select.c */
 
@@ -20,3 +25,7 @@ void LATTICE_OT_select_mirror(struct wmOperatorType *ot);
 
 void LATTICE_OT_make_regular(struct wmOperatorType *ot);
 void LATTICE_OT_flip(struct wmOperatorType *ot);
+
+#ifdef __cplusplus
+}
+#endif

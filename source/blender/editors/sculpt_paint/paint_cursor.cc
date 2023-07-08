@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 by Nicholas Bishop. All rights reserved. */
+/* SPDX-FileCopyrightText: 2009 by Nicholas Bishop. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edsculpt
@@ -37,6 +38,7 @@
 #include "WM_api.h"
 #include "wm_cursors.h"
 
+#include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
 
 #include "ED_image.h"
@@ -52,10 +54,10 @@
 
 #include "UI_resources.h"
 
-#include "paint_intern.h"
+#include "paint_intern.hh"
 /* still needed for sculpt_stroke_get_location, should be
  * removed eventually (TODO) */
-#include "sculpt_intern.h"
+#include "sculpt_intern.hh"
 
 /* TODOs:
  *
@@ -86,7 +88,7 @@ static TexSnapshot primary_snap = {nullptr};
 static TexSnapshot secondary_snap = {nullptr};
 static CursorSnapshot cursor_snap = {nullptr};
 
-void paint_cursor_delete_textures(void)
+void paint_cursor_delete_textures()
 {
   if (primary_snap.overlay_texture) {
     GPU_texture_free(primary_snap.overlay_texture);
@@ -163,9 +165,9 @@ static void load_tex_task_cb_ex(void *__restrict userdata,
   if (mtex->tex && mtex->tex->type == TEX_IMAGE && mtex->tex->ima) {
     ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(mtex->tex->ima, &mtex->tex->iuser, pool);
     /* For consistency, sampling always returns color in linear space. */
-    if (tex_ibuf && tex_ibuf->rect_float == nullptr) {
+    if (tex_ibuf && tex_ibuf->float_buffer.data == nullptr) {
       convert_to_linear = true;
-      colorspace = tex_ibuf->rect_colorspace;
+      colorspace = tex_ibuf->byte_buffer.colorspace;
     }
     BKE_image_pool_release_ibuf(mtex->tex->ima, tex_ibuf, pool);
   }
@@ -200,10 +202,18 @@ static void load_tex_task_cb_ex(void *__restrict userdata,
         y = len * sinf(angle);
       }
 
-      if (col) {
-        float rgba[4];
+      float avg;
+      float rgba[4];
+      paint_get_tex_pixel(mtex, x, y, pool, thread_id, &avg, rgba);
 
-        paint_get_tex_pixel_col(mtex, x, y, rgba, pool, thread_id, convert_to_linear, colorspace);
+      if (col) {
+        if (convert_to_linear) {
+          IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, colorspace);
+        }
+
+        linearrgb_to_srgb_v3_v3(rgba, rgba);
+
+        clamp_v4(rgba, 0.0f, 1.0f);
 
         buffer[index * 4] = rgba[0] * 255;
         buffer[index * 4 + 1] = rgba[1] * 255;
@@ -211,8 +221,6 @@ static void load_tex_task_cb_ex(void *__restrict userdata,
         buffer[index * 4 + 3] = rgba[3] * 255;
       }
       else {
-        float avg = paint_get_tex_pixel(mtex, x, y, pool, thread_id);
-
         avg += br->texture_sample_bias;
 
         /* Clamp to avoid precision overflow. */
@@ -336,7 +344,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
       eGPUTextureFormat format = col ? GPU_RGBA8 : GPU_R8;
       eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT |
                                GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW;
-      target->overlay_texture = GPU_texture_create_2d_ex(
+      target->overlay_texture = GPU_texture_create_2d(
           "paint_cursor_overlay", size, size, 1, format, usage, nullptr);
       GPU_texture_update(target->overlay_texture, GPU_DATA_UBYTE, buffer);
 
@@ -456,7 +464,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
     if (!cursor_snap.overlay_texture) {
       eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT |
                                GPU_TEXTURE_USAGE_MIP_SWIZZLE_VIEW;
-      cursor_snap.overlay_texture = GPU_texture_create_2d_ex(
+      cursor_snap.overlay_texture = GPU_texture_create_2d(
           "cursor_snap_overaly", size, size, 1, GPU_R8, usage, nullptr);
       GPU_texture_update(cursor_snap.overlay_texture, GPU_DATA_UBYTE, buffer);
 
@@ -517,7 +525,8 @@ static int project_brush_radius(ViewContext *vc, float radius, const float locat
   if ((ED_view3d_project_float_global(vc->region, location, p1, V3D_PROJ_TEST_NOP) ==
        V3D_PROJ_RET_OK) &&
       (ED_view3d_project_float_global(vc->region, offset, p2, V3D_PROJ_TEST_NOP) ==
-       V3D_PROJ_RET_OK)) {
+       V3D_PROJ_RET_OK))
+  {
     /* The distance between these points is the size of the projected brush in pixels. */
     return len_v2v2(p1, p2);
   }
@@ -555,7 +564,8 @@ static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
 
   if (!(mtex->tex) ||
       !((mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) ||
-        (valid && ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_TILED)))) {
+        (valid && ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_TILED))))
+  {
     return false;
   }
 
@@ -648,10 +658,11 @@ static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
     GPUTexture *texture = (primary) ? primary_snap.overlay_texture :
                                       secondary_snap.overlay_texture;
 
-    eGPUSamplerState state = GPU_SAMPLER_FILTER;
-    state |= (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) ? GPU_SAMPLER_CLAMP_BORDER :
-                                                            GPU_SAMPLER_REPEAT;
-    immBindTextureSampler("image", texture, state);
+    GPUSamplerExtendMode extend_mode = (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) ?
+                                           GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER :
+                                           GPU_SAMPLER_EXTEND_MODE_REPEAT;
+    immBindTextureSampler(
+        "image", texture, {GPU_SAMPLER_FILTERING_LINEAR, extend_mode, extend_mode});
 
     /* Draw textured quad. */
     immBegin(GPU_PRIM_TRI_FAN, 4);
@@ -735,8 +746,11 @@ static bool paint_draw_cursor_overlay(
     immUniformColor4fv(final_color);
 
     /* Draw textured quad. */
-    immBindTextureSampler(
-        "image", cursor_snap.overlay_texture, GPU_SAMPLER_FILTER | GPU_SAMPLER_CLAMP_BORDER);
+    immBindTextureSampler("image",
+                          cursor_snap.overlay_texture,
+                          {GPU_SAMPLER_FILTERING_LINEAR,
+                           GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER,
+                           GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER});
 
     immBegin(GPU_PRIM_TRI_FAN, 4);
     immAttr2f(texCoord, 0.0f, 0.0f);
@@ -1084,6 +1098,7 @@ static void cursor_draw_tiling_preview(const uint gpuattr,
       }
     }
   }
+  (void)tile_pass; /* Quiet set-but-unused warning (may be removed). */
 }
 
 static void cursor_draw_point_with_symmetry(const uint gpuattr,
@@ -1300,7 +1315,8 @@ static bool paint_cursor_context_init(bContext *C,
   /* There is currently no way to check if the direction is inverted before starting the stroke,
    * so this does not reflect the state of the brush in the UI. */
   if (((pcontext->ups->draw_inverted == 0) ^ ((pcontext->brush->flag & BRUSH_DIR_IN) == 0)) &&
-      BKE_brush_sculpt_has_secondary_color(pcontext->brush)) {
+      BKE_brush_sculpt_has_secondary_color(pcontext->brush))
+  {
     copy_v3_v3(pcontext->outline_col, pcontext->brush->sub_col);
   }
   else {
@@ -1403,7 +1419,7 @@ static void paint_update_mouse_cursor(PaintCursorContext *pcontext)
 {
   if (pcontext->win->grabcursor != 0) {
     /* Don't set the cursor while it's grabbed, since this will show the cursor when interacting
-     * with the UI (dragging a number button for e.g.), see: T102792. */
+     * with the UI (dragging a number button for e.g.), see: #102792. */
     return;
   }
   WM_cursor_set(pcontext->win, WM_CURSOR_PAINT);
@@ -1673,7 +1689,8 @@ static void paint_cursor_draw_3d_view_brush_cursor_inactive(PaintCursorContext *
 
   /* Drawing Cursor overlays in 3D object space. */
   if (is_brush_tool && brush->sculpt_tool == SCULPT_TOOL_GRAB &&
-      (brush->flag & BRUSH_GRAB_ACTIVE_VERTEX)) {
+      (brush->flag & BRUSH_GRAB_ACTIVE_VERTEX))
+  {
     SCULPT_geometry_preview_lines_update(pcontext->C, pcontext->ss, pcontext->radius);
     sculpt_geometry_preview_lines_draw(
         pcontext->pos, pcontext->brush, pcontext->is_multires, pcontext->ss);
@@ -1700,7 +1717,8 @@ static void paint_cursor_draw_3d_view_brush_cursor_inactive(PaintCursorContext *
 
   /* Cloth brush local simulation areas. */
   if (is_brush_tool && brush->sculpt_tool == SCULPT_TOOL_CLOTH &&
-      brush->cloth_simulation_area_type != BRUSH_CLOTH_SIMULATION_AREA_GLOBAL) {
+      brush->cloth_simulation_area_type != BRUSH_CLOTH_SIMULATION_AREA_GLOBAL)
+  {
     const float white[3] = {1.0f, 1.0f, 1.0f};
     const float zero_v[3] = {0.0f};
     /* This functions sets its own drawing space in order to draw the simulation limits when the
@@ -1779,12 +1797,14 @@ static void paint_cursor_cursor_draw_3d_view_brush_cursor_active(PaintCursorCont
           pcontext->pos, ss, pcontext->outline_col, pcontext->outline_alpha);
     }
     else if (brush->cloth_force_falloff_type == BRUSH_CLOTH_FORCE_FALLOFF_RADIAL &&
-             brush->cloth_simulation_area_type == BRUSH_CLOTH_SIMULATION_AREA_LOCAL) {
+             brush->cloth_simulation_area_type == BRUSH_CLOTH_SIMULATION_AREA_LOCAL)
+    {
       /* Display the simulation limits if sculpting outside them. */
       /* This does not makes much sense of plane falloff as the falloff is infinite or global. */
 
       if (len_v3v3(ss->cache->true_location, ss->cache->true_initial_location) >
-          ss->cache->radius * (1.0f + brush->cloth_sim_limit)) {
+          ss->cache->radius * (1.0f + brush->cloth_sim_limit))
+      {
         const float red[3] = {1.0f, 0.2f, 0.2f};
         SCULPT_cloth_simulation_limits_draw(pcontext->pos,
                                             brush,
@@ -1834,7 +1854,8 @@ static bool paint_cursor_is_brush_cursor_enabled(PaintCursorContext *pcontext)
 {
   if (pcontext->paint->flags & PAINT_SHOW_BRUSH) {
     if (ELEM(pcontext->mode, PAINT_MODE_TEXTURE_2D, PAINT_MODE_TEXTURE_3D) &&
-        pcontext->brush->imagepaint_tool == PAINT_TOOL_FILL) {
+        pcontext->brush->imagepaint_tool == PAINT_TOOL_FILL)
+    {
       return false;
     }
     return true;
@@ -1848,7 +1869,8 @@ static void paint_cursor_update_rake_rotation(PaintCursorContext *pcontext)
    * and we may get interference with the stroke itself.
    * For line strokes, such interference is visible. */
   if (!pcontext->ups->stroke_active) {
-    paint_calculate_rake_rotation(pcontext->ups, pcontext->brush, pcontext->translation);
+    paint_calculate_rake_rotation(
+        pcontext->ups, pcontext->brush, pcontext->translation, pcontext->mode);
   }
 }
 

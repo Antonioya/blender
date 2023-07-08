@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2006 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2006 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup nodes
@@ -10,13 +11,11 @@
 #include "DNA_ID.h"
 #include "DNA_node_types.h"
 
-#include "BLT_translation.h"
-
 #include "node_composite_register.hh"
-#include "node_util.h"
+#include "node_util.hh"
 
 #include "NOD_composite.h"
-#include "NOD_socket.h"
+#include "NOD_socket.hh"
 #include "NOD_socket_declarations.hh"
 
 #define CMP_SCALE_MAX 12000

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2017-2023 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 if(BUILD_MODE STREQUAL Release)
@@ -54,7 +56,7 @@ set(OPENIMAGEIO_EXTRA_ARGS
   -DUSE_DCMTK=OFF
   -DUSE_LIBHEIF=OFF
   -DUSE_OPENGL=OFF
-  -DUSE_TBB=OFF
+  -DUSE_TBB=ON
   -DUSE_QT=OFF
   -DUSE_PYTHON=ON
   -DUSE_GIF=OFF
@@ -96,6 +98,7 @@ set(OPENIMAGEIO_EXTRA_ARGS
   -DImath_ROOT=${LIBDIR}/imath
   -Dpybind11_ROOT=${LIBDIR}/pybind11
   -DPython_EXECUTABLE=${PYTHON_BINARY}
+  -DTBB_ROOT=${LIBDIR}/tbb
 )
 
 ExternalProject_Add(external_openimageio
@@ -104,7 +107,10 @@ ExternalProject_Add(external_openimageio
   URL_HASH ${OPENIMAGEIO_HASH_TYPE}=${OPENIMAGEIO_HASH}
   CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
   PREFIX ${BUILD_DIR}/openimageio
-  PATCH_COMMAND ${PATCH_CMD} -p 1 -N -d ${BUILD_DIR}/openimageio/src/external_openimageio/ < ${PATCH_DIR}/openimageio.diff
+  PATCH_COMMAND ${PATCH_CMD} -p 1 -N -d ${BUILD_DIR}/openimageio/src/external_openimageio/ < ${PATCH_DIR}/openimageio.diff &&
+                ${PATCH_CMD} -p 1 -N -d ${BUILD_DIR}/openimageio/src/external_openimageio/ < ${PATCH_DIR}/oiio_3832.diff &&
+                ${PATCH_CMD} -p 1 -N -d ${BUILD_DIR}/openimageio/src/external_openimageio/ < ${PATCH_DIR}/oiio_deadlock.diff &&
+                ${PATCH_CMD} -p 1 -N -d ${BUILD_DIR}/openimageio/src/external_openimageio/ < ${PATCH_DIR}/oiio_psd_8da473e254.diff
   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/openimageio ${DEFAULT_CMAKE_FLAGS} ${OPENIMAGEIO_EXTRA_ARGS}
   INSTALL_DIR ${LIBDIR}/openimageio
 )
@@ -125,6 +131,7 @@ add_dependencies(
   external_webp
   external_python
   external_pybind11
+  external_tbb
 )
 
 if(WIN32)

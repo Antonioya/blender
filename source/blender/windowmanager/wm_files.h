@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2007 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup wm
@@ -69,7 +70,7 @@ void wm_homefile_read(struct bContext *C,
 
 /**
  * Special case, support deferred execution of #wm_file_read_post,
- * Needed when loading for the first time to workaround order of initialization bug, see T89046.
+ * Needed when loading for the first time to workaround order of initialization bug, see #89046.
  */
 void wm_homefile_read_post(struct bContext *C,
                            const struct wmFileReadPost_Params *params_file_read_post);
@@ -83,7 +84,7 @@ void wm_close_file_dialog(bContext *C, struct wmGenericCallback *post_action);
  */
 bool wm_operator_close_file_dialog_if_needed(bContext *C,
                                              wmOperator *op,
-                                             wmGenericCallbackFn exec_fn);
+                                             wmGenericCallbackFn post_action_fn);
 /**
  * Check if there is data that would be lost when closing the current file without saving.
  */

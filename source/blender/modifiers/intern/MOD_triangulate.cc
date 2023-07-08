@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup modifiers
@@ -19,7 +21,7 @@
 #include "DNA_screen_types.h"
 
 #include "BKE_context.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_modifier.h"
 #include "BKE_screen.h"
 
@@ -32,8 +34,8 @@
 #include "bmesh.h"
 #include "bmesh_tools.h"
 
-#include "MOD_modifiertypes.h"
-#include "MOD_ui_common.h"
+#include "MOD_modifiertypes.hh"
+#include "MOD_ui_common.hh"
 
 static Mesh *triangulate_mesh(Mesh *mesh,
                               const int quad_method,
@@ -43,8 +45,6 @@ static Mesh *triangulate_mesh(Mesh *mesh,
 {
   Mesh *result;
   BMesh *bm;
-  int edges_num, i;
-  MEdge *me;
   CustomData_MeshMasks cd_mask_extra{};
   cd_mask_extra.vmask = CD_MASK_ORIGINDEX;
   cd_mask_extra.emask = CD_MASK_ORIGINDEX;
@@ -85,14 +85,6 @@ static Mesh *triangulate_mesh(Mesh *mesh,
     CustomData_set_layer_flag(&result->ldata, CD_NORMAL, CD_FLAG_TEMPORARY);
   }
 
-  edges_num = result->totedge;
-  me = BKE_mesh_edges_for_write(result);
-
-  /* force drawing of all edges (seems to be omitted in CDDM_from_bmesh) */
-  for (i = 0; i < edges_num; i++, me++) {
-    me->flag |= ME_EDGEDRAW;
-  }
-
   return result;
 }
 
@@ -113,7 +105,8 @@ static Mesh *modifyMesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, M
   TriangulateModifierData *tmd = (TriangulateModifierData *)md;
   Mesh *result;
   if (!(result = triangulate_mesh(
-            mesh, tmd->quad_method, tmd->ngon_method, tmd->min_vertices, tmd->flag))) {
+            mesh, tmd->quad_method, tmd->ngon_method, tmd->min_vertices, tmd->flag)))
+  {
     return mesh;
   }
 

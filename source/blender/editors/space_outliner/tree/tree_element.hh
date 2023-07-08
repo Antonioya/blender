@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
@@ -46,15 +48,6 @@ class AbstractTreeElement {
     return true;
   }
 
-  /**
-   * Just while transitioning to the new tree-element design: Some types are only partially ported,
-   * and the expanding isn't done yet.
-   */
-  virtual bool isExpandValid() const
-  {
-    return true;
-  }
-
   TreeElement &getLegacyElement()
   {
     return legacy_te_;
@@ -98,16 +91,12 @@ class AbstractTreeElement {
 
  protected:
   /* Pseudo-abstract: Only allow creation through derived types. */
-  AbstractTreeElement(TreeElement &legacy_te) : legacy_te_(legacy_te)
-  {
-  }
+  AbstractTreeElement(TreeElement &legacy_te) : legacy_te_(legacy_te) {}
 
   /**
    * Let the type add its own children.
    */
-  virtual void expand(SpaceOutliner &) const
-  {
-  }
+  virtual void expand(SpaceOutliner &) const {}
 };
 
 /**

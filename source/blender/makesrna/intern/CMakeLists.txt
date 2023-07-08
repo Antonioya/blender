@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2006 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2006 Blender Foundation. All rights reserved.
 
 if(CMAKE_COMPILER_IS_GNUCC)
   # add here so we fail early.
@@ -11,116 +12,118 @@ if(HAVE_MALLOC_STATS_H)
   add_definitions(-DHAVE_MALLOC_STATS_H)
 endif()
 
-# files rna_access.c rna_define.c makesrna.c intentionally excluded.
+# files rna_access.cc rna_define.c makesrna.c intentionally excluded.
 set(DEFSRC
   rna_ID.c
-  rna_action.c
-  rna_animation.c
-  rna_animviz.c
-  rna_armature.c
-  rna_asset.c
-  rna_attribute.c
-  rna_boid.c
-  rna_brush.c
-  rna_cachefile.c
-  rna_camera.c
-  rna_cloth.c
-  rna_collection.c
-  rna_color.c
-  rna_constraint.c
-  rna_context.c
-  rna_curve.c
-  rna_curveprofile.c
-  rna_curves.c
-  rna_depsgraph.c
-  rna_dynamicpaint.c
-  rna_fcurve.c
-  rna_fluid.c
-  rna_gpencil.c
-  rna_gpencil_modifier.c
-  rna_image.c
-  rna_key.c
-  rna_lattice.c
-  rna_layer.c
-  rna_light.c
-  rna_lightprobe.c
-  rna_linestyle.c
-  rna_main.c
-  rna_mask.c
-  rna_material.c
-  rna_mesh.c
-  rna_meta.c
-  rna_modifier.c
-  rna_movieclip.c
-  rna_nla.c
-  rna_nodetree.c
-  rna_object.c
-  rna_object_force.c
-  rna_packedfile.c
-  rna_palette.c
-  rna_particle.c
-  rna_pointcloud.c
-  rna_pose.c
-  rna_render.c
+  rna_action.cc
+  rna_animation.cc
+  rna_animviz.cc
+  rna_armature.cc
+  rna_asset.cc
+  rna_attribute.cc
+  rna_boid.cc
+  rna_brush.cc
+  rna_cachefile.cc
+  rna_camera.cc
+  rna_cloth.cc
+  rna_collection.cc
+  rna_color.cc
+  rna_constraint.cc
+  rna_context.cc
+  rna_curve.cc
+  rna_curveprofile.cc
+  rna_curves.cc
+  rna_depsgraph.cc
+  rna_dynamicpaint.cc
+  rna_fcurve.cc
+  rna_fluid.cc
+  rna_gpencil_legacy.cc
+  rna_gpencil_legacy_modifier.cc
+  rna_image.cc
+  rna_key.cc
+  rna_lattice.cc
+  rna_layer.cc
+  rna_light.cc
+  rna_lightprobe.cc
+  rna_linestyle.cc
+  rna_main.cc
+  rna_mask.cc
+  rna_material.cc
+  rna_mesh.cc
+  rna_meta.cc
+  rna_modifier.cc
+  rna_movieclip.cc
+  rna_nla.cc
+  rna_nodetree.cc
+  rna_object.cc
+  rna_object_force.cc
+  rna_packedfile.cc
+  rna_palette.cc
+  rna_particle.cc
+  rna_pointcloud.cc
+  rna_pose.cc
+  rna_render.cc
   rna_rigidbody.c
   rna_rna.c
-  rna_scene.c
-  rna_screen.c
-  rna_sculpt_paint.c
-  rna_sequencer.c
-  rna_shader_fx.c
-  rna_sound.c
-  rna_space.c
-  rna_speaker.c
+  rna_scene.cc
+  rna_screen.cc
+  rna_sculpt_paint.cc
+  rna_sequencer.cc
+  rna_shader_fx.cc
+  rna_sound.cc
+  rna_space.cc
+  rna_speaker.cc
   rna_test.c
-  rna_text.c
-  rna_texture.c
-  rna_timeline.c
-  rna_tracking.c
-  rna_ui.c
-  rna_userdef.c
-  rna_vfont.c
-  rna_volume.c
-  rna_wm.c
-  rna_wm_gizmo.c
-  rna_workspace.c
-  rna_world.c
-  rna_xr.c
+  rna_text.cc
+  rna_texture.cc
+  rna_timeline.cc
+  rna_tracking.cc
+  rna_ui.cc
+  rna_userdef.cc
+  rna_vfont.cc
+  rna_volume.cc
+  rna_wm.cc
+  rna_wm_gizmo.cc
+  rna_workspace.cc
+  rna_world.cc
+  rna_xr.cc
 )
 
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_SIMULATION_DATABLOCK)
+  add_definitions(-DWITH_GREASE_PENCIL_V3)
   list(APPEND DEFSRC
-    rna_simulation.c
+    rna_grease_pencil.cc
+    rna_simulation.cc
   )
 endif()
 
 set(APISRC
-  rna_action_api.c
-  rna_animation_api.c
-  rna_armature_api.c
-  rna_camera_api.c
-  rna_curve_api.c
-  rna_fcurve_api.c
-  rna_image_api.c
-  rna_lattice_api.c
-  rna_main_api.c
-  rna_material_api.c
-  rna_mesh_api.c
-  rna_meta_api.c
-  rna_object_api.c
-  rna_pose_api.c
-  rna_scene_api.c
-  rna_sequencer_api.c
-  rna_sound_api.c
-  rna_space_api.c
-  rna_text_api.c
-  rna_texture_api.c
-  rna_ui_api.c
-  rna_vfont_api.c
-  rna_wm_api.c
-  rna_wm_gizmo_api.c
-  rna_workspace_api.c
+  rna_action_api.cc
+  rna_animation_api.cc
+  rna_armature_api.cc
+  rna_camera_api.cc
+  rna_curve_api.cc
+  rna_fcurve_api.cc
+  rna_image_api.cc
+  rna_lattice_api.cc
+  rna_main_api.cc
+  rna_material_api.cc
+  rna_mesh_api.cc
+  rna_meta_api.cc
+  rna_object_api.cc
+  rna_pose_api.cc
+  rna_scene_api.cc
+  rna_sequencer_api.cc
+  rna_sound_api.cc
+  rna_space_api.cc
+  rna_text_api.cc
+  rna_texture_api.cc
+  rna_ui_api.cc
+  rna_vfont_api.cc
+  rna_wm_api.cc
+  rna_wm_gizmo_api.cc
+  rna_workspace_api.cc
 )
 
 string(REGEX REPLACE "rna_([a-zA-Z0-9_-]*).c" "${CMAKE_CURRENT_BINARY_DIR}/rna_\\1_gen.c" GENSRC "${DEFSRC}")
@@ -134,18 +137,44 @@ set_source_files_properties(${GENSRC} PROPERTIES GENERATED TRUE)
 # CFLAGS for Generated Files
 #
 # less strict flags for generated source
+set(GENSRC_FLAGS)
 set(GENSRC_CFLAGS)
+set(GENSRC_CXXFLAGS)
 if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
   set(GENSRC_CFLAGS "-Wno-missing-prototypes")
+  set(GENSRC_CXXFLAGS "-Wno-missing-declarations")
 endif()
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-  string(APPEND GENSRC_CFLAGS " -Wno-missing-variable-declarations")
+  string(APPEND GENSRC_FLAGS " -Wno-missing-variable-declarations")
+elseif(MSVC)
+  remove_cc_flag(
+    # Restore warn C4100 (unreferenced formal parameter) back to w4.
+    "/w34100"
+  )
+endif()
+
+set(GENSRC_C ${GENSRC})
+list(FILTER GENSRC_C INCLUDE REGEX ".*\.c$")
+set(GENSRC_CXX ${GENSRC})
+list(FILTER GENSRC_CXX INCLUDE REGEX ".*\.cc$")
+
+if(GENSRC_FLAGS)
+  set_source_files_properties(${GENSRC} PROPERTIES COMPILE_FLAGS "${GENSRC_FLAGS}")
 endif()
 
 if(GENSRC_CFLAGS)
-  set_source_files_properties(${GENSRC} PROPERTIES COMPILE_FLAGS "${GENSRC_CFLAGS}")
+  set_source_files_properties(${GENSRC_C} PROPERTIES COMPILE_FLAGS "${GENSRC_CFLAGS}")
 endif()
+
+if(GENSRC_CXXFLAGS)
+  set_source_files_properties(${GENSRC_CXX} PROPERTIES COMPILE_FLAGS "${GENSRC_CXXFLAGS}")
+endif()
+
+unset(GENSRC_C)
+unset(GENSRC_CXX)
+unset(GENSRC_FLAGS)
 unset(GENSRC_CFLAGS)
+unset(GENSRC_CXXFLAGS)
 
 
 # NOTE: Disable clang-tidy because generated files are stored outside of the source,
@@ -210,7 +239,6 @@ set(INC
   ../../render
   ../../../../intern/clog
   ../../../../intern/cycles/blender
-  ../../../../intern/atomic
   ../../../../intern/guardedalloc
   ../../../../intern/memutil
   ../../../../intern/mantaflow/extern
@@ -242,28 +270,12 @@ if(WITH_IMAGE_OPENEXR)
   add_definitions(-DWITH_OPENEXR)
 endif()
 
-if(WITH_OPENIMAGEIO)
-  add_definitions(-DWITH_OPENIMAGEIO)
-endif()
-
-if(WITH_IMAGE_TIFF)
-  add_definitions(-DWITH_TIFF)
-endif()
-
 if(WITH_IMAGE_OPENJPEG)
   add_definitions(-DWITH_OPENJPEG)
 endif()
 
-if(WITH_IMAGE_DDS)
-  add_definitions(-DWITH_DDS)
-endif()
-
 if(WITH_IMAGE_CINEON)
   add_definitions(-DWITH_CINEON)
-endif()
-
-if(WITH_IMAGE_HDR)
-  add_definitions(-DWITH_HDR)
 endif()
 
 if(WITH_IMAGE_WEBP)
@@ -373,6 +385,15 @@ if(WITH_OPENSUBDIV)
   )
   add_definitions(-DWITH_OPENSUBDIV)
 endif()
+if(WITH_OPENVDB)
+  list(APPEND INC
+    ../../../../intern/openvdb
+  )
+  list(APPEND INC_SYS
+    ${OPENVDB_INCLUDE_DIRS}
+  )
+  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
+endif()
 
 if(WITH_OPENVDB)
   add_definitions(-DWITH_OPENVDB)
@@ -390,6 +411,14 @@ if(WITH_XR_OPENXR)
   add_definitions(-DWITH_XR_OPENXR)
 endif()
 
+if(WITH_VULKAN_METAL)
+  add_definitions(-DWITH_VULKAN_METAL)
+endif()
+
+if(WITH_VULKAN_BACKEND)
+  add_definitions(-DWITH_VULKAN_BACKEND)
+endif()
+
 if(WITH_GMP)
   add_definitions(-DWITH_GMP)
 endif()
@@ -399,15 +428,17 @@ add_cc_flags_custom_test(makesrna)
 
 add_executable(makesrna ${SRC} ${SRC_RNA_INC} ${SRC_DNA_INC})
 setup_platform_linker_flags(makesrna)
+setup_platform_linker_libs(makesrna)
 blender_target_include_dirs(makesrna ${INC})
 blender_target_include_dirs_sys(makesrna ${INC_SYS})
 
-target_link_libraries(makesrna bf_dna)
-target_link_libraries(makesrna bf_dna_blenlib)
+target_link_libraries(makesrna PRIVATE bf_dna)
+target_link_libraries(makesrna PRIVATE bf::intern::atomic)
+target_link_libraries(makesrna PRIVATE bf_dna_blenlib)
 
 if(WIN32 AND NOT UNIX)
   if(DEFINED PTHREADS_LIBRARIES)
-    target_link_libraries(makesrna ${PTHREADS_LIBRARIES})
+    target_link_libraries(makesrna PRIVATE ${PTHREADS_LIBRARIES})
   endif()
 endif()
 
@@ -422,8 +453,8 @@ add_custom_command(
 
 # Build bf_rna
 set(SRC
-  rna_access.c
-  rna_access_compare_override.c
+  rna_access.cc
+  rna_access_compare_override.cc
   rna_path.cc
   ${GENSRC}
 
@@ -431,7 +462,7 @@ set(SRC
   rna_access_internal.h
   rna_internal.h
   rna_internal_types.h
-  rna_mesh_utils.h
+  rna_mesh_utils.hh
 )
 
 set(LIB
@@ -444,7 +475,7 @@ set(LIB
   bf_editor_curve
   bf_editor_curves
   bf_editor_gizmo_library
-  bf_editor_gpencil
+  bf_editor_gpencil_legacy
   bf_editor_io
   bf_editor_mesh
   bf_editor_object

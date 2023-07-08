@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "scene/constant_fold.h"
 #include "scene/shader_graph.h"
@@ -570,7 +571,8 @@ void ConstantFolder::fold_mapping(NodeMappingType type) const
       /* Check all use values are zero, note location is not used by vector and normal types. */
       (is_zero(location_in) || type == NODE_MAPPING_TYPE_VECTOR ||
        type == NODE_MAPPING_TYPE_NORMAL) &&
-      is_zero(rotation_in) && is_one(scale_in)) {
+      is_zero(rotation_in) && is_one(scale_in))
+  {
     try_bypass_or_make_constant(vector_in);
   }
 }

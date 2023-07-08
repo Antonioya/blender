@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
 
@@ -13,14 +15,14 @@ namespace blender::nodes::node_geo_curve_to_mesh_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>(N_("Curve")).supported_type(GEO_COMPONENT_TYPE_CURVE);
-  b.add_input<decl::Geometry>(N_("Profile Curve"))
+  b.add_input<decl::Geometry>("Curve").supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Geometry>("Profile Curve")
       .only_realized_data()
-      .supported_type(GEO_COMPONENT_TYPE_CURVE);
-  b.add_input<decl::Bool>(N_("Fill Caps"))
+      .supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Bool>("Fill Caps")
       .description(
-          N_("If the profile spline is cyclic, fill the ends of the generated mesh with N-gons"));
-  b.add_output<decl::Geometry>(N_("Mesh")).propagate_all();
+          "If the profile spline is cyclic, fill the ends of the generated mesh with N-gons");
+  b.add_output<decl::Geometry>("Mesh").propagate_all();
 }
 
 static void geometry_set_curve_to_mesh(GeometrySet &geometry_set,
@@ -31,7 +33,7 @@ static void geometry_set_curve_to_mesh(GeometrySet &geometry_set,
   const Curves &curves = *geometry_set.get_curves_for_read();
   const Curves *profile_curves = profile_set.get_curves_for_read();
 
-  GeometryComponentEditData::remember_deformed_curve_positions_if_necessary(geometry_set);
+  bke::GeometryComponentEditData::remember_deformed_curve_positions_if_necessary(geometry_set);
 
   if (profile_curves == nullptr) {
     Mesh *mesh = bke::curve_to_wire_mesh(curves.geometry.wrap(), propagation_info);
@@ -55,7 +57,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       geometry_set_curve_to_mesh(
           geometry_set, profile_set, fill_caps, params.get_output_propagation_info("Mesh"));
     }
-    geometry_set.keep_only_during_modify({GEO_COMPONENT_TYPE_MESH});
+    geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
   });
 
   params.set_output("Mesh", std::move(curve_set));

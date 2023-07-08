@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2011 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2011 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "COM_CompositorOperation.h"
 
@@ -15,14 +16,11 @@ CompositorOperation::CompositorOperation()
 {
   this->add_input_socket(DataType::Color);
   this->add_input_socket(DataType::Value);
-  this->add_input_socket(DataType::Value);
 
   this->set_render_data(nullptr);
   output_buffer_ = nullptr;
-  depth_buffer_ = nullptr;
   image_input_ = nullptr;
   alpha_input_ = nullptr;
-  depth_input_ = nullptr;
 
   use_alpha_input_ = false;
   active_ = false;
@@ -43,14 +41,9 @@ void CompositorOperation::init_execution()
   /* When initializing the tree during initial load the width and height can be zero. */
   image_input_ = get_input_socket_reader(0);
   alpha_input_ = get_input_socket_reader(1);
-  depth_input_ = get_input_socket_reader(2);
   if (this->get_width() * this->get_height() != 0) {
     output_buffer_ = (float *)MEM_callocN(
         sizeof(float[4]) * this->get_width() * this->get_height(), "CompositorOperation");
-  }
-  if (depth_input_ != nullptr) {
-    depth_buffer_ = (float *)MEM_callocN(sizeof(float) * this->get_width() * this->get_height(),
-                                         "CompositorOperation");
   }
 }
 
@@ -67,22 +60,13 @@ void CompositorOperation::deinit_execution()
     if (rr) {
       RenderView *rv = RE_RenderViewGetByName(rr, view_name_);
 
-      if (rv->rectf != nullptr) {
-        MEM_freeN(rv->rectf);
-      }
-      rv->rectf = output_buffer_;
-      if (rv->rectz != nullptr) {
-        MEM_freeN(rv->rectz);
-      }
-      rv->rectz = depth_buffer_;
+      RE_RenderBuffer_assign_data(&rv->combined_buffer, output_buffer_);
+
       rr->have_combined = true;
     }
     else {
       if (output_buffer_) {
         MEM_freeN(output_buffer_);
-      }
-      if (depth_buffer_) {
-        MEM_freeN(depth_buffer_);
       }
     }
 
@@ -101,23 +85,17 @@ void CompositorOperation::deinit_execution()
     if (output_buffer_) {
       MEM_freeN(output_buffer_);
     }
-    if (depth_buffer_) {
-      MEM_freeN(depth_buffer_);
-    }
   }
 
   output_buffer_ = nullptr;
-  depth_buffer_ = nullptr;
   image_input_ = nullptr;
   alpha_input_ = nullptr;
-  depth_input_ = nullptr;
 }
 
 void CompositorOperation::execute_region(rcti *rect, uint /*tile_number*/)
 {
   float color[8]; /* 7 is enough. */
   float *buffer = output_buffer_;
-  float *zbuffer = depth_buffer_;
 
   if (!buffer) {
     return;
@@ -184,8 +162,6 @@ void CompositorOperation::execute_region(rcti *rect, uint /*tile_number*/)
 
       copy_v4_v4(buffer + offset4, color);
 
-      depth_input_->read_sampled(color, input_x, input_y, PixelSampler::Nearest);
-      zbuffer[offset] = color[0];
       offset4 += COM_DATA_TYPE_COLOR_CHANNELS;
       offset++;
       if (is_braked()) {
@@ -209,8 +185,6 @@ void CompositorOperation::update_memory_buffer_partial(MemoryBuffer * /*output*/
   if (use_alpha_input_) {
     output_buf.copy_from(inputs[1], area, 0, COM_DATA_TYPE_VALUE_CHANNELS, 3);
   }
-  MemoryBuffer depth_buf(depth_buffer_, COM_DATA_TYPE_VALUE_CHANNELS, get_width(), get_height());
-  depth_buf.copy_from(inputs[2], area);
 }
 
 void CompositorOperation::determine_canvas(const rcti & /*preferred_area*/, rcti &r_area)
@@ -219,7 +193,7 @@ void CompositorOperation::determine_canvas(const rcti & /*preferred_area*/, rcti
   BKE_render_resolution(rd_, false, &width, &height);
 
   /* Check actual render resolution with cropping it may differ with cropped border.rendering
-   * Fix for T31777 Border Crop gives black (easy). */
+   * Fix for #31777 Border Crop gives black (easy). */
   Render *re = RE_GetSceneRender(scene_);
   if (re) {
     RenderResult *rr = RE_AcquireResultRead(re);

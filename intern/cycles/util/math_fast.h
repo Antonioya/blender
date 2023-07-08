@@ -1,4 +1,8 @@
-/* SPDX-License-Identifier: BSD-3-Clause
+/* SPDX-FileCopyrightText: 2004 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2008-2014 Larry Gritz
+ * SPDX-FileCopyrightText: 2009-2014 Sony Pictures Imageworks Inc., et al.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Adapted from OpenImageIO
  * Copyright 2008-2014 Larry Gritz and the other authors and contributors.
@@ -6,11 +10,11 @@
  *
  * A few bits here are based upon code from NVIDIA that was also released
  * under the same modified BSD license, and marked as:
- *    Copyright 2004 NVIDIA Corporation. All Rights Reserved.
+ *    `Copyright 2004 NVIDIA Corporation. All Rights Reserved.`
  *
  * Some parts of this file were first open-sourced in Open Shading Language,
  * then later moved here. The original copyright notice was:
- *    Copyright (c) 2009-2014 Sony Pictures Imageworks Inc., et al.
+ *    `Copyright (c) 2009-2014 Sony Pictures Imageworks Inc., et al.`
  *
  * Many of the math functions were copied from or inspired by other
  * public domain sources or open source packages with compatible licenses.
@@ -59,8 +63,11 @@ ccl_device_inline int fast_rint(float x)
 {
   /* used by sin/cos/tan range reduction. */
 #ifdef __KERNEL_SSE41__
-  /* Single `roundps` instruction on SSE4.1+ (for gcc/clang at least). */
-  return float_to_int(rintf(x));
+  /* Single `roundps` instruction on SSE4.1+ for gcc/clang but not MSVC 19.35:
+   * float_to_int(rintf(x)); so we use the equivalent intrinsics. */
+  __m128 vec = _mm_set_ss(x);
+  vec = _mm_round_ss(vec, vec, (_MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
+  return _mm_cvtss_si32(vec);
 #else
   /* emulate rounding by adding/subtracting 0.5. */
   return float_to_int(x + copysignf(0.5f, x));
@@ -329,6 +336,12 @@ ccl_device float fast_atan2f(float y, float x)
   return copysignf(r, y);
 }
 
+/* Same as precise_angle, but using fast_atan2f. Still much better that acos(dot(a, b)). */
+ccl_device_inline float vector_angle(float3 a, float3 b)
+{
+  return 2.0f * fast_atan2f(len(a - b), len(a + b));
+}
+
 /* Based on:
  *
  *   https://github.com/LiraNuna/glsl-sse2/blob/master/source/vec4.h
@@ -421,7 +434,7 @@ ccl_device_inline float fast_expf(float x)
 
 #if !defined(__KERNEL_GPU__) && !defined(_MSC_VER)
 /* MSVC seems to have a code-gen bug here in at least SSE41/AVX, see
- * T78047 and T78869 for details. Just disable for now, it only makes
+ * #78047 and #78869 for details. Just disable for now, it only makes
  * a small difference in denoising performance. */
 ccl_device float4 fast_exp2f4(float4 x)
 {

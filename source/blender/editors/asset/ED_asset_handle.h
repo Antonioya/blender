@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edasset
@@ -13,6 +15,18 @@
 #pragma once
 
 #include "DNA_ID_enums.h"
+#include "DNA_asset_types.h"
+
+#include "RNA_types.h"
+
+#ifdef __cplusplus
+namespace blender::asset_system {
+class AssetRepresentation;
+}
+using AssetRepresentationHandle = blender::asset_system::AssetRepresentation;
+#else
+typedef struct AssetRepresentationHandle AssetRepresentationHandle;
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,13 +34,14 @@ extern "C" {
 
 struct AssetHandle;
 
-const char *ED_asset_handle_get_name(const struct AssetHandle *asset);
-struct AssetMetaData *ED_asset_handle_get_metadata(const struct AssetHandle *asset);
-struct ID *ED_asset_handle_get_local_id(const struct AssetHandle *asset);
+AssetRepresentationHandle *ED_asset_handle_get_representation(const struct AssetHandle *asset);
 ID_Type ED_asset_handle_get_id_type(const struct AssetHandle *asset);
 int ED_asset_handle_get_preview_icon_id(const struct AssetHandle *asset);
-void ED_asset_handle_get_full_library_path(const struct AssetHandle *asset,
-                                           char r_full_lib_path[]);
+void ED_asset_handle_get_full_library_path(
+    const struct AssetHandle *asset,
+    /* `1024` for #FILE_MAX,
+     * rely on warnings to let us know if this gets out of sync. */
+    char r_full_lib_path[1024]);
 
 #ifdef __cplusplus
 }
@@ -36,9 +51,8 @@ void ED_asset_handle_get_full_library_path(const struct AssetHandle *asset,
 
 namespace blender::ed::asset {
 
-/** If the ID already exists in the database, return it, otherwise add it. */
-ID *get_local_id_from_asset_or_append_and_reuse(Main &bmain, AssetHandle asset);
+PointerRNA create_asset_rna_ptr(const asset_system::AssetRepresentation *asset);
 
-}  // namespace blender::ed::asset
+}
 
 #endif

@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2011 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2011 Blender Foundation. All rights reserved.
 
 add_subdirectory(realtime_compositor)
 
@@ -23,7 +24,6 @@ if(WITH_COMPOSITOR_CPU)
     ../render
     ../render/intern
     ../../../extern/clew/include
-    ../../../intern/atomic
     ../../../intern/clog
     ../../../intern/guardedalloc
 
@@ -321,6 +321,8 @@ if(WITH_COMPOSITOR_CPU)
     nodes/COM_FilterNode.h
     nodes/COM_InpaintNode.cc
     nodes/COM_InpaintNode.h
+    nodes/COM_KuwaharaNode.cc
+    nodes/COM_KuwaharaNode.h
     nodes/COM_PosterizeNode.cc
     nodes/COM_PosterizeNode.h
 
@@ -348,6 +350,10 @@ if(WITH_COMPOSITOR_CPU)
     operations/COM_GaussianXBlurOperation.h
     operations/COM_GaussianYBlurOperation.cc
     operations/COM_GaussianYBlurOperation.h
+    operations/COM_KuwaharaAnisotropicOperation.cc
+    operations/COM_KuwaharaAnisotropicOperation.h
+    operations/COM_KuwaharaClassicOperation.cc
+    operations/COM_KuwaharaClassicOperation.h
     operations/COM_MovieClipAttributeOperation.cc
     operations/COM_MovieClipAttributeOperation.h
     operations/COM_MovieDistortionOperation.cc
@@ -596,6 +602,7 @@ if(WITH_COMPOSITOR_CPU)
     bf_blenkernel
     bf_blenlib
     extern_clew
+    PRIVATE bf::intern::atomic
   )
 
   list(APPEND INC
@@ -617,9 +624,6 @@ if(WITH_COMPOSITOR_CPU)
     COMMAND ${CMAKE_COMMAND} -E make_directory ${GENSRC_DIR}
     COMMAND "$<TARGET_FILE:smaa_areatex>" ${GENSRC}
     DEPENDS smaa_areatex
-  )
-  add_custom_target(smaa_areatex_header
-    SOURCES ${GENSRC}
   )
   list(APPEND SRC
     ${GENSRC}
@@ -654,8 +658,6 @@ if(WITH_COMPOSITOR_CPU)
   if(CXX_WARN_NO_SUGGEST_OVERRIDE)
     target_compile_options(bf_compositor PRIVATE "-Wsuggest-override")
   endif()
-
-  add_dependencies(bf_compositor smaa_areatex_header)
 
   if(WITH_GTESTS)
     set(TEST_SRC

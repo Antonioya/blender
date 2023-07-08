@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
@@ -1225,7 +1226,7 @@ int isect_seg_seg_v2_point_ex(const float v0[2],
 
       /* When 'd' approaches zero, float precision lets non-overlapping co-linear segments
        * detect as an intersection. So re-calculate 'v' to ensure the point overlaps both.
-       * see T45123 */
+       * see #45123 */
 
       /* inline since we have most vars already */
 #if 0
@@ -1469,7 +1470,8 @@ bool isect_point_poly_v2(const float pt[2],
     if (((verts[i][1] > pt[1]) != (verts[j][1] > pt[1])) &&
         (pt[0] <
          (verts[j][0] - verts[i][0]) * (pt[1] - verts[i][1]) / (verts[j][1] - verts[i][1]) +
-             verts[i][0])) {
+             verts[i][0]))
+    {
       isect = !isect;
     }
   }
@@ -1488,7 +1490,8 @@ bool isect_point_poly_v2_int(const int pt[2],
     if (((verts[i][1] > pt[1]) != (verts[j][1] > pt[1])) &&
         (pt[0] <
          (verts[j][0] - verts[i][0]) * (pt[1] - verts[i][1]) / (verts[j][1] - verts[i][1]) +
-             verts[i][0])) {
+             verts[i][0]))
+    {
       isect = !isect;
     }
   }
@@ -1869,7 +1872,8 @@ bool isect_ray_tri_watertight_v3(const float ray_origin[3],
 #if 0
         || (sign_T > *r_lambda * xor_signmask(det, sign_mask))
 #endif
-  ) {
+  )
+  {
     return false;
   }
 
@@ -2259,7 +2263,8 @@ bool isect_tri_tri_v3_ex(const float tri_a[3][3],
   }
 
   if ((side[1][0] && side[1][1] && side[1][2]) && (side[1][0] < 0.0f) == (side[1][1] < 0.0f) &&
-      (side[1][0] < 0.0f) == (side[1][2] < 0.0f)) {
+      (side[1][0] < 0.0f) == (side[1][2] < 0.0f))
+  {
     /* All vertices of the 2nd triangle are positioned on the same side to the
      * plane defined by the 1st triangle. */
     return false;
@@ -2274,7 +2279,8 @@ bool isect_tri_tri_v3_ex(const float tri_a[3][3],
   side[0][2] = (float)(dot_v3db_v3fl(plane_b, tri_a[2]) + plane_b[3]);
 
   if ((side[0][0] && side[0][1] && side[0][2]) && (side[0][0] < 0.0f) == (side[0][1] < 0.0f) &&
-      (side[0][0] < 0.0f) == (side[0][2] < 0.0f)) {
+      (side[0][0] < 0.0f) == (side[0][2] < 0.0f))
+  {
     /* All vertices of the 1st triangle are positioned on the same side to the
      * plane defined by the 2nd triangle. */
     return false;
@@ -2887,7 +2893,7 @@ int isect_line_line_epsilon_v3(const float v1[3],
   d = dot_v3v3(c, ab);
   div = dot_v3v3(ab, ab);
 
-  /* important not to use an epsilon here, see: T45919 */
+  /* important not to use an epsilon here, see: #45919 */
   /* test zero length line */
   if (UNLIKELY(div == 0.0f)) {
     return 0;
@@ -2962,7 +2968,7 @@ bool isect_line_line_strict_v3(const float v1[3],
   d = dot_v3v3(c, ab);
   div = dot_v3v3(ab, ab);
 
-  /* important not to use an epsilon here, see: T45919 */
+  /* important not to use an epsilon here, see: #45919 */
   /* test zero length line */
   if (UNLIKELY(div == 0.0f)) {
     return false;
@@ -3666,7 +3672,8 @@ int barycentric_inside_triangle_v2(const float w[3])
     return 1;
   }
   if (IN_RANGE_INCL(w[0], 0.0f, 1.0f) && IN_RANGE_INCL(w[1], 0.0f, 1.0f) &&
-      IN_RANGE_INCL(w[2], 0.0f, 1.0f)) {
+      IN_RANGE_INCL(w[2], 0.0f, 1.0f))
+  {
     return 2;
   }
 
@@ -4034,7 +4041,7 @@ static float mean_value_half_tan_v3(const struct Float3_Len *d_curr,
   float cross[3];
   cross_v3_v3v3(cross, d_curr->dir, d_next->dir);
   const float area = len_v3(cross);
-  /* Compare against zero since 'FLT_EPSILON' can be too large, see: T73348. */
+  /* Compare against zero since 'FLT_EPSILON' can be too large, see: #73348. */
   if (LIKELY(area != 0.0f)) {
     const float dot = dot_v3v3(d_curr->dir, d_next->dir);
     const float len = d_curr->len * d_next->len;
@@ -4060,7 +4067,7 @@ static double mean_value_half_tan_v2_db(const struct Double2_Len *d_curr,
 {
   /* Different from the 3d version but still correct. */
   const double area = cross_v2v2_db(d_curr->dir, d_next->dir);
-  /* Compare against zero since 'FLT_EPSILON' can be too large, see: T73348. */
+  /* Compare against zero since 'FLT_EPSILON' can be too large, see: #73348. */
   if (LIKELY(area != 0.0)) {
     const double dot = dot_v2v2_db(d_curr->dir, d_next->dir);
     const double len = d_curr->len * d_next->len;
@@ -5889,6 +5896,9 @@ bool is_quad_flip_v3_first_third_fast(const float v1[3],
                                       const float v3[3],
                                       const float v4[3])
 {
+  /* NOTE: if the faces normal has been calculated it's possible to simplify the following checks,
+   * however this means the solution may be different depending on the existence of normals
+   * causing tessellation to be "unstable" depending on the existence of normals, see #106469. */
   float d_12[3], d_13[3], d_14[3];
   float cross_a[3], cross_b[3];
   sub_v3_v3v3(d_12, v2, v1);
@@ -5897,19 +5907,6 @@ bool is_quad_flip_v3_first_third_fast(const float v1[3],
   cross_v3_v3v3(cross_a, d_12, d_13);
   cross_v3_v3v3(cross_b, d_14, d_13);
   return dot_v3v3(cross_a, cross_b) > 0.0f;
-}
-
-bool is_quad_flip_v3_first_third_fast_with_normal(const float v1[3],
-                                                  const float v2[3],
-                                                  const float v3[3],
-                                                  const float v4[3],
-                                                  const float normal[3])
-{
-  float dir_v3v1[3], tangent[3];
-  sub_v3_v3v3(dir_v3v1, v3, v1);
-  cross_v3_v3v3(tangent, dir_v3v1, normal);
-  const float dot = dot_v3v3(v1, tangent);
-  return (dot_v3v3(v4, tangent) >= dot) || (dot_v3v3(v2, tangent) <= dot);
 }
 
 float cubic_tangent_factor_circle_v3(const float tan_l[3], const float tan_r[3])

@@ -202,6 +202,8 @@ void drw_print_value(int value)
   drw_print_value_uint(uint(abs(value)), false, (value < 0), false);
 }
 
+#ifndef GPU_METAL
+
 void drw_print_value(bool value)
 {
   if (value) {
@@ -211,6 +213,8 @@ void drw_print_value(bool value)
     drw_print_no_endl("false");
   }
 }
+
+#endif
 
 /* NOTE(@fclem): This is homebrew and might not be 100% accurate (accuracy has
  * not been tested and might dependent on compiler implementation). If unsure,
@@ -394,5 +398,14 @@ void drw_print_value(mat4 value)
   drw_print("  ", value[1]);
   drw_print("  ", value[2]);
   drw_print("  ", value[3]);
+  drw_print(")");
+}
+
+void drw_print_value(mat3 value)
+{
+  drw_print("mat3x3(");
+  drw_print("  ", value[0]);
+  drw_print("  ", value[1]);
+  drw_print("  ", value[2]);
   drw_print(")");
 }

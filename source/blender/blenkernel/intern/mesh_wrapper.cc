@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -7,7 +9,7 @@
  * output of a modified mesh.
  *
  * This API handles the case when the modifier stack outputs a mesh which does not have
- * #Mesh data (#MPoly, #MLoop, #MEdge, etc).
+ * #Mesh data (#Mesh::polys(), corner verts, corner edges, edges, etc).
  * Currently this is used so the resulting mesh can have #BMEditMesh data,
  * postponing the converting until it's needed or avoiding conversion entirely
  * which can be an expensive operation.
@@ -27,20 +29,22 @@
 
 #include "BLI_ghash.h"
 #include "BLI_math.h"
+#include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_DerivedMesh.h"
 #include "BKE_editmesh.h"
-#include "BKE_editmesh_cache.h"
+#include "BKE_editmesh_cache.hh"
 #include "BKE_lib_id.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.h"
 #include "BKE_mesh_wrapper.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_subdiv.h"
-#include "BKE_subdiv_mesh.h"
+#include "BKE_subdiv_mesh.hh"
 #include "BKE_subdiv_modifier.h"
 
 #include "DEG_depsgraph.h"
@@ -49,10 +53,9 @@
 using blender::float3;
 using blender::Span;
 
-Mesh *BKE_mesh_wrapper_from_editmesh_with_coords(BMEditMesh *em,
-                                                 const CustomData_MeshMasks *cd_mask_extra,
-                                                 const float (*vert_coords)[3],
-                                                 const Mesh *me_settings)
+Mesh *BKE_mesh_wrapper_from_editmesh(BMEditMesh *em,
+                                     const CustomData_MeshMasks *cd_mask_extra,
+                                     const Mesh *me_settings)
 {
   Mesh *me = static_cast<Mesh *>(BKE_id_new_nomain(ID_ME, nullptr));
   BKE_mesh_copy_parameters_for_eval(me, me_settings);
@@ -82,16 +85,7 @@ Mesh *BKE_mesh_wrapper_from_editmesh_with_coords(BMEditMesh *em,
   me->totloop = 0;
 #endif
 
-  EditMeshData *edit_data = me->runtime->edit_data;
-  edit_data->vertexCos = vert_coords;
   return me;
-}
-
-Mesh *BKE_mesh_wrapper_from_editmesh(BMEditMesh *em,
-                                     const CustomData_MeshMasks *cd_mask_extra,
-                                     const Mesh *me_settings)
-{
-  return BKE_mesh_wrapper_from_editmesh_with_coords(em, cd_mask_extra, nullptr, me_settings);
 }
 
 void BKE_mesh_wrapper_ensure_mdata(Mesh *me)
@@ -135,6 +129,8 @@ void BKE_mesh_wrapper_ensure_mdata(Mesh *me)
           BKE_mesh_vert_coords_apply(me, edit_data->vertexCos);
           me->runtime->is_original_bmesh = false;
         }
+        BKE_mesh_runtime_reset_edit_data(me);
+        MEM_SAFE_FREE(me->runtime->edit_data);
         break;
       }
     }
@@ -151,12 +147,19 @@ void BKE_mesh_wrapper_ensure_mdata(Mesh *me)
 
 bool BKE_mesh_wrapper_minmax(const Mesh *me, float min[3], float max[3])
 {
+  using namespace blender;
   switch (me->runtime->wrapper_type) {
     case ME_WRAPPER_TYPE_BMESH:
       return BKE_editmesh_cache_calc_minmax(me->edit_mesh, me->runtime->edit_data, min, max);
     case ME_WRAPPER_TYPE_MDATA:
-    case ME_WRAPPER_TYPE_SUBD:
-      return BKE_mesh_minmax(me, min, max);
+    case ME_WRAPPER_TYPE_SUBD: {
+      if (const std::optional<Bounds<float3>> bounds = me->bounds_min_max()) {
+        copy_v3_v3(min, math::min(bounds->min, float3(min)));
+        copy_v3_v3(max, math::max(bounds->max, float3(max)));
+        return true;
+      }
+      return false;
+    }
   }
   BLI_assert_unreachable();
   return false;
@@ -165,6 +168,48 @@ bool BKE_mesh_wrapper_minmax(const Mesh *me, float min[3], float max[3])
 /* -------------------------------------------------------------------- */
 /** \name Mesh Coordinate Access
  * \{ */
+
+const float (*BKE_mesh_wrapper_vert_coords(const Mesh *mesh))[3]
+{
+  switch (mesh->runtime->wrapper_type) {
+    case ME_WRAPPER_TYPE_BMESH:
+      return mesh->runtime->edit_data->vertexCos;
+    case ME_WRAPPER_TYPE_MDATA:
+    case ME_WRAPPER_TYPE_SUBD:
+      return reinterpret_cast<const float(*)[3]>(mesh->vert_positions().data());
+  }
+  return nullptr;
+}
+
+const float (*BKE_mesh_wrapper_poly_normals(Mesh *mesh))[3]
+{
+  switch (mesh->runtime->wrapper_type) {
+    case ME_WRAPPER_TYPE_BMESH:
+      BKE_editmesh_cache_ensure_poly_normals(mesh->edit_mesh, mesh->runtime->edit_data);
+      return mesh->runtime->edit_data->polyNos;
+    case ME_WRAPPER_TYPE_MDATA:
+    case ME_WRAPPER_TYPE_SUBD:
+      return reinterpret_cast<const float(*)[3]>(mesh->poly_normals().data());
+  }
+  return nullptr;
+}
+
+void BKE_mesh_wrapper_tag_positions_changed(Mesh *mesh)
+{
+  switch (mesh->runtime->wrapper_type) {
+    case ME_WRAPPER_TYPE_BMESH:
+      if (mesh->runtime->edit_data) {
+        MEM_SAFE_FREE(mesh->runtime->edit_data->vertexNos);
+        MEM_SAFE_FREE(mesh->runtime->edit_data->polyCos);
+        MEM_SAFE_FREE(mesh->runtime->edit_data->polyNos);
+      }
+      break;
+    case ME_WRAPPER_TYPE_MDATA:
+    case ME_WRAPPER_TYPE_SUBD:
+      BKE_mesh_tag_positions_changed(mesh);
+      break;
+  }
+}
 
 void BKE_mesh_wrapper_vert_coords_copy(const Mesh *me,
                                        float (*vert_coords)[3],
@@ -350,7 +395,7 @@ static Mesh *mesh_wrapper_ensure_subdivision(Mesh *me)
     BKE_mesh_calc_normals_split(subdiv_mesh);
   }
 
-  if (subdiv != runtime_data->subdiv_cpu && subdiv != runtime_data->subdiv_gpu) {
+  if (!ELEM(subdiv, runtime_data->subdiv_cpu, runtime_data->subdiv_gpu)) {
     BKE_subdiv_free(subdiv);
   }
 

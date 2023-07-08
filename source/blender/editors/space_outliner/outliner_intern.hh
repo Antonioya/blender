@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2008 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup spoutliner
@@ -17,6 +18,7 @@
 /* internal exports only */
 
 struct ARegion;
+struct Bone;
 struct EditBone;
 struct ID;
 struct ListBase;
@@ -127,13 +129,14 @@ struct TreeElementIcon {
         ID_AC, \
         ID_BR, \
         ID_PA, \
-        ID_GD, \
+        ID_GD_LEGACY, \
         ID_LS, \
         ID_LP, \
         ID_CV, \
         ID_PT, \
         ID_VO, \
-        ID_SIM) || /* Only in 'blendfile' mode ... :/ */ \
+        ID_SIM, \
+        ID_GP) || /* Only in 'blendfile' mode ... :/ */ \
    ELEM(GS((_id)->name), \
         ID_SCR, \
         ID_WM, \
@@ -280,9 +283,14 @@ TreeElement *outliner_add_collection_recursive(SpaceOutliner *space_outliner,
 bool outliner_requires_rebuild_on_select_or_active_change(
     const struct SpaceOutliner *space_outliner);
 
-typedef struct IDsSelectedData {
+struct IDsSelectedData {
   struct ListBase selected_array;
-} IDsSelectedData;
+};
+
+struct BoneElementCreateData {
+  ID *armature_id;
+  Bone *bone;
+};
 
 TreeTraversalAction outliner_collect_selected_collections(TreeElement *te, void *customdata);
 TreeTraversalAction outliner_collect_selected_objects(TreeElement *te, void *customdata);

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2021-2022 Intel Corporation */
+/* SPDX-FileCopyrightText: 2021-2022 Intel Corporation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -31,6 +32,8 @@ typedef struct KernelGlobalsGPU {
   size_t nd_item_group_range_0;
   size_t nd_item_global_id_0;
   size_t nd_item_global_range_0;
+#else
+  sycl::kernel_handler kernel_handler;
 #endif
 } KernelGlobalsGPU;
 

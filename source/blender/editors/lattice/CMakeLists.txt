@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2023 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
@@ -18,10 +20,10 @@ set(INC_SYS
 )
 
 set(SRC
-  editlattice_select.c
-  editlattice_tools.c
-  editlattice_undo.c
-  lattice_ops.c
+  editlattice_select.cc
+  editlattice_tools.cc
+  editlattice_undo.cc
+  lattice_ops.cc
 
   lattice_intern.h
 )

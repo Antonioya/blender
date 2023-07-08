@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2019 Blender Foundation
+#
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright 2019 Blender Foundation. All rights reserved.
 
 # This suppresses the warning "This file includes at least one deprecated or antiquated
 # header which may be removed without further notice at a future date", which is caused
@@ -35,12 +36,20 @@ if(USD_IMAGING_HEADERS)
   add_definitions(-DUSD_HAS_IMAGING)
 endif()
 
+if(WIN32)
+  # Some USD library headers trigger the "unreferenced formal parameter"
+  # warning alert.
+  # Silence them by restore warn C4100 back to w4
+  remove_cc_flag("/w34100")
+endif()
+
 set(INC
   .
   ../common
   ../../blenkernel
   ../../blenlib
   ../../blenloader
+  ../../blentranslation
   ../../bmesh
   ../../depsgraph
   ../../editors/include
@@ -63,10 +72,10 @@ set(SRC
   intern/usd_asset_utils.cc
   intern/usd_capi_export.cc
   intern/usd_capi_import.cc
-  intern/usd_common.cc
   intern/usd_hierarchy_iterator.cc
   intern/usd_writer_abstract.cc
   intern/usd_writer_camera.cc
+  intern/usd_writer_curves.cc
   intern/usd_writer_hair.cc
   intern/usd_writer_light.cc
   intern/usd_writer_material.cc
@@ -83,6 +92,7 @@ set(SRC
   intern/usd_reader_mesh.cc
   intern/usd_reader_nurbs.cc
   intern/usd_reader_prim.cc
+  intern/usd_reader_shape.cc
   intern/usd_reader_stage.cc
   intern/usd_reader_volume.cc
   intern/usd_reader_xform.cc
@@ -90,11 +100,11 @@ set(SRC
   usd.h
 
   intern/usd_asset_utils.h
-  intern/usd_common.h
   intern/usd_exporter_context.h
   intern/usd_hierarchy_iterator.h
   intern/usd_writer_abstract.h
   intern/usd_writer_camera.h
+  intern/usd_writer_curves.h
   intern/usd_writer_hair.h
   intern/usd_writer_light.h
   intern/usd_writer_material.h
@@ -111,6 +121,7 @@ set(SRC
   intern/usd_reader_mesh.h
   intern/usd_reader_nurbs.h
   intern/usd_reader_prim.h
+  intern/usd_reader_shape.h
   intern/usd_reader_stage.h
   intern/usd_reader_volume.h
   intern/usd_reader_xform.h
@@ -127,6 +138,8 @@ list(APPEND LIB
   ${BOOST_LIBRARIES}
   ${BOOST_PYTHON_LIBRARIES}
   ${PYTHON_LIBRARIES}
+  ${USD_LIBRARIES}
+  ${TBB_LIBRARIES}
 )
 
 if(WITH_OPENVDB)
@@ -141,34 +154,12 @@ endif()
 
 blender_add_lib(bf_usd "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-if(WIN32)
-  set_property(TARGET bf_usd APPEND_STRING PROPERTY INTERFACE_LINK_OPTIONS "$<$<CONFIG:Debug>:/WHOLEARCHIVE:${USD_DEBUG_LIB}>")
-  set_property(TARGET bf_usd APPEND_STRING PROPERTY INTERFACE_LINK_OPTIONS "$<$<CONFIG:Release>:/WHOLEARCHIVE:${USD_RELEASE_LIB}>")
-  set_property(TARGET bf_usd APPEND_STRING PROPERTY INTERFACE_LINK_OPTIONS "$<$<CONFIG:RelWithDebInfo>:/WHOLEARCHIVE:${USD_RELEASE_LIB}>")
-  set_property(TARGET bf_usd APPEND_STRING PROPERTY INTERFACE_LINK_OPTIONS "$<$<CONFIG:MinSizeRel>:/WHOLEARCHIVE:${USD_RELEASE_LIB}>")
-endif()
-
-# Source:
-# https://github.com/PixarAnimationStudios/USD/blob/master/BUILDING.md#linking-whole-archives
-if(WIN32)
-  target_link_libraries(bf_usd INTERFACE ${USD_LIBRARIES})
-elseif(APPLE)
-  target_link_libraries(bf_usd INTERFACE -Wl,-force_load ${USD_LIBRARIES})
-elseif(UNIX)
-  target_link_libraries(bf_usd INTERFACE "-Wl,--whole-archive ${USD_LIBRARIES} -Wl,--no-whole-archive ${TBB_LIBRARIES}")
-else()
-  message(FATAL_ERROR "Unknown how to link USD with your compiler ${CMAKE_CXX_COMPILER_ID}")
-endif()
-
-target_link_libraries(bf_usd INTERFACE ${TBB_LIBRARIES})
-
 if(WITH_GTESTS)
   set(TEST_SRC
-    tests/usd_stage_creation_test.cc
+    tests/usd_curves_test.cc
     tests/usd_export_test.cc
-    tests/usd_tests_common.cc
-    tests/usd_tests_common.h
-
+    tests/usd_stage_creation_test.cc
+    tests/usd_usdz_export_test.cc
     intern/usd_writer_material.h
   )
   if(USD_IMAGING_HEADERS)

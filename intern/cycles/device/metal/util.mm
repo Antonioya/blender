@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2021-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2021-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #ifdef WITH_METAL
 
@@ -35,7 +36,8 @@ int MetalInfo::get_apple_gpu_core_count(id<MTLDevice> device)
     io_service_t gpu_service = IOServiceGetMatchingService(
         kIOMainPortDefault, IORegistryEntryIDMatching(device.registryID));
     if (CFNumberRef numberRef = (CFNumberRef)IORegistryEntryCreateCFProperty(
-            gpu_service, CFSTR("gpu-core-count"), 0, 0)) {
+            gpu_service, CFSTR("gpu-core-count"), 0, 0))
+    {
       if (CFGetTypeID(numberRef) == CFNumberGetTypeID()) {
         CFNumberGetValue(numberRef, kCFNumberSInt32Type, &core_count);
       }
@@ -170,7 +172,8 @@ id<MTLBuffer> MetalBufferPool::get_buffer(id<MTLDevice> device,
 
     /* Check if buffer matches size and storage mode and is old enough to reuse */
     if (bufferEntry.buffer.length == length && storageMode == bufferEntry.buffer.storageMode &&
-        cpuCacheMode == bufferEntry.buffer.cpuCacheMode) {
+        cpuCacheMode == bufferEntry.buffer.cpuCacheMode)
+    {
       buffer = bufferEntry.buffer;
       buffer_free_list.erase(entry);
       bufferEntry.command_buffer = command_buffer;

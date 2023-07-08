@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2015-2023 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -139,9 +141,12 @@ def main():
     else:
         report.set_compare_engine('cycles', 'CPU')
 
-    # Increase threshold for motion blur, see T78777.
+    # Increase threshold for motion blur, see #78777.
+    #
+    # underwater_caustics.blend gives quite different results on Linux and Intel macOS compared to
+    # Windows and Arm macOS.
     test_dir_name = Path(test_dir).name
-    if test_dir_name == 'motion_blur':
+    if test_dir_name in ('motion_blur', 'integrator', ):
         report.set_fail_threshold(0.032)
 
     ok = report.run(test_dir, blender, get_arguments, batch=True)

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2007 by Janne Karhu. All rights reserved. */
+/* SPDX-FileCopyrightText: 2007 by Janne Karhu. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -613,18 +614,8 @@ static void distribute_from_volume_exec(ParticleTask *thread, ParticleData *pa, 
   /* experimental */
   tot = mesh->totface;
 
-  psys_interpolate_face(mesh,
-                        positions,
-                        BKE_mesh_vertex_normals_ensure(mesh),
-                        mface,
-                        0,
-                        0,
-                        pa->fuv,
-                        co,
-                        nor,
-                        0,
-                        0,
-                        0);
+  psys_interpolate_face(
+      mesh, positions, BKE_mesh_vert_normals_ensure(mesh), mface, 0, 0, pa->fuv, co, nor, 0, 0, 0);
 
   normalize_v3(nor);
   negate_v3(nor);
@@ -910,7 +901,8 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
   }
 
   if (!BKE_mesh_is_deformed_only(final_mesh) &&
-      !CustomData_get_layer(&final_mesh->fdata, CD_ORIGINDEX)) {
+      !CustomData_get_layer(&final_mesh->fdata, CD_ORIGINDEX))
+  {
     printf(
         "Can't create particles with the current modifier stack, disable destructive modifiers\n");
     // XXX error("Can't paint with the current modifier stack, disable destructive modifiers");
@@ -1206,12 +1198,12 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
 
     step = (totpart < 2) ? 0.5 : 1.0 / (double)totpart;
     /* This is to address tricky issues with vertex-emitting when user tries
-     * (and expects) exact 1-1 vert/part distribution (see T47983 and its two example files).
+     * (and expects) exact 1-1 vert/part distribution (see #47983 and its two example files).
      * It allows us to consider pos as 'midpoint between v and v+1'
      * (or 'p and p+1', depending whether we have more vertices than particles or not),
      * and avoid stumbling over float impression in element_sum.
      * NOTE: moved face and volume distribution to this as well (instead of starting at zero),
-     * for the same reasons, see T52682. */
+     * for the same reasons, see #52682. */
     pos = (totpart < totmapped) ? 0.5 / (double)totmapped :
                                   step * 0.5; /* We choose the smaller step. */
 

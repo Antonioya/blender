@@ -1,6 +1,7 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2022 NVIDIA Corporation
- * Copyright 2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2022 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #include "hydra/output_driver.h"
 #include "hydra/render_buffer.h"
@@ -44,7 +45,8 @@ bool HdCyclesOutputDriver::update_render_tile(const Tile &tile)
       // Avoid extra copy by mapping render buffer directly when dimensions/format match the tile
       if (tile.offset.x == 0 && tile.offset.y == 0 && tile.size.x == renderBuffer->GetWidth() &&
           tile.size.y == renderBuffer->GetHeight() &&
-          (format >= HdFormatFloat32 && format <= HdFormatFloat32Vec4)) {
+          (format >= HdFormatFloat32 && format <= HdFormatFloat32Vec4))
+      {
         float *const data = static_cast<float *>(renderBuffer->Map());
         TF_VERIFY(tile.get_pass_pixels(aovBinding.aovName.GetString(), channels, data));
         renderBuffer->Unmap();

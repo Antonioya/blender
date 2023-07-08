@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2011 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2011 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "COM_CompositorNode.h"
 #include "COM_CompositorOperation.h"
@@ -15,12 +16,12 @@ void CompositorNode::convert_to_operations(NodeConverter &converter,
                                            const CompositorContext &context) const
 {
   const bNode *editor_node = this->get_bnode();
-  bool is_active = (editor_node->flag & NODE_DO_OUTPUT_RECALC) || context.is_rendering();
+  bool is_active = ((editor_node->flag & NODE_DO_OUTPUT_RECALC) || context.is_rendering()) &&
+                   (editor_node->flag & NODE_DO_OUTPUT);
   bool ignore_alpha = (editor_node->custom2 & CMP_NODE_OUTPUT_IGNORE_ALPHA) != 0;
 
   NodeInput *image_socket = this->get_input_socket(0);
   NodeInput *alpha_socket = this->get_input_socket(1);
-  NodeInput *depth_socket = this->get_input_socket(2);
 
   CompositorOperation *compositor_operation = new CompositorOperation();
   compositor_operation->set_scene(context.get_scene());
@@ -41,7 +42,6 @@ void CompositorNode::convert_to_operations(NodeConverter &converter,
   else {
     converter.map_input_socket(alpha_socket, compositor_operation->get_input_socket(1));
   }
-  converter.map_input_socket(depth_socket, compositor_operation->get_input_socket(2));
 
   converter.add_node_input_preview(image_socket);
 }

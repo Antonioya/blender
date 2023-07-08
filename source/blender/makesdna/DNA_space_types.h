@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2001-2002 NaN Holding BV. All rights reserved. */
+/* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 /** \file
  * \ingroup DNA
  *
@@ -48,6 +49,15 @@ struct bNodeTree;
 struct wmOperator;
 struct wmTimer;
 
+#ifdef __cplusplus
+namespace blender::asset_system {
+class AssetRepresentation;
+}
+using AssetRepresentationHandle = blender::asset_system::AssetRepresentation;
+#else
+typedef struct AssetRepresentationHandle AssetRepresentationHandle;
+#endif
+
 /** Defined in `buttons_intern.h`. */
 typedef struct SpaceProperties_Runtime SpaceProperties_Runtime;
 
@@ -95,12 +105,13 @@ enum {
   /**
    * The space is not a regular one opened through the editor menu (for example) but spawned by an
    * operator to fulfill some task and then disappear again.
-   * Can typically be cancelled using Escape, but that is handled on the editor level. */
+   * Can typically be canceled using Escape, but that is handled on the editor level.
+   */
   SPACE_FLAG_TYPE_TEMPORARY = (1 << 0),
   /**
    * Used to mark a space as active but "overlapped" by temporary full-screen spaces. Without this
    * we wouldn't be able to restore the correct active space after closing temp full-screens
-   * reliably if the same space type is opened twice in a full-screen stack (see T19296). We don't
+   * reliably if the same space type is opened twice in a full-screen stack (see #19296). We don't
    * actually open the same space twice, we have to pretend it is by managing area order carefully.
    */
   SPACE_FLAG_TYPE_WAS_ACTIVE = (1 << 1),
@@ -182,31 +193,35 @@ typedef struct SpaceProperties {
 /* button defines (deprecated) */
 #ifdef DNA_DEPRECATED_ALLOW
 /* WARNING: the values of these defines are used in SpaceProperties.tabs[8] */
-/* SpaceProperties.mainb new */
-#  define CONTEXT_SCENE 0
-#  define CONTEXT_OBJECT 1
-// #define CONTEXT_TYPES   2
-#  define CONTEXT_SHADING 3
-#  define CONTEXT_EDITING 4
-// #define CONTEXT_SCRIPT  5
-// #define CONTEXT_LOGIC   6
+/** #SpaceProperties::mainb new */
+enum {
+  CONTEXT_SCENE = 0,
+  CONTEXT_OBJECT = 1,
+  // CONTEXT_TYPES = 2,
+  CONTEXT_SHADING = 3,
+  CONTEXT_EDITING = 4,
+  // CONTEXT_SCRIPT = 5,
+  // CONTEXT_LOGIC = 6,
+};
 
-/* SpaceProperties.mainb old (deprecated) */
-// #define BUTS_VIEW           0
-#  define BUTS_LAMP 1
-#  define BUTS_MAT 2
-#  define BUTS_TEX 3
-#  define BUTS_ANIM 4
-#  define BUTS_WORLD 5
-#  define BUTS_RENDER 6
-#  define BUTS_EDIT 7
-// #define BUTS_GAME           8
-#  define BUTS_FPAINT 9
-#  define BUTS_RADIO 10
-#  define BUTS_SCRIPT 11
-// #define BUTS_SOUND          12
-#  define BUTS_CONSTRAINT 13
-// #define BUTS_EFFECTS        14
+/** #SpaceProperties::mainb old (deprecated) */
+enum {
+  // BUTS_VIEW = 0,
+  BUTS_LAMP = 1,
+  BUTS_MAT = 2,
+  BUTS_TEX = 3,
+  BUTS_ANIM = 4,
+  BUTS_WORLD = 5,
+  BUTS_RENDER = 6,
+  BUTS_EDIT = 7,
+  // BUTS_GAME = 8,
+  BUTS_FPAINT = 9,
+  BUTS_RADIO = 10,
+  BUTS_SCRIPT = 11,
+  // BUTS_SOUND = 12,
+  BUTS_CONSTRAINT = 13,
+  // BUTS_EFFECTS = 14,
+};
 #endif /* DNA_DEPRECATED_ALLOW */
 
 /** #SpaceProperties.mainb new */
@@ -339,11 +354,14 @@ typedef enum eSpaceOutliner_Filter {
   SO_FILTER_NO_VIEW_LAYERS = (1 << 18),
 
   SO_FILTER_ID_TYPE = (1 << 19),
+
+  SO_FILTER_NO_OB_GPENCIL_LEGACY = (1 << 20),
 } eSpaceOutliner_Filter;
 
 #define SO_FILTER_OB_TYPE \
   (SO_FILTER_NO_OB_MESH | SO_FILTER_NO_OB_ARMATURE | SO_FILTER_NO_OB_EMPTY | \
-   SO_FILTER_NO_OB_LAMP | SO_FILTER_NO_OB_CAMERA | SO_FILTER_NO_OB_OTHERS)
+   SO_FILTER_NO_OB_LAMP | SO_FILTER_NO_OB_CAMERA | SO_FILTER_NO_OB_GPENCIL_LEGACY | \
+   SO_FILTER_NO_OB_OTHERS)
 
 #define SO_FILTER_OB_STATE \
   (SO_FILTER_OB_STATE_VISIBLE | SO_FILTER_OB_STATE_SELECTED | SO_FILTER_OB_STATE_ACTIVE | \
@@ -484,8 +502,6 @@ typedef enum eGraphEdit_Flag {
   /* SIPO_NODRAWCFRANUM = (1 << 3), DEPRECATED */
   /* show timing in seconds instead of frames */
   SIPO_DRAWTIME = (1 << 4),
-  /* only show keyframes for selected F-Curves */
-  SIPO_SELCUVERTSONLY = (1 << 5),
   /* draw names of F-Curves beside the respective curves */
   /* NOTE: currently not used */
   /* SIPO_DRAWNAMES = (1 << 6), */ /* UNUSED */
@@ -497,8 +513,6 @@ typedef enum eGraphEdit_Flag {
   SIPO_SELVHANDLESONLY = (1 << 9),
   /* don't perform realtime updates */
   SIPO_NOREALTIMEUPDATES = (1 << 11),
-  /* don't draw curves with AA ("beauty-draw") for performance */
-  SIPO_BEAUTYDRAW_OFF = (1 << 12),
   /* draw grouped channels with colors set in group */
   /* SIPO_NODRAWGCOLORS = (1 << 13), DEPRECATED */
   /* normalize curves on display */
@@ -605,10 +619,13 @@ typedef struct SequencerTimelineOverlay {
 typedef enum eSpaceSeq_SequencerTimelineOverlay_Flag {
   SEQ_TIMELINE_SHOW_STRIP_OFFSETS = (1 << 1),
   SEQ_TIMELINE_SHOW_THUMBNAILS = (1 << 2),
-  SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG = (1 << 3), /* use Sequence->color_tag */
+  /** Use #Sequence::color_tag */
+  SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG = (1 << 3),
   SEQ_TIMELINE_SHOW_FCURVES = (1 << 5),
-  SEQ_TIMELINE_ALL_WAVEFORMS = (1 << 7), /* draw all waveforms */
-  SEQ_TIMELINE_NO_WAVEFORMS = (1 << 8),  /* draw no waveforms */
+  /** Draw all wave-forms. */
+  SEQ_TIMELINE_ALL_WAVEFORMS = (1 << 7),
+  /** Draw no wave-forms. */
+  SEQ_TIMELINE_NO_WAVEFORMS = (1 << 8),
   SEQ_TIMELINE_SHOW_STRIP_NAME = (1 << 14),
   SEQ_TIMELINE_SHOW_STRIP_SOURCE = (1 << 15),
   SEQ_TIMELINE_SHOW_STRIP_DURATION = (1 << 16),
@@ -846,6 +863,8 @@ typedef enum eFileAssetImportType {
    * heavy data dependencies (e.g. the image data-blocks of a material, the mesh of an object) may
    * be reused from an earlier append. */
   FILE_ASSET_IMPORT_APPEND_REUSE = 2,
+  /** Default: Follow the preference setting for this asset library. */
+  FILE_ASSET_IMPORT_FOLLOW_PREFS = 3,
 } eFileAssetImportType;
 
 /**
@@ -978,7 +997,7 @@ enum eFileDetails {
   FILE_DETAILS_DATETIME = (1 << 1),
 };
 
-/* these values need to be hardcoded in structs, dna does not recognize defines */
+/* These values need to be hard-coded in structs, DNA does not recognize defines. */
 /* also defined in BKE */
 #define FILE_MAXDIR 768
 #define FILE_MAXFILE 256
@@ -1091,13 +1110,14 @@ typedef enum eFileSel_File_Types {
 } eFileSel_File_Types;
 ENUM_OPERATORS(eFileSel_File_Types, FILE_TYPE_BLENDERLIB);
 
-/** Selection Flags in filesel: struct direntry, unsigned char selflag. */
+/** Selection Flags #FileList::selection_state. */
 typedef enum eDirEntry_SelectFlag {
   /*  FILE_SEL_ACTIVE         = (1 << 1), */ /* UNUSED */
   FILE_SEL_HIGHLIGHTED = (1 << 2),
   FILE_SEL_SELECTED = (1 << 3),
   FILE_SEL_EDITING = (1 << 4),
 } eDirEntry_SelectFlag;
+ENUM_OPERATORS(eDirEntry_SelectFlag, FILE_SEL_EDITING);
 
 /* ***** Related to file browser, but never saved in DNA, only here to help with RNA. ***** */
 
@@ -1137,7 +1157,7 @@ typedef struct FileDirEntry {
   /** If this file represents an asset, its asset data is here. Note that we may show assets of
    * external files in which case this is set but not the id above.
    * Note comment for FileListInternEntry.local_data, the same applies here! */
-  struct AssetRepresentation *asset;
+  AssetRepresentationHandle *asset;
 
   /* The icon_id for the preview image. */
   int preview_icon_id;
@@ -1209,7 +1229,7 @@ typedef struct SpaceImage {
   struct Image *image;
   struct ImageUser iuser;
 
-  /** Histogram waveform and vectorscope. */
+  /** Histogram waveform and vector-scope. */
   struct Scopes scopes;
   /** Sample line histogram. */
   struct Histogram sample_line_hist;
@@ -1588,13 +1608,18 @@ typedef struct SpaceNode {
 
   /* tree type for the current node tree */
   char tree_idname[64];
-  /** Treetype: as same nodetree->type. */
+  /** Same as #bNodeTree::type (deprecated). */
   int treetype DNA_DEPRECATED;
 
-  /** Texfrom object, world or brush. */
+  /** Texture-from object, world or brush (#eSpaceNode_TexFrom). */
   short texfrom;
-  /** Shader from object or world. */
-  short shaderfrom;
+  /** Shader from object or world (#eSpaceNode_ShaderFrom). */
+  char shaderfrom;
+  /**
+   * Whether to edit any geometry node group, or follow the active modifier context.
+   * #SpaceNodeGeometryNodesType.
+   */
+  char geometry_nodes_type;
 
   /** Grease-pencil data. */
   struct bGPdata *gpd;
@@ -1638,6 +1663,12 @@ typedef enum eSpaceNode_ShaderFrom {
   SNODE_SHADER_LINESTYLE = 2,
 } eSpaceNode_ShaderFrom;
 
+/** #SpaceNode.geometry_nodes_type */
+typedef enum SpaceNodeGeometryNodesType {
+  SNODE_GEOMETRY_MODIFIER = 0,
+  SNODE_GEOMETRY_OPERATOR = 1,
+} SpaceNodeGeometryNodesType;
+
 /** #SpaceNode.insert_ofs_dir */
 enum {
   SNODE_INSERTOFS_DIR_RIGHT = 0,
@@ -1657,7 +1688,7 @@ typedef struct ConsoleLine {
   /* Keep these 3 vars so as to share free, realloc functions. */
   /** Allocated length. */
   int len_alloc;
-  /** Real len - strlen(). */
+  /** Real length: `strlen()`. */
   int len;
   char *line;
 
@@ -1670,7 +1701,8 @@ typedef struct ConsoleLine {
 typedef enum eConsoleLine_Type {
   CONSOLE_LINE_OUTPUT = 0,
   CONSOLE_LINE_INPUT = 1,
-  CONSOLE_LINE_INFO = 2, /* autocomp feedback */
+  /** Auto-completion feedback. */
+  CONSOLE_LINE_INFO = 2,
   CONSOLE_LINE_ERROR = 3,
 } eConsoleLine_Type;
 
@@ -1937,7 +1969,7 @@ typedef struct SpaceSpreadsheet {
   /* eSpaceSpreadsheet_FilterFlag. */
   uint8_t filter_flag;
 
-  /* #GeometryComponentType. */
+  /* #GeometryComponent::Type. */
   uint8_t geometry_component_type;
   /* #eAttrDomain. */
   uint8_t attribute_domain;
@@ -1973,6 +2005,7 @@ typedef struct SpreadsheetRowFilter {
   char _pad0[2];
 
   int value_int;
+  int value_int2[2];
   char *value_string;
   float value_float;
   float threshold;
@@ -2018,6 +2051,8 @@ typedef enum eSpreadsheetColumnValueType {
   SPREADSHEET_VALUE_TYPE_STRING = 7,
   SPREADSHEET_VALUE_TYPE_BYTE_COLOR = 8,
   SPREADSHEET_VALUE_TYPE_INT8 = 9,
+  SPREADSHEET_VALUE_TYPE_INT32_2D = 10,
+  SPREADSHEET_VALUE_TYPE_QUATERNION = 11,
 } eSpreadsheetColumnValueType;
 
 /**

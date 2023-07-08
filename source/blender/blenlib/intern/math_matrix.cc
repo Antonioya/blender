@@ -1,12 +1,15 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2022 Blender Foundation. */
+/* SPDX-FileCopyrightText: 2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bli
  */
 
 #include "BLI_math_matrix.hh"
+
 #include "BLI_math_rotation.hh"
+#include "BLI_simd.h"
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -24,7 +27,7 @@ template<> float4x4 float4x4::operator*(const float4x4 &b) const
   const float4x4 &a = *this;
   float4x4 result;
 
-#ifdef BLI_HAVE_SSE2
+#if BLI_HAVE_SSE2
   __m128 A0 = _mm_load_ps(a[0]);
   __m128 A1 = _mm_load_ps(a[1]);
   __m128 A2 = _mm_load_ps(a[2]);
@@ -42,13 +45,27 @@ template<> float4x4 float4x4::operator*(const float4x4 &b) const
     _mm_store_ps(result[i], sum);
   }
 #else
-  const float4x4 T = transpose(b);
+  result[0][0] = b[0][0] * a[0][0] + b[0][1] * a[1][0] + b[0][2] * a[2][0] + b[0][3] * a[3][0];
+  result[0][1] = b[0][0] * a[0][1] + b[0][1] * a[1][1] + b[0][2] * a[2][1] + b[0][3] * a[3][1];
+  result[0][2] = b[0][0] * a[0][2] + b[0][1] * a[1][2] + b[0][2] * a[2][2] + b[0][3] * a[3][2];
+  result[0][3] = b[0][0] * a[0][3] + b[0][1] * a[1][3] + b[0][2] * a[2][3] + b[0][3] * a[3][3];
 
-  result.x = float4(dot(a.x, T.x), dot(a.x, T.y), dot(a.x, T.z), dot(a.x, T.w));
-  result.y = float4(dot(a.y, T.x), dot(a.y, T.y), dot(a.y, T.z), dot(a.y, T.w));
-  result.z = float4(dot(a.z, T.x), dot(a.z, T.y), dot(a.z, T.z), dot(a.z, T.w));
-  result.w = float4(dot(a.w, T.x), dot(a.w, T.y), dot(a.w, T.z), dot(a.w, T.w));
+  result[1][0] = b[1][0] * a[0][0] + b[1][1] * a[1][0] + b[1][2] * a[2][0] + b[1][3] * a[3][0];
+  result[1][1] = b[1][0] * a[0][1] + b[1][1] * a[1][1] + b[1][2] * a[2][1] + b[1][3] * a[3][1];
+  result[1][2] = b[1][0] * a[0][2] + b[1][1] * a[1][2] + b[1][2] * a[2][2] + b[1][3] * a[3][2];
+  result[1][3] = b[1][0] * a[0][3] + b[1][1] * a[1][3] + b[1][2] * a[2][3] + b[1][3] * a[3][3];
+
+  result[2][0] = b[2][0] * a[0][0] + b[2][1] * a[1][0] + b[2][2] * a[2][0] + b[2][3] * a[3][0];
+  result[2][1] = b[2][0] * a[0][1] + b[2][1] * a[1][1] + b[2][2] * a[2][1] + b[2][3] * a[3][1];
+  result[2][2] = b[2][0] * a[0][2] + b[2][1] * a[1][2] + b[2][2] * a[2][2] + b[2][3] * a[3][2];
+  result[2][3] = b[2][0] * a[0][3] + b[2][1] * a[1][3] + b[2][2] * a[2][3] + b[2][3] * a[3][3];
+
+  result[3][0] = b[3][0] * a[0][0] + b[3][1] * a[1][0] + b[3][2] * a[2][0] + b[3][3] * a[3][0];
+  result[3][1] = b[3][0] * a[0][1] + b[3][1] * a[1][1] + b[3][2] * a[2][1] + b[3][3] * a[3][1];
+  result[3][2] = b[3][0] * a[0][2] + b[3][1] * a[1][2] + b[3][2] * a[2][2] + b[3][3] * a[3][2];
+  result[3][3] = b[3][0] * a[0][3] + b[3][1] * a[1][3] + b[3][2] * a[2][3] + b[3][3] * a[3][3];
 #endif
+
   return result;
 }
 
@@ -222,7 +239,8 @@ MatBase<T, Size, Size> pseudo_invert(const MatBase<T, Size, Size> &mat, T epsilo
     using VectorT = Eigen::Matrix<T, Size, 1>;
     /* Blender and Eigen matrices are both column-major by default.
      * Since our matrix is squared, we can use thinU/V. */
-    /** WORKAROUND:
+    /**
+     * WORKAROUND:
      * (ComputeThinU | ComputeThinV) must be set as runtime parameters in Eigen < 3.4.0.
      * But this requires the matrix type to be dynamic to avoid an assert.
      */
@@ -282,9 +300,9 @@ static void polar_decompose(const MatBase<T, 3, 3> &mat3,
     using VectorT = Eigen::Matrix<T, 3, 1>;
     /* Blender and Eigen matrices are both column-major by default.
      * Since our matrix is squared, we can use thinU/V. */
-    /** WORKAROUND:
-     * (ComputeThinU | ComputeThinV) must be set as runtime parameters in Eigen < 3.4.0.
-     * But this requires the matrix type to be dynamic to avoid an assert.
+    /**
+     * WORKAROUND: (ComputeThinU | ComputeThinV) must be set as runtime parameters in
+     * Eigen < 3.4.0. But this requires the matrix type to be dynamic to avoid an assert.
      */
     using MatrixDynamicT = Eigen::Matrix<T, Dynamic, Dynamic>;
     JacobiSVD<MatrixDynamicT, NoQRPreconditioner> svd(
@@ -325,7 +343,7 @@ MatBase<T, 3, 3> interpolate(const MatBase<T, 3, 3> &A, const MatBase<T, 3, 3> &
 
   /* Quaternions cannot represent an axis flip. If such a singularity is detected, choose a
    * different decomposition of the matrix that still satisfies A = U_A * P_A but which has a
-   * positive determinant and thus no axis flips. This resolves T77154.
+   * positive determinant and thus no axis flips. This resolves #77154.
    *
    * Note that a flip of two axes is just a rotation of 180 degrees around the third axis, and
    * three flipped axes are just an 180 degree rotation + a single axis flip. It is thus sufficient
@@ -339,9 +357,9 @@ MatBase<T, 3, 3> interpolate(const MatBase<T, 3, 3> &A, const MatBase<T, 3, 3> &
     P_B = -P_B;
   }
 
-  detail::Quaternion<T> quat_A = math::to_quaternion(U_A);
-  detail::Quaternion<T> quat_B = math::to_quaternion(U_B);
-  detail::Quaternion<T> quat = math::interpolate(quat_A, quat_B, t);
+  QuaternionBase<T> quat_A = math::to_quaternion(normalize(U_A));
+  QuaternionBase<T> quat_B = math::to_quaternion(normalize(U_B));
+  QuaternionBase<T> quat = math::interpolate(quat_A, quat_B, t);
   Mat3T U = from_rotation<Mat3T>(quat);
 
   Mat3T P = interpolate_linear(P_A, P_B, t);
@@ -372,7 +390,7 @@ template double4x4 interpolate(const double4x4 &a, const double4x4 &b, double t)
 template<typename T>
 MatBase<T, 3, 3> interpolate_fast(const MatBase<T, 3, 3> &a, const MatBase<T, 3, 3> &b, T t)
 {
-  using QuaternionT = detail::Quaternion<T>;
+  using QuaternionT = QuaternionBase<T>;
   using Vec3T = typename MatBase<T, 3, 3>::vec3_type;
 
   Vec3T a_scale, b_scale;
@@ -391,7 +409,7 @@ template double3x3 interpolate_fast(const double3x3 &a, const double3x3 &b, doub
 template<typename T>
 MatBase<T, 4, 4> interpolate_fast(const MatBase<T, 4, 4> &a, const MatBase<T, 4, 4> &b, T t)
 {
-  using QuaternionT = detail::Quaternion<T>;
+  using QuaternionT = QuaternionBase<T>;
   using Vec3T = typename MatBase<T, 3, 3>::vec3_type;
 
   Vec3T a_loc, b_loc;
@@ -412,29 +430,65 @@ template double4x4 interpolate_fast(const double4x4 &a, const double4x4 &b, doub
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Legacy
+ * \{ */
+
+Quaternion to_quaternion_legacy(const float3x3 &mat)
+{
+  float3x3 n_mat = normalize(mat);
+  /* Rotate z-axis of matrix to z-axis. */
+  float3 z_axis = n_mat.z_axis();
+
+  /* Cross product with (0,0,1). */
+  float3 nor = normalize(float3(z_axis.y, -z_axis.x, 0.0f));
+
+  float ha = 0.5f * math::safe_acos(z_axis.z);
+  /* `nor` negative here, but why? */
+  Quaternion q1(math::cos(ha), -nor * math::sin(ha));
+
+  /* Rotate back x-axis from mat, using inverse q1. */
+  float3 x_axis = transform_point(conjugate(q1), n_mat.x_axis());
+
+  /* And align x-axes. */
+  float ha2 = 0.5f * math::atan2(x_axis.y, x_axis.x);
+  Quaternion q2(math::cos(ha2), 0.0f, 0.0f, math::sin(ha2));
+
+  return q1 * q2;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Template instantiation
  * \{ */
 
 namespace detail {
 
 template void normalized_to_eul2(const float3x3 &mat,
-                                 detail::EulerXYZ<float> &eul1,
-                                 detail::EulerXYZ<float> &eul2);
+                                 Euler3Base<float> &eul1,
+                                 Euler3Base<float> &eul2);
+template void normalized_to_eul2(const float3x3 &mat,
+                                 EulerXYZBase<float> &eul1,
+                                 EulerXYZBase<float> &eul2);
 template void normalized_to_eul2(const double3x3 &mat,
-                                 detail::EulerXYZ<double> &eul1,
-                                 detail::EulerXYZ<double> &eul2);
+                                 EulerXYZBase<double> &eul1,
+                                 EulerXYZBase<double> &eul2);
 
-template detail::Quaternion<float> normalized_to_quat_with_checks(const float3x3 &mat);
-template detail::Quaternion<double> normalized_to_quat_with_checks(const double3x3 &mat);
+template QuaternionBase<float> normalized_to_quat_with_checks(const float3x3 &mat);
+template QuaternionBase<double> normalized_to_quat_with_checks(const double3x3 &mat);
 
-template MatBase<float, 2, 2> from_rotation(const detail::AngleRadian<float> &rotation);
-template MatBase<float, 3, 3> from_rotation(const detail::AngleRadian<float> &rotation);
-template MatBase<float, 3, 3> from_rotation(const detail::EulerXYZ<float> &rotation);
-template MatBase<float, 4, 4> from_rotation(const detail::EulerXYZ<float> &rotation);
-template MatBase<float, 3, 3> from_rotation(const detail::Quaternion<float> &rotation);
-template MatBase<float, 4, 4> from_rotation(const detail::Quaternion<float> &rotation);
-template MatBase<float, 3, 3> from_rotation(const detail::AxisAngle<float> &rotation);
-template MatBase<float, 4, 4> from_rotation(const detail::AxisAngle<float> &rotation);
+template MatBase<float, 2, 2> from_rotation(const AngleRadian &rotation);
+template MatBase<float, 3, 3> from_rotation(const AngleRadian &rotation);
+template MatBase<float, 3, 3> from_rotation(const EulerXYZ &rotation);
+template MatBase<float, 4, 4> from_rotation(const EulerXYZ &rotation);
+template MatBase<float, 3, 3> from_rotation(const Euler3 &rotation);
+template MatBase<float, 4, 4> from_rotation(const Euler3 &rotation);
+template MatBase<float, 3, 3> from_rotation(const Quaternion &rotation);
+template MatBase<float, 4, 4> from_rotation(const Quaternion &rotation);
+template MatBase<float, 3, 3> from_rotation(const AxisAngle &rotation);
+template MatBase<float, 4, 4> from_rotation(const AxisAngle &rotation);
+template MatBase<float, 3, 3> from_rotation(const AxisAngleCartesian &rotation);
+template MatBase<float, 4, 4> from_rotation(const AxisAngleCartesian &rotation);
 
 }  // namespace detail
 

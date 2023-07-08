@@ -169,7 +169,7 @@ mat4x4 scale(mat4x4 mat, vec3 scale);
  *
  * \note This code is about five times faster than the polar decomposition.
  * However, it gives un-expected results even with non-uniformly scaled matrices,
- * see T46418 for an example.
+ * see #46418 for an example.
  *
  * \param A: Input matrix which is totally effective with `t = 0.0`.
  * \param B: Input matrix which is totally effective with `t = 1.0`.
@@ -650,11 +650,11 @@ mat4x4 normalize_and_get_size(mat4x4 mat, out vec4 r_size)
 
 mat2x2 adjoint(mat2x2 mat)
 {
-  mat2x2 adj;
+  mat2x2 adj = mat2x2(0.0);
   for (int c = 0; c < 2; c++) {
     for (int r = 0; r < 2; r++) {
       /* Copy other cells except the "cross" to compute the determinant. */
-      float tmp;
+      float tmp = 0.0;
       for (int m_c = 0; m_c < 2; m_c++) {
         for (int m_r = 0; m_r < 2; m_r++) {
           if (m_c != c && m_r != r) {
@@ -671,11 +671,11 @@ mat2x2 adjoint(mat2x2 mat)
 }
 mat3x3 adjoint(mat3x3 mat)
 {
-  mat3x3 adj;
+  mat3x3 adj = mat3x3(0.0);
   for (int c = 0; c < 3; c++) {
     for (int r = 0; r < 3; r++) {
       /* Copy other cells except the "cross" to compute the determinant. */
-      mat2x2 tmp;
+      mat2x2 tmp = mat2x2(0.0);
       for (int m_c = 0; m_c < 3; m_c++) {
         for (int m_r = 0; m_r < 3; m_r++) {
           if (m_c != c && m_r != r) {
@@ -694,11 +694,11 @@ mat3x3 adjoint(mat3x3 mat)
 }
 mat4x4 adjoint(mat4x4 mat)
 {
-  mat4x4 adj;
+  mat4x4 adj = mat4x4(0.0);
   for (int c = 0; c < 4; c++) {
     for (int r = 0; r < 4; r++) {
       /* Copy other cells except the "cross" to compute the determinant. */
-      mat3x3 tmp;
+      mat3x3 tmp = mat3x3(0.0);
       for (int m_c = 0; m_c < 4; m_c++) {
         for (int m_r = 0; m_r < 4; m_r++) {
           if (m_c != c && m_r != r) {
@@ -1059,7 +1059,7 @@ EulerXYZ to_euler(mat4x4 mat, const bool normalized)
 
 Quaternion normalized_to_quat_fast(mat3 mat)
 {
-  /* Caller must ensure matrices aren't negative for valid results, see: T24291, T94231. */
+  /* Caller must ensure matrices aren't negative for valid results, see: #24291, #94231. */
   Quaternion q;
 
   /* Method outlined by Mike Day, ref: https://math.stackexchange.com/a/3183435/220949
@@ -1122,7 +1122,7 @@ Quaternion normalized_to_quat_fast(mat3 mat)
     }
     else {
       /* NOTE(@ideasman42): A zero matrix will fall through to this block,
-       * needed so a zero scaled matrices to return a quaternion without rotation, see: T101848. */
+       * needed so a zero scaled matrices to return a quaternion without rotation, see: #101848. */
       float trace = 1.0f + mat[0][0] + mat[1][1] + mat[2][2];
       float s = 2.0f * sqrt(trace);
       q.x = 0.25f * s;

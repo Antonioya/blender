@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2009 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
@@ -222,7 +223,7 @@ static int eyedropper_colorband_modal(bContext *C, wmOperator *op, const wmEvent
         return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
       }
       case EYE_MODAL_SAMPLE_BEGIN:
-        /* enable accum and make first sample */
+        /* Enable accumulate and make first sample. */
         eye->sample_start = true;
         eyedropper_colorband_sample_point(C, eye, event->xy);
         eyedropper_colorband_apply(C, op);
@@ -286,7 +287,7 @@ static int eyedropper_colorband_invoke(bContext *C, wmOperator *op, const wmEven
   /* init */
   if (eyedropper_colorband_init(C, op)) {
     wmWindow *win = CTX_wm_window(C);
-    /* Workaround for de-activating the button clearing the cursor, see T76794 */
+    /* Workaround for de-activating the button clearing the cursor, see #76794 */
     UI_context_active_but_clear(C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 

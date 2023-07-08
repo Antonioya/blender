@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edcurve
@@ -181,16 +183,16 @@ static Object *editcurve_object_from_context(bContext *C)
  * \note This is similar for all edit-mode types.
  * \{ */
 
-typedef struct CurveUndoStep_Elem {
+struct CurveUndoStep_Elem {
   UndoRefID_Object obedit_ref;
   UndoCurve data;
-} CurveUndoStep_Elem;
+};
 
-typedef struct CurveUndoStep {
+struct CurveUndoStep {
   UndoStep step;
   CurveUndoStep_Elem *elems;
   uint elems_len;
-} CurveUndoStep;
+};
 
 static bool curve_undosys_poll(bContext *C)
 {
@@ -198,7 +200,7 @@ static bool curve_undosys_poll(bContext *C)
   return (obedit != nullptr);
 }
 
-static bool curve_undosys_step_encode(struct bContext *C, struct Main *bmain, UndoStep *us_p)
+static bool curve_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 {
   CurveUndoStep *us = (CurveUndoStep *)us_p;
 
@@ -230,11 +232,8 @@ static bool curve_undosys_step_encode(struct bContext *C, struct Main *bmain, Un
   return true;
 }
 
-static void curve_undosys_step_decode(struct bContext *C,
-                                      struct Main *bmain,
-                                      UndoStep *us_p,
-                                      const eUndoStepDir /*dir*/,
-                                      bool /*is_final*/)
+static void curve_undosys_step_decode(
+    bContext *C, Main *bmain, UndoStep *us_p, const eUndoStepDir /*dir*/, bool /*is_final*/)
 {
   CurveUndoStep *us = (CurveUndoStep *)us_p;
 

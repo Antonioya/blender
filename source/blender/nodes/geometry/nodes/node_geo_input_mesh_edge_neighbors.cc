@@ -1,9 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
+#include "BLI_array_utils.hh"
 
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 
 #include "node_geometry_util.hh"
 
@@ -11,9 +12,9 @@ namespace blender::nodes::node_geo_input_mesh_edge_neighbors_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>(N_("Face Count"))
+  b.add_output<decl::Int>("Face Count")
       .field_source()
-      .description(N_("The number of faces that use each edge as one of their sides"));
+      .description("The number of faces that use each edge as one of their sides");
 }
 
 class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
@@ -26,16 +27,12 @@ class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const IndexMask & /*mask*/) const final
   {
-    const Span<MLoop> loops = mesh.loops();
-    Array<int> face_count(mesh.totedge, 0);
-    for (const MLoop &loop : loops) {
-      face_count[loop.e]++;
-    }
-
+    Array<int> counts(mesh.totedge, 0);
+    array_utils::count_indices(mesh.corner_edges(), counts);
     return mesh.attributes().adapt_domain<int>(
-        VArray<int>::ForContainer(std::move(face_count)), ATTR_DOMAIN_EDGE, domain);
+        VArray<int>::ForContainer(std::move(counts)), ATTR_DOMAIN_EDGE, domain);
   }
 
   uint64_t hash() const override

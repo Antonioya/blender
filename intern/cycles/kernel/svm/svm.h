@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -569,10 +570,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
 #endif
 
       SVM_CASE(NODE_TEX_VOXEL)
-      IF_KERNEL_NODES_FEATURE(VOLUME)
-      {
-        offset = svm_node_tex_voxel(kg, sd, stack, node, offset);
-      }
+      offset = svm_node_tex_voxel<node_feature_mask>(kg, sd, stack, node, offset);
       break;
       SVM_CASE(NODE_AOV_START)
       if (!svm_node_aov_check(path_flag, render_buffer)) {

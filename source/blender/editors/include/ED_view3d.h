@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2008 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2008 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup editors
@@ -7,6 +8,7 @@
 
 #pragma once
 
+#include "BKE_attribute.h"
 #include "BLI_utildefines.h"
 #include "DNA_scene_types.h"
 
@@ -43,11 +45,13 @@ struct SnapObjectContext;
 struct View3D;
 struct ViewContext;
 struct ViewLayer;
+struct ViewOpsData;
 struct bContext;
 struct bPoseChannel;
 struct bScreen;
 struct rctf;
 struct rcti;
+struct wmEvent;
 struct wmGizmo;
 struct wmWindow;
 struct wmWindowManager;
@@ -209,6 +213,19 @@ bool ED_view3d_depth_unproject_v3(const struct ARegion *region,
                                   double depth,
                                   float r_location_world[3]);
 
+/**
+ * Utilities to perform navigation.
+ * Call `ED_view3d_navigation_init` to create a context and `ED_view3d_navigation_do` to perform
+ * navigation in modal operators.
+ *
+ * \note modal map events can also be used in `ED_view3d_navigation_do`.
+ */
+struct ViewOpsData *ED_view3d_navigation_init(struct bContext *C);
+bool ED_view3d_navigation_do(struct bContext *C,
+                             struct ViewOpsData *vod,
+                             const struct wmEvent *event);
+void ED_view3d_navigation_free(struct bContext *C, struct ViewOpsData *vod);
+
 /* Projection */
 #define IS_CLIPPED 12000
 
@@ -245,7 +262,7 @@ typedef enum {
    * Clamp the edge within the viewport limits defined by
    * #V3D_PROJ_TEST_CLIP_WIN, #V3D_PROJ_TEST_CLIP_NEAR & #V3D_PROJ_TEST_CLIP_FAR.
    * This resolves the problem of a visible edge having one of it's vertices
-   * behind the viewport. See: T32214.
+   * behind the viewport. See: #32214.
    *
    * This is not default behavior as it may be important for the screen-space location
    * of an edges vertex to represent that vertices location (instead of a location along the edge).
@@ -289,17 +306,6 @@ typedef enum {
   V3D_SNAPCURSOR_SNAP_EDIT_GEOM_CAGE = 1 << 4,
 } eV3DSnapCursor;
 
-typedef enum {
-  V3D_PLACE_DEPTH_SURFACE = 0,
-  V3D_PLACE_DEPTH_CURSOR_PLANE = 1,
-  V3D_PLACE_DEPTH_CURSOR_VIEW = 2,
-} eV3DPlaceDepth;
-
-typedef enum {
-  V3D_PLACE_ORIENT_SURFACE = 0,
-  V3D_PLACE_ORIENT_DEFAULT = 1,
-} eV3DPlaceOrient;
-
 typedef struct V3DSnapCursorData {
   eSnapMode snap_elem;
   float loc[3];
@@ -316,16 +322,11 @@ typedef struct V3DSnapCursorData {
 typedef struct V3DSnapCursorState {
   /* Setup. */
   eV3DSnapCursor flag;
-  eV3DPlaceDepth plane_depth;
-  eV3DPlaceOrient plane_orient;
-  uchar color_line[4];
-  uchar color_point[4];
+  uchar source_color[4];
+  uchar target_color[4];
   uchar color_box[4];
   float *prevpoint;
   float box_dimensions[3];
-  eSnapMode snap_elem_force; /* If SCE_SNAP_MODE_NONE, use scene settings. */
-  short plane_axis;
-  bool use_plane_axis_auto;
   bool draw_point;
   bool draw_plane;
   bool draw_box;
@@ -335,23 +336,25 @@ typedef struct V3DSnapCursorState {
 } V3DSnapCursorState;
 
 void ED_view3d_cursor_snap_state_default_set(V3DSnapCursorState *state);
-V3DSnapCursorState *ED_view3d_cursor_snap_state_get(void);
-V3DSnapCursorState *ED_view3d_cursor_snap_active(void);
-void ED_view3d_cursor_snap_deactive(V3DSnapCursorState *state);
-void ED_view3d_cursor_snap_prevpoint_set(V3DSnapCursorState *state, const float prev_point[3]);
+V3DSnapCursorState *ED_view3d_cursor_snap_state_active_get(void);
+void ED_view3d_cursor_snap_state_active_set(V3DSnapCursorState *state);
+V3DSnapCursorState *ED_view3d_cursor_snap_state_create(void);
+void ED_view3d_cursor_snap_state_free(V3DSnapCursorState *state);
+void ED_view3d_cursor_snap_state_prevpoint_set(V3DSnapCursorState *state,
+                                               const float prev_point[3]);
 void ED_view3d_cursor_snap_data_update(V3DSnapCursorState *state,
                                        const struct bContext *C,
                                        int x,
                                        int y);
 V3DSnapCursorData *ED_view3d_cursor_snap_data_get(void);
 struct SnapObjectContext *ED_view3d_cursor_snap_context_ensure(struct Scene *scene);
-void ED_view3d_cursor_snap_draw_util(struct RegionView3D *rv3d,
-                                     const float loc_prev[3],
-                                     const float loc_curr[3],
-                                     const float normal[3],
-                                     const uchar color_line[4],
-                                     const uchar color_point[4],
-                                     eSnapMode snap_elem_type);
+void ED_view3d_cursor_snap_draw_util(RegionView3D *rv3d,
+                                     const float source_loc[3],
+                                     const float target_loc[3],
+                                     const float target_normal[3],
+                                     const uchar source_color[4],
+                                     const uchar target_color[4],
+                                     const eSnapMode target_type);
 
 /* view3d_iterators.cc */
 
@@ -760,7 +763,7 @@ bool ED_view3d_viewplane_get(struct Depsgraph *depsgraph,
                              float *r_pixsize);
 
 /**
- * Use instead of: `GPU_polygon_offset(rv3d->dist, ...)` see bug T37727.
+ * Use instead of: `GPU_polygon_offset(rv3d->dist, ...)` see bug #37727.
  */
 void ED_view3d_polygon_offset(const struct RegionView3D *rv3d, float dist);
 
@@ -862,6 +865,20 @@ void ED_view3d_backbuf_depth_validate(struct ViewContext *vc);
 int ED_view3d_backbuf_sample_size_clamp(struct ARegion *region, float dist);
 
 void ED_view3d_select_id_validate(struct ViewContext *vc);
+
+/** Check if the last auto-dist can be used. */
+bool ED_view3d_autodist_last_check(struct wmWindow *win, const struct wmEvent *event);
+/**
+ * \return true when `r_ofs` is set.
+ * \warning #ED_view3d_autodist_last_check should be called first to ensure the data is available.
+ */
+bool ED_view3d_autodist_last_get(struct wmWindow *win, float r_ofs[3]);
+void ED_view3d_autodist_last_set(struct wmWindow *win,
+                                 const struct wmEvent *event,
+                                 const float ofs[3],
+                                 const bool has_depth);
+/** Clear and free auto-dist data. */
+void ED_view3d_autodist_last_clear(struct wmWindow *win);
 
 /**
  * Get the world-space 3d location from a screen-space 2d point.
@@ -1039,11 +1056,6 @@ void ED_view3d_check_mats_rv3d(struct RegionView3D *rv3d);
 
 struct RV3DMatrixStore *ED_view3d_mats_rv3d_backup(struct RegionView3D *rv3d);
 void ED_view3d_mats_rv3d_restore(struct RegionView3D *rv3d, struct RV3DMatrixStore *rv3dmat);
-
-void ED_draw_object_facemap(struct Depsgraph *depsgraph,
-                            struct Object *ob,
-                            const float col[4],
-                            int facemap);
 
 struct RenderEngineType *ED_view3d_engine_type(const struct Scene *scene, int drawtype);
 
@@ -1270,11 +1282,11 @@ bool ED_view3d_distance_set_from_location(struct RegionView3D *rv3d,
  */
 float ED_scene_grid_scale(const struct Scene *scene, const char **r_grid_unit);
 float ED_view3d_grid_scale(const struct Scene *scene,
-                           struct View3D *v3d,
+                           const struct View3D *v3d,
                            const char **r_grid_unit);
 void ED_view3d_grid_steps(const struct Scene *scene,
-                          struct View3D *v3d,
-                          struct RegionView3D *rv3d,
+                          const struct View3D *v3d,
+                          const struct RegionView3D *rv3d,
                           float r_grid_steps[8]);
 /**
  * Simulates the grid scale that is actually viewed.
@@ -1312,6 +1324,25 @@ void ED_view3d_shade_update(struct Main *bmain, struct View3D *v3d, struct ScrAr
 #define XRAY_FLAG_ENABLED(v3d) SHADING_XRAY_FLAG_ENABLED((v3d)->shading)
 #define XRAY_ENABLED(v3d) SHADING_XRAY_ENABLED((v3d)->shading)
 #define XRAY_ACTIVE(v3d) SHADING_XRAY_ACTIVE((v3d)->shading)
+
+#define OVERLAY_RETOPOLOGY_ENABLED(overlay) \
+  (((overlay).edit_flag & V3D_OVERLAY_EDIT_RETOPOLOGY) != 0)
+#ifdef __APPLE__
+/* Apple silicon tile depth test requires a higher value to reduce drawing artifacts. */
+#  define OVERLAY_RETOPOLOGY_MIN_OFFSET_ENABLED 0.0015f
+#  define OVERLAY_RETOPOLOGY_MIN_OFFSET_DISABLED 0.0015f
+#else
+#  define OVERLAY_RETOPOLOGY_MIN_OFFSET_ENABLED FLT_EPSILON
+#  define OVERLAY_RETOPOLOGY_MIN_OFFSET_DISABLED 0.0f
+#endif
+
+#define OVERLAY_RETOPOLOGY_OFFSET(overlay) \
+  (OVERLAY_RETOPOLOGY_ENABLED(overlay) ? \
+       max_ff((overlay).retopology_offset, OVERLAY_RETOPOLOGY_MIN_OFFSET_ENABLED) : \
+       OVERLAY_RETOPOLOGY_MIN_OFFSET_DISABLED)
+
+#define RETOPOLOGY_ENABLED(v3d) (OVERLAY_RETOPOLOGY_ENABLED((v3d)->overlay))
+#define RETOPOLOGY_OFFSET(v3d) (OVERLAY_RETOPOLOGY_OFFSET((v3d)->overlay))
 
 /* view3d_draw_legacy.c */
 

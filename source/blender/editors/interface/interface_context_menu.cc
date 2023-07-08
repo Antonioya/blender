@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edinterface
@@ -29,10 +31,12 @@
 #include "ED_screen.h"
 
 #include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "interface_intern.hh"
 
 #include "RNA_access.h"
+#include "RNA_path.h"
 #include "RNA_prototypes.h"
 
 #ifdef WITH_PYTHON
@@ -44,7 +48,7 @@
 #include "WM_types.h"
 
 /* This hack is needed because we don't have a good way to
- * re-reference keymap items once added: T42944 */
+ * re-reference keymap items once added: #42944 */
 #define USE_KEYMAP_ADD_HACK
 
 /* -------------------------------------------------------------------- */
@@ -66,7 +70,7 @@ static IDProperty *shortcut_property_from_rna(bContext *C, uiBut *but)
   /* Create ID property of data path, to pass to the operator. */
   const IDPropertyTemplate val = {0};
   IDProperty *prop = IDP_New(IDP_GROUP, &val, __func__);
-  IDP_AddToGroup(prop, IDP_NewString(final_data_path, "data_path", strlen(final_data_path) + 1));
+  IDP_AddToGroup(prop, IDP_NewString(final_data_path, "data_path"));
 
   MEM_freeN((void *)final_data_path);
 
@@ -128,7 +132,8 @@ static void but_shortcut_name_func(bContext *C, void *arg1, int /*event*/)
 
   /* complex code to change name of button */
   if (WM_key_event_operator_string(
-          C, idname, but->opcontext, prop, true, shortcut_str, sizeof(shortcut_str))) {
+          C, idname, but->opcontext, prop, true, shortcut_str, sizeof(shortcut_str)))
+  {
     ui_but_add_shortcut(but, shortcut_str, true);
   }
   else {
@@ -180,8 +185,8 @@ static uiBlock *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
   uiItemL(layout, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Change Shortcut"), ICON_HAND);
   uiItemR(layout, &ptr, "type", UI_ITEM_R_FULL_EVENT | UI_ITEM_R_IMMEDIATE, "", ICON_NONE);
 
-  const int bounds_offset[2] = {int(-100 * U.dpi_fac), int(36 * U.dpi_fac)};
-  UI_block_bounds_set_popup(block, 6 * U.dpi_fac, bounds_offset);
+  const int bounds_offset[2] = {int(-100 * UI_SCALE_FAC), int(36 * UI_SCALE_FAC)};
+  UI_block_bounds_set_popup(block, 6 * UI_SCALE_FAC, bounds_offset);
 
   shortcut_free_operator_property(prop);
 
@@ -241,8 +246,8 @@ static uiBlock *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
   uiItemL(layout, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Assign Shortcut"), ICON_HAND);
   uiItemR(layout, &ptr, "type", UI_ITEM_R_FULL_EVENT | UI_ITEM_R_IMMEDIATE, "", ICON_NONE);
 
-  const int bounds_offset[2] = {int(-100 * U.dpi_fac), int(36 * U.dpi_fac)};
-  UI_block_bounds_set_popup(block, 6 * U.dpi_fac, bounds_offset);
+  const int bounds_offset[2] = {int(-100 * UI_SCALE_FAC), int(36 * UI_SCALE_FAC)};
+  UI_block_bounds_set_popup(block, 6 * UI_SCALE_FAC, bounds_offset);
 
 #ifdef USE_KEYMAP_ADD_HACK
   g_kmi_id_hack = kmi_id;
@@ -272,15 +277,8 @@ static void menu_add_shortcut_cancel(bContext *C, void *arg1)
   WM_keymap_remove_item(km, kmi);
 }
 
-static void popup_change_shortcut_func(bContext *C, void *arg1, void * /*arg2*/)
+static void remove_shortcut_func(bContext *C, uiBut *but)
 {
-  uiBut *but = (uiBut *)arg1;
-  UI_popup_block_invoke(C, menu_change_shortcut, but, nullptr);
-}
-
-static void remove_shortcut_func(bContext *C, void *arg1, void * /*arg2*/)
-{
-  uiBut *but = (uiBut *)arg1;
   IDProperty *prop;
   const char *idname = shortcut_get_operator_property(C, but, &prop);
 
@@ -301,12 +299,6 @@ static void remove_shortcut_func(bContext *C, void *arg1, void * /*arg2*/)
   but_shortcut_name_func(C, but, 0);
 }
 
-static void popup_add_shortcut_func(bContext *C, void *arg1, void * /*arg2*/)
-{
-  uiBut *but = (uiBut *)arg1;
-  UI_popup_block_ex(C, menu_add_shortcut, nullptr, menu_add_shortcut_cancel, but, nullptr);
-}
-
 static bool ui_but_is_user_menu_compatible(bContext *C, uiBut *but)
 {
   bool result = false;
@@ -325,6 +317,9 @@ static bool ui_but_is_user_menu_compatible(bContext *C, uiBut *but)
   else if (UI_but_menutype_get(but)) {
     result = true;
   }
+  else if (UI_but_operatortype_get_from_enum_menu(but, nullptr)) {
+    result = true;
+  }
 
   return result;
 }
@@ -334,15 +329,25 @@ static bUserMenuItem *ui_but_user_menu_find(bContext *C, uiBut *but, bUserMenu *
   if (but->optype) {
     IDProperty *prop = (but->opptr) ? static_cast<IDProperty *>(but->opptr->data) : nullptr;
     return (bUserMenuItem *)ED_screen_user_menu_item_find_operator(
-        &um->items, but->optype, prop, but->opcontext);
+        &um->items, but->optype, prop, "", but->opcontext);
   }
   if (but->rnaprop) {
     char *member_id_data_path = WM_context_path_resolve_full(C, &but->rnapoin);
-    const char *prop_id = RNA_property_identifier(but->rnaprop);
+    /* Ignore the actual array index [pass -1] since the index is handled separately. */
+    const char *prop_id = RNA_property_is_idprop(but->rnaprop) ?
+                              RNA_path_property_py(&but->rnapoin, but->rnaprop, -1) :
+                              RNA_property_identifier(but->rnaprop);
     bUserMenuItem *umi = (bUserMenuItem *)ED_screen_user_menu_item_find_prop(
         &um->items, member_id_data_path, prop_id, but->rnaindex);
     MEM_freeN(member_id_data_path);
     return umi;
+  }
+
+  wmOperatorType *ot = nullptr;
+  PropertyRNA *prop_enum = nullptr;
+  if ((ot = UI_but_operatortype_get_from_enum_menu(but, &prop_enum))) {
+    return (bUserMenuItem *)ED_screen_user_menu_item_find_operator(
+        &um->items, ot, nullptr, RNA_property_identifier(prop_enum), but->opcontext);
   }
 
   MenuType *mt = UI_but_menutype_get(but);
@@ -359,7 +364,11 @@ static void ui_but_user_menu_add(bContext *C, uiBut *but, bUserMenu *um)
   char drawstr[sizeof(but->drawstr)];
   ui_but_drawstr_without_sep_char(but, drawstr, sizeof(drawstr));
 
+  /* Used for USER_MENU_TYPE_MENU. */
   MenuType *mt = nullptr;
+  /* Used for USER_MENU_TYPE_OPERATOR (property enum used). */
+  wmOperatorType *ot = nullptr;
+  PropertyRNA *prop = nullptr;
   if (but->optype) {
     if (drawstr[0] == '\0') {
       /* Hard code overrides for generic operators. */
@@ -396,12 +405,16 @@ static void ui_but_user_menu_add(bContext *C, uiBut *but, bUserMenu *um)
         drawstr,
         but->optype,
         but->opptr ? static_cast<const IDProperty *>(but->opptr->data) : nullptr,
+        "",
         but->opcontext);
   }
   else if (but->rnaprop) {
     /* NOTE: 'member_id' may be a path. */
     char *member_id_data_path = WM_context_path_resolve_full(C, &but->rnapoin);
-    const char *prop_id = RNA_property_identifier(but->rnaprop);
+    /* Ignore the actual array index [pass -1] since the index is handled separately. */
+    const char *prop_id = RNA_property_is_idprop(but->rnaprop) ?
+                              RNA_path_property_py(&but->rnapoin, but->rnaprop, -1) :
+                              RNA_property_identifier(but->rnaprop);
     /* NOTE: ignore 'drawstr', use property idname always. */
     ED_screen_user_menu_item_add_prop(&um->items, "", member_id_data_path, prop_id, but->rnaindex);
     MEM_freeN(member_id_data_path);
@@ -409,22 +422,14 @@ static void ui_but_user_menu_add(bContext *C, uiBut *but, bUserMenu *um)
   else if ((mt = UI_but_menutype_get(but))) {
     ED_screen_user_menu_item_add_menu(&um->items, drawstr, mt);
   }
-}
-
-static void popup_user_menu_add_or_replace_func(bContext *C, void *arg1, void * /*arg2*/)
-{
-  uiBut *but = static_cast<uiBut *>(arg1);
-  bUserMenu *um = ED_screen_user_menu_ensure(C);
-  U.runtime.is_dirty = true;
-  ui_but_user_menu_add(C, but, um);
-}
-
-static void popup_user_menu_remove_func(bContext * /*C*/, void *arg1, void *arg2)
-{
-  bUserMenu *um = static_cast<bUserMenu *>(arg1);
-  bUserMenuItem *umi = static_cast<bUserMenuItem *>(arg2);
-  U.runtime.is_dirty = true;
-  ED_screen_user_menu_item_remove(&um->items, umi);
+  else if ((ot = UI_but_operatortype_get_from_enum_menu(but, &prop))) {
+    ED_screen_user_menu_item_add_operator(&um->items,
+                                          WM_operatortype_name(ot, nullptr),
+                                          ot,
+                                          nullptr,
+                                          RNA_property_identifier(prop),
+                                          but->opcontext);
+  }
 }
 
 static void ui_but_menu_add_path_operators(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop)
@@ -440,7 +445,7 @@ static void ui_but_menu_add_path_operators(uiLayout *layout, PointerRNA *ptr, Pr
   UNUSED_VARS_NDEBUG(subtype);
 
   RNA_property_string_get(ptr, prop, filepath);
-  BLI_split_dirfile(filepath, dir, file, sizeof(dir), sizeof(file));
+  BLI_path_split_dir_file(filepath, dir, sizeof(dir), file, sizeof(file));
 
   if (file[0]) {
     BLI_assert(subtype == PROP_FILEPATH);
@@ -466,6 +471,15 @@ static void ui_but_menu_add_path_operators(uiLayout *layout, PointerRNA *ptr, Pr
   RNA_string_set(&props_ptr, "filepath", dir);
 }
 
+static void set_layout_context_from_button(bContext *C, uiLayout *layout, uiBut *but)
+{
+  if (!but->context) {
+    return;
+  }
+  uiLayoutContextCopy(layout, but->context);
+  CTX_store_set(C, uiLayoutGetContextStore(layout));
+}
+
 bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *event)
 {
   /* ui_but_is_interactive() may let some buttons through that should not get a context menu - it
@@ -489,10 +503,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
       MEM_freeN(label.strinfo);
     }
 
-    if (but->context) {
-      uiLayoutContextCopy(layout, but->context);
-      CTX_store_set(C, uiLayoutGetContextStore(layout));
-    }
+    set_layout_context_from_button(C, layout, but);
     uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
   }
 
@@ -935,7 +946,16 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
                                                                                  event->xy);
     if (view_item_but) {
       BLI_assert(view_item_but->type == UI_BTYPE_VIEW_ITEM);
-      UI_view_item_context_menu_build(C, view_item_but->view_item, uiLayoutColumn(layout, false));
+
+      bContextStore *prev_ctx = CTX_store_get(C);
+      /* Sub-layout for context override. */
+      uiLayout *sub = uiLayoutColumn(layout, false);
+      set_layout_context_from_button(C, sub, view_item_but);
+      UI_view_item_context_menu_build(C, view_item_but->view_item, sub);
+
+      /* Reset context. */
+      CTX_store_set(C, prev_ctx);
+
       uiItemS(layout);
     }
   }
@@ -969,7 +989,8 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
     if (((prop_type == PROP_POINTER) ||
          (prop_type == PROP_STRING && but->type == UI_BTYPE_SEARCH_MENU &&
           ((uiButSearch *)but)->items_update_fn == ui_rna_collection_search_update_fn)) &&
-        ui_jump_to_target_button_poll(C)) {
+        ui_jump_to_target_button_poll(C))
+    {
       uiItemO(layout,
               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Jump to Target"),
               ICON_NONE,
@@ -1009,8 +1030,10 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             0,
             0,
             "");
-        UI_but_func_set(but2, popup_user_menu_remove_func, um, umi);
-        item_found = true;
+        UI_but_func_set(but2, [um, umi](bContext &) {
+          U.runtime.is_dirty = true;
+          ED_screen_user_menu_item_remove(&um->items, umi);
+        });
       }
     }
     if (um_array) {
@@ -1034,7 +1057,11 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
           0,
           0,
           "Add to a user defined context menu (stored in the user preferences)");
-      UI_but_func_set(but2, popup_user_menu_add_or_replace_func, but, nullptr);
+      UI_but_func_set(but2, [but](bContext &C) {
+        bUserMenu *um = ED_screen_user_menu_ensure(&C);
+        U.runtime.is_dirty = true;
+        ui_but_user_menu_add(&C, but, um);
+      });
     }
 
     uiItemS(layout);
@@ -1083,7 +1110,9 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             0,
             0,
             "");
-        UI_but_func_set(but2, popup_change_shortcut_func, but, nullptr);
+        UI_but_func_set(but2, [but](bContext &C) {
+          UI_popup_block_invoke(&C, menu_change_shortcut, but, nullptr);
+        });
       }
       else {
         uiBut *but2 = uiDefIconTextBut(block,
@@ -1121,7 +1150,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
           0,
           0,
           "");
-      UI_but_func_set(but2, remove_shortcut_func, but, nullptr);
+      UI_but_func_set(but2, [but](bContext &C) { remove_shortcut_func(&C, but); });
     }
     /* only show 'assign' if there's a suitable key map for it to go in */
     else if (WM_keymap_guess_opname(C, idname)) {
@@ -1141,7 +1170,9 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
           0,
           0,
           "");
-      UI_but_func_set(but2, popup_add_shortcut_func, but, nullptr);
+      UI_but_func_set(but2, [but](bContext &C) {
+        UI_popup_block_ex(&C, menu_add_shortcut, nullptr, menu_add_shortcut_cancel, but, nullptr);
+      });
     }
 
     shortcut_free_operator_property(prop);
@@ -1220,7 +1251,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
       uiItemMenuF(layout,
                   IFACE_("Navigation Bar"),
                   ICON_NONE,
-                  ED_screens_navigation_bar_tools_menu_create,
+                  ED_screens_region_flip_menu_create,
                   nullptr);
     }
     else if (region->regiontype == RGN_TYPE_FOOTER) {
@@ -1284,11 +1315,7 @@ void ui_popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
 
   if (has_panel_category) {
     char tmpstr[80];
-    BLI_snprintf(tmpstr,
-                 sizeof(tmpstr),
-                 "%s" UI_SEP_CHAR_S "%s",
-                 IFACE_("Pin"),
-                 IFACE_("Shift Left Mouse"));
+    SNPRINTF(tmpstr, "%s" UI_SEP_CHAR_S "%s", IFACE_("Pin"), IFACE_("Shift Left Mouse"));
     uiItemR(layout, &ptr, "use_pin", 0, tmpstr, ICON_NONE);
 
     /* evil, force shortcut flag */

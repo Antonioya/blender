@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2005 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2005 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup bke
@@ -17,9 +18,9 @@
 #include "BKE_DerivedMesh.h"
 #include "BKE_customdata.h"
 #include "BKE_editmesh.h"
-#include "BKE_editmesh_cache.h"
+#include "BKE_editmesh_cache.hh"
 #include "BKE_lib_id.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_mesh_iterators.h"
 #include "BKE_mesh_wrapper.h"
 #include "BKE_object.h"
@@ -89,8 +90,8 @@ static void editmesh_tessface_calc_intern(BMEditMesh *em,
   if ((em->looptris != nullptr) &&
       // (*em->tottri >= looptris_tot))
       /* Check against allocated size in case we over allocated a little. */
-      ((looptris_tot_prev_alloc >= looptris_tot) &&
-       (looptris_tot_prev_alloc <= looptris_tot * 2))) {
+      ((looptris_tot_prev_alloc >= looptris_tot) && (looptris_tot_prev_alloc <= looptris_tot * 2)))
+  {
     looptris = em->looptris;
   }
   else {
@@ -111,17 +112,6 @@ static void editmesh_tessface_calc_intern(BMEditMesh *em,
 void BKE_editmesh_looptri_calc_ex(BMEditMesh *em, const BMeshCalcTessellation_Params *params)
 {
   editmesh_tessface_calc_intern(em, params);
-
-  /* commented because editbmesh_build_data() ensures we get tessfaces */
-#if 0
-  if (em->mesh_eval_final && em->mesh_eval_final == em->mesh_eval_cage) {
-    BKE_mesh_runtime_looptri_ensure(em->mesh_eval_final);
-  }
-  else if (em->mesh_eval_final) {
-    BKE_mesh_runtime_looptri_ensure(em->mesh_eval_final);
-    BKE_mesh_runtime_looptri_ensure(em->mesh_eval_cage);
-  }
-#endif
 }
 
 void BKE_editmesh_looptri_calc(BMEditMesh *em)
@@ -240,12 +230,13 @@ const float (*BKE_editmesh_vert_coords_when_deformed(Depsgraph *depsgraph,
   Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
   Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(object_eval);
 
-  if ((me->runtime->edit_data != nullptr) && (me->runtime->edit_data->vertexCos != nullptr)) {
+  if (BKE_mesh_wrapper_vert_coords(me) != nullptr) {
     /* Deformed, and we have deformed coords already. */
-    coords = me->runtime->edit_data->vertexCos;
+    coords = BKE_mesh_wrapper_vert_coords(me);
   }
   else if ((editmesh_eval_final != nullptr) &&
-           (editmesh_eval_final->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH)) {
+           (editmesh_eval_final->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH))
+  {
     /* If this is an edit-mesh type, leave nullptr as we can use the vertex coords. */
   }
   else {

@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: Apache-2.0
- * Copyright 2011-2022 Blender Foundation */
+/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
 
@@ -18,7 +19,7 @@ ccl_device_noinline int svm_node_tex_coord(KernelGlobals kg,
                                            uint4 node,
                                            int offset)
 {
-  float3 data;
+  float3 data = zero_float3();
   uint type = node.y;
   uint out_offset = node.z;
 
@@ -100,7 +101,7 @@ ccl_device_noinline int svm_node_tex_coord_bump_dx(KernelGlobals kg,
                                                    int offset)
 {
 #ifdef __RAY_DIFFERENTIALS__
-  float3 data;
+  float3 data = zero_float3();
   uint type = node.y;
   uint out_offset = node.z;
 
@@ -185,7 +186,7 @@ ccl_device_noinline int svm_node_tex_coord_bump_dy(KernelGlobals kg,
                                                    int offset)
 {
 #ifdef __RAY_DIFFERENTIALS__
-  float3 data;
+  float3 data = zero_float3();
   uint type = node.y;
   uint out_offset = node.z;
 

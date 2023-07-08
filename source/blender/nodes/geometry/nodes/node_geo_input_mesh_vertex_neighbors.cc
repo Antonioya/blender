@@ -1,9 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
+#include "BLI_array_utils.hh"
 
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 
 #include "node_geometry_util.hh"
 
@@ -11,27 +12,14 @@ namespace blender::nodes::node_geo_input_mesh_vertex_neighbors_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>(N_("Vertex Count"))
+  b.add_output<decl::Int>("Vertex Count")
       .field_source()
-      .description(N_("The number of vertices connected to this vertex with an edge, "
-                      "equal to the number of connected edges"));
-  b.add_output<decl::Int>(N_("Face Count"))
+      .description(
+          "The number of vertices connected to this vertex with an edge, "
+          "equal to the number of connected edges");
+  b.add_output<decl::Int>("Face Count")
       .field_source()
-      .description(N_("Number of faces that contain the vertex"));
-}
-
-static VArray<int> construct_vertex_count_gvarray(const Mesh &mesh, const eAttrDomain domain)
-{
-  const Span<MEdge> edges = mesh.edges();
-  if (domain == ATTR_DOMAIN_POINT) {
-    Array<int> counts(mesh.totvert, 0);
-    for (const int i : edges.index_range()) {
-      counts[edges[i].v1]++;
-      counts[edges[i].v2]++;
-    }
-    return VArray<int>::ForContainer(std::move(counts));
-  }
-  return {};
+      .description("Number of faces that contain the vertex");
 }
 
 class VertexCountFieldInput final : public bke::MeshFieldInput {
@@ -43,9 +31,14 @@ class VertexCountFieldInput final : public bke::MeshFieldInput {
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const IndexMask & /*mask*/) const final
   {
-    return construct_vertex_count_gvarray(mesh, domain);
+    if (domain != ATTR_DOMAIN_POINT) {
+      return {};
+    }
+    Array<int> counts(mesh.totvert, 0);
+    array_utils::count_indices(mesh.edges().cast<int>(), counts);
+    return VArray<int>::ForContainer(std::move(counts));
   }
 
   uint64_t hash() const override
@@ -65,20 +58,6 @@ class VertexCountFieldInput final : public bke::MeshFieldInput {
   }
 };
 
-static VArray<int> construct_face_count_gvarray(const Mesh &mesh, const eAttrDomain domain)
-{
-  const Span<MLoop> loops = mesh.loops();
-  if (domain == ATTR_DOMAIN_POINT) {
-    Array<int> vertices(mesh.totvert, 0);
-    for (const int i : loops.index_range()) {
-      int vertex = loops[i].v;
-      vertices[vertex]++;
-    }
-    return VArray<int>::ForContainer(std::move(vertices));
-  }
-  return {};
-}
-
 class VertexFaceCountFieldInput final : public bke::MeshFieldInput {
  public:
   VertexFaceCountFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Vertex Face Count Field")
@@ -88,9 +67,14 @@ class VertexFaceCountFieldInput final : public bke::MeshFieldInput {
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const eAttrDomain domain,
-                                 const IndexMask /*mask*/) const final
+                                 const IndexMask & /*mask*/) const final
   {
-    return construct_face_count_gvarray(mesh, domain);
+    if (domain != ATTR_DOMAIN_POINT) {
+      return {};
+    }
+    Array<int> counts(mesh.totvert, 0);
+    array_utils::count_indices(mesh.corner_verts(), counts);
+    return VArray<int>::ForContainer(std::move(counts));
   }
 
   uint64_t hash() const override

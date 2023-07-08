@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2011-2021 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2021 Blender Foundation
 
 set(INC
   ..
@@ -15,8 +16,12 @@ set(SRC
   camera.cpp
   colorspace.cpp
   constant_fold.cpp
+  devicescene.cpp
   film.cpp
   geometry.cpp
+  geometry_attributes.cpp
+  geometry_bvh.cpp
+  geometry_mesh.cpp
   hair.cpp
   image.cpp
   image_oiio.cpp
@@ -55,6 +60,7 @@ set(SRC_HEADERS
   camera.h
   colorspace.h
   constant_fold.h
+  devicescene.h
   film.h
   geometry.h
   hair.h

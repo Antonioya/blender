@@ -1,5 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2004 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2004 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edundo
@@ -35,7 +36,7 @@
 #include "BLO_blend_validate.h"
 
 #include "ED_asset.h"
-#include "ED_gpencil.h"
+#include "ED_gpencil_legacy.h"
 #include "ED_object.h"
 #include "ED_outliner.h"
 #include "ED_render.h"
@@ -121,7 +122,7 @@ void ED_undo_push(bContext *C, const char *str)
   }
   if (G.background) {
     /* Python developers may have explicitly created the undo stack in background mode,
-     * otherwise allow it to be nullptr, see: T60934.
+     * otherwise allow it to be nullptr, see: #60934.
      * Otherwise it must never be nullptr, even when undo is disabled. */
     if (wm->undo_stack == nullptr) {
       return;
@@ -178,7 +179,7 @@ static void ed_undo_step_pre(bContext *C,
 
   if (area && (area->spacetype == SPACE_VIEW3D)) {
     Object *obact = CTX_data_active_object(C);
-    if (obact && (obact->type == OB_GPENCIL)) {
+    if (obact && (obact->type == OB_GPENCIL_LEGACY)) {
       ED_gpencil_toggle_brush_cursor(C, false, nullptr);
     }
   }
@@ -212,7 +213,7 @@ static void ed_undo_step_post(bContext *C,
   /* Set special modes for grease pencil */
   if (area != nullptr && (area->spacetype == SPACE_VIEW3D)) {
     Object *obact = CTX_data_active_object(C);
-    if (obact && (obact->type == OB_GPENCIL)) {
+    if (obact && (obact->type == OB_GPENCIL_LEGACY)) {
       /* set cursor */
       if (obact->mode & OB_MODE_ALL_PAINT_GPENCIL) {
         ED_gpencil_toggle_brush_cursor(C, true, nullptr);
@@ -428,7 +429,7 @@ bool ED_undo_is_valid(const bContext *C, const char *undoname)
 
 bool ED_undo_is_memfile_compatible(const bContext *C)
 {
-  /* Some modes don't co-exist with memfile undo, disable their use: T60593
+  /* Some modes don't co-exist with memfile undo, disable their use: #60593
    * (this matches 2.7x behavior). */
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -444,7 +445,7 @@ bool ED_undo_is_memfile_compatible(const bContext *C)
   return true;
 }
 
-bool ED_undo_is_legacy_compatible_for_property(struct bContext *C, ID *id)
+bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -471,7 +472,7 @@ bool ED_undo_is_legacy_compatible_for_property(struct bContext *C, ID *id)
   return true;
 }
 
-UndoStack *ED_undo_stack_get(void)
+UndoStack *ED_undo_stack_get()
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
   return wm->undo_stack;
@@ -511,7 +512,7 @@ static int ed_undo_exec(bContext *C, wmOperator *op)
 static int ed_undo_push_exec(bContext *C, wmOperator *op)
 {
   if (G.background) {
-    /* Exception for background mode, see: T60934.
+    /* Exception for background mode, see: #60934.
      * NOTE: since the undo stack isn't initialized on startup, background mode behavior
      * won't match regular usage, this is just for scripts to do explicit undo pushes. */
     wmWindowManager *wm = CTX_wm_manager(C);
@@ -546,7 +547,7 @@ static int ed_undo_redo_exec(bContext *C, wmOperator * /*op*/)
   return ret;
 }
 
-/* Disable in background mode, we could support if it's useful, T60934. */
+/* Disable in background mode, we could support if it's useful, #60934. */
 
 static bool ed_undo_is_init_poll(bContext *C)
 {
@@ -667,7 +668,7 @@ int ED_undo_operator_repeat(bContext *C, wmOperator *op)
   if (op) {
     CLOG_INFO(&LOG, 1, "idname='%s'", op->type->idname);
     wmWindowManager *wm = CTX_wm_manager(C);
-    struct Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(C);
 
     /* keep in sync with logic in view3d_panel_operator_redo() */
     ARegion *region_orig = CTX_wm_region(C);
@@ -680,10 +681,11 @@ int ED_undo_operator_repeat(bContext *C, wmOperator *op)
     if (WM_operator_repeat_check(C, op) && WM_operator_poll(C, op->type) &&
         /* NOTE: undo/redo can't run if there are jobs active,
          * check for screen jobs only so jobs like material/texture/world preview
-         * (which copy their data), won't stop redo, see T29579],
+         * (which copy their data), won't stop redo, see #29579.
          *
          * NOTE: WM_operator_check_ui_enabled() jobs test _must_ stay in sync with this. */
-        (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY) == 0)) {
+        (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY) == 0))
+    {
       int retval;
 
       if (G.debug & G_DEBUG) {
@@ -816,7 +818,7 @@ void ED_undo_object_set_active_or_warn(
   }
 }
 
-void ED_undo_object_editmode_restore_helper(struct bContext *C,
+void ED_undo_object_editmode_restore_helper(bContext *C,
                                             Object **object_array,
                                             uint object_array_len,
                                             uint object_array_stride)
@@ -833,7 +835,8 @@ void ED_undo_object_editmode_restore_helper(struct bContext *C,
   }
   Object **ob_p = object_array;
   for (uint i = 0; i < object_array_len;
-       i++, ob_p = static_cast<Object **>(POINTER_OFFSET(ob_p, object_array_stride))) {
+       i++, ob_p = static_cast<Object **>(POINTER_OFFSET(ob_p, object_array_stride)))
+  {
     Object *obedit = *ob_p;
     ED_object_editmode_enter_ex(bmain, scene, obedit, EM_NO_CONTEXT);
     ((ID *)obedit->data)->tag &= ~LIB_TAG_DOIT;
@@ -910,7 +913,8 @@ Object **ED_undo_editmode_objects_from_view_layer(const Scene *scene,
   for (Base *base = baseact,
             *base_next = static_cast<Base *>(BKE_view_layer_object_bases_get(view_layer)->first);
        base;
-       base = base_next, base_next = base_next ? base_next->next : nullptr) {
+       base = base_next, base_next = base_next ? base_next->next : nullptr)
+  {
     Object *ob = base->object;
     if ((ob->type == object_type) && (ob->mode & OB_MODE_EDIT)) {
       ID *id = static_cast<ID *>(ob->data);
@@ -945,7 +949,8 @@ Base **ED_undo_editmode_bases_from_view_layer(const Scene *scene,
   for (Base *base = BKE_view_layer_active_base_get(view_layer),
             *base_next = static_cast<Base *>(BKE_view_layer_object_bases_get(view_layer)->first);
        base;
-       base = base_next, base_next = base_next ? base_next->next : nullptr) {
+       base = base_next, base_next = base_next ? base_next->next : nullptr)
+  {
     Object *ob = base->object;
     if ((ob->type == object_type) && (ob->mode & OB_MODE_EDIT)) {
       ID *id = static_cast<ID *>(ob->data);

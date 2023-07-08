@@ -1,11 +1,16 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later
- * Copyright 2009 Blender Foundation. All rights reserved. */
+/* SPDX-FileCopyrightText: 2009 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
  * \ingroup edarmature
  */
 
 #pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* internal exports only */
 struct wmOperatorType;
@@ -330,3 +335,7 @@ int bone_looper(struct Object *ob,
                 int (*bone_func)(struct Object *, struct Bone *, void *));
 
 /** \} */
+
+#ifdef __cplusplus
+}
+#endif

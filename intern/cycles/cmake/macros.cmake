@@ -1,5 +1,6 @@
+# SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2011-2022 Blender Foundation
 
 function(cycles_set_solution_folder target)
   if(IDE_GROUP_PROJECTS_IN_FOLDERS)
@@ -77,10 +78,11 @@ macro(cycles_external_libraries_append libraries)
   if(APPLE)
     list(APPEND ${libraries} "-framework Foundation")
     if(WITH_USD)
-      list(APPEND ${libraries} "-framework CoreVideo -framework Cocoa")
+      list(APPEND ${libraries} "-framework CoreVideo -framework Cocoa -framework OpenGL")
     endif()
-    if(WITH_CYCLES_STANDALONE_GUI OR WITH_USD)
-      list(APPEND ${libraries} "-framework OpenGL")
+  elseif(WIN32)
+    if(WITH_USD)
+      list(APPEND ${libraries} "opengl32")
     endif()
   elseif(UNIX)
     if(WITH_USD)
@@ -121,7 +123,10 @@ macro(cycles_external_libraries_append libraries)
     list(APPEND ${libraries} ${ALEMBIC_LIBRARIES})
   endif()
   if(WITH_PATH_GUIDING)
-    target_link_libraries(${target} ${OPENPGL_LIBRARIES})
+    list(APPEND ${libraries} ${OPENPGL_LIBRARIES})
+  endif()
+  if(UNIX AND NOT APPLE)
+    list(APPEND ${libraries} "-lm -lc -lutil")
   endif()
 
   list(APPEND ${libraries}

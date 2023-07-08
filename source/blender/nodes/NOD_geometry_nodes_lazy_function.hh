@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2023 Blender Foundation
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
 
@@ -26,6 +28,9 @@
 
 #include "BLI_compute_context.hh"
 
+#include "BKE_node_tree_zones.hh"
+#include "BKE_simulation_state.hh"
+
 struct Object;
 struct Depsgraph;
 
@@ -44,6 +49,16 @@ struct GeoNodesModifierData {
   Depsgraph *depsgraph = nullptr;
   /** Optional logger. */
   geo_eval_log::GeoModifierLog *eval_log = nullptr;
+
+  /** Read-only simulation states around the current frame. */
+  const bke::sim::ModifierSimulationState *current_simulation_state = nullptr;
+  const bke::sim::ModifierSimulationState *prev_simulation_state = nullptr;
+  const bke::sim::ModifierSimulationState *next_simulation_state = nullptr;
+  float simulation_state_mix_factor = 0.0f;
+  /** Used when the evaluation should create a new simulation state. */
+  bke::sim::ModifierSimulationState *current_simulation_state_for_write = nullptr;
+  float simulation_time_delta = 0.0f;
+
   /**
    * Some nodes should be executed even when their output is not used (e.g. active viewer nodes and
    * the node groups they are contained in).
@@ -59,6 +74,13 @@ struct GeoNodesModifierData {
   const Set<ComputeContextHash> *socket_log_contexts = nullptr;
 };
 
+struct GeoNodesOperatorData {
+  /** The object currently effected by the operator. */
+  const Object *self_object = nullptr;
+  /** Current evaluated depsgraph. */
+  Depsgraph *depsgraph = nullptr;
+};
+
 /**
  * Custom user data that is passed to every geometry nodes related lazy-function evaluation.
  */
@@ -68,6 +90,10 @@ struct GeoNodesLFUserData : public lf::UserData {
    */
   GeoNodesModifierData *modifier_data = nullptr;
   /**
+   * Data from execution as operator in 3D viewport.
+   */
+  GeoNodesOperatorData *operator_data = nullptr;
+  /**
    * Current compute context. This is different depending in the (nested) node group that is being
    * evaluated.
    */
@@ -76,6 +102,22 @@ struct GeoNodesLFUserData : public lf::UserData {
    * Log socket values in the current compute context. Child contexts might use logging again.
    */
   bool log_socket_values = true;
+  /**
+   * Top-level node tree of the current evaluation.
+   */
+  const bNodeTree *root_ntree = nullptr;
+
+  destruct_ptr<lf::LocalUserData> get_local(LinearAllocator<> &allocator) override;
+};
+
+struct GeoNodesLFLocalUserData : public lf::LocalUserData {
+ public:
+  /**
+   * Thread-local logger for the current node tree in the current compute context.
+   */
+  geo_eval_log::GeoTreeLogger *tree_logger = nullptr;
+
+  GeoNodesLFLocalUserData(GeoNodesLFUserData &user_data);
 };
 
 /**
@@ -149,6 +191,14 @@ struct GeometryNodeLazyFunctionGraphMapping {
    */
   Map<const bNode *, const lf::FunctionNode *> group_node_map;
   Map<const bNode *, const lf::FunctionNode *> viewer_node_map;
+  Map<const bke::bNodeTreeZone *, const lf::FunctionNode *> zone_node_map;
+
+  /* Indexed by #bNodeSocket::index_in_all_outputs. */
+  Array<int> lf_input_index_for_output_bsocket_usage;
+  /* Indexed by #bNodeSocket::index_in_all_outputs. */
+  Array<int> lf_input_index_for_attribute_propagation_to_output;
+  /* Indexed by #bNodeSocket::index_in_tree. */
+  Array<int> lf_index_by_bsocket;
 };
 
 /**
@@ -156,29 +206,9 @@ struct GeometryNodeLazyFunctionGraphMapping {
  */
 struct GeometryNodesLazyFunctionGraphInfo {
   /**
-   * Allocator used for many things contained in this struct.
+   * Contains resources that need to be freed when the graph is not needed anymore.
    */
-  LinearAllocator<> allocator;
-  /**
-   * Many nodes are implemented as multi-functions. So this contains a mapping from nodes to their
-   * corresponding multi-functions.
-   */
-  std::unique_ptr<NodeMultiFunctions> node_multi_functions;
-  /**
-   * Many lazy-functions are build for the lazy-function graph. Since the graph does not own them,
-   * we have to keep track of them separately.
-   */
-  Vector<std::unique_ptr<LazyFunction>> functions;
-  /**
-   * Debug info that has to be destructed when the graph is not used anymore.
-   */
-  Vector<std::unique_ptr<lf::DummyDebugInfo>> dummy_debug_infos_;
-  /**
-   * Many sockets have default values. Since those are not owned by the lazy-function graph, we
-   * have to keep track of them separately. This only owns the values, the memory is owned by the
-   * allocator above.
-   */
-  Vector<GMutablePointer> values_to_destruct;
+  ResourceScope scope;
   /**
    * The actual lazy-function graph.
    */
@@ -192,9 +222,6 @@ struct GeometryNodesLazyFunctionGraphInfo {
    * This can be used as a simple heuristic for the complexity of the node group.
    */
   int num_inline_nodes_approximate = 0;
-
-  GeometryNodesLazyFunctionGraphInfo();
-  ~GeometryNodesLazyFunctionGraphInfo();
 };
 
 /**
@@ -219,6 +246,34 @@ class GeometryNodesLazyFunctionLogger : public fn::lazy_function::GraphExecutor:
   void log_before_node_execute(const lf::FunctionNode &node,
                                const lf::Params &params,
                                const lf::Context &context) const override;
+};
+
+std::unique_ptr<LazyFunction> get_simulation_output_lazy_function(
+    const bNode &node, GeometryNodesLazyFunctionGraphInfo &own_lf_graph_info);
+std::unique_ptr<LazyFunction> get_simulation_input_lazy_function(
+    const bNodeTree &node_tree,
+    const bNode &node,
+    GeometryNodesLazyFunctionGraphInfo &own_lf_graph_info);
+std::unique_ptr<LazyFunction> get_switch_node_lazy_function(const bNode &node);
+
+bke::sim::SimulationZoneID get_simulation_zone_id(const GeoNodesLFUserData &user_data,
+                                                  const int output_node_id);
+
+/**
+ * An anonymous attribute created by a node.
+ */
+class NodeAnonymousAttributeID : public bke::AnonymousAttributeID {
+  std::string long_name_;
+  std::string socket_name_;
+
+ public:
+  NodeAnonymousAttributeID(const Object &object,
+                           const ComputeContext &compute_context,
+                           const bNode &bnode,
+                           const StringRef identifier,
+                           const StringRef name);
+
+  std::string user_name() const override;
 };
 
 /**
