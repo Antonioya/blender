@@ -28,11 +28,11 @@
 
 #include "MEM_guardedalloc.h"
 
+namespace blender::bke {
+
 /* -------------------------------------------------------------------- */
 /** \name Geometry Component
  * \{ */
-
-namespace blender::bke {
 
 GeometryComponent::GeometryComponent(Type type) : type_(type) {}
 
@@ -204,14 +204,14 @@ std::optional<Bounds<float3>> GeometrySet::compute_boundbox_without_instances() 
   }
   if (const Mesh *mesh = this->get_mesh_for_read()) {
     Bounds<float3> mesh_bounds{float3(std::numeric_limits<float>::max()),
-                               float3(std::numeric_limits<float>::min())};
+                               float3(std::numeric_limits<float>::lowest())};
     if (BKE_mesh_wrapper_minmax(mesh, mesh_bounds.min, mesh_bounds.max)) {
       bounds = bounds::merge(bounds, {mesh_bounds});
     }
   }
   if (const Volume *volume = this->get_volume_for_read()) {
     Bounds<float3> volume_bounds{float3(std::numeric_limits<float>::max()),
-                                 float3(std::numeric_limits<float>::min())};
+                                 float3(std::numeric_limits<float>::lowest())};
     if (BKE_volume_min_max(volume, volume_bounds.min, volume_bounds.max)) {
       bounds = bounds::merge(bounds, {volume_bounds});
     }
@@ -717,6 +717,6 @@ bool object_has_geometry_set_instances(const Object &object)
   return false;
 }
 
-}  // namespace blender::bke
-
 /** \} */
+
+}  // namespace blender::bke

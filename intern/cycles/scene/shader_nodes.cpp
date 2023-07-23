@@ -2361,7 +2361,6 @@ NODE_DEFINE(GlossyBsdfNode)
   SOCKET_IN_FLOAT(surface_mix_weight, "SurfaceMixWeight", 0.0f, SocketType::SVM_INTERNAL);
 
   static NodeEnum distribution_enum;
-  distribution_enum.insert("sharp", CLOSURE_BSDF_REFLECTION_ID);
   distribution_enum.insert("beckmann", CLOSURE_BSDF_MICROFACET_BECKMANN_ID);
   distribution_enum.insert("ggx", CLOSURE_BSDF_MICROFACET_GGX_ID);
   distribution_enum.insert("ashikhmin_shirley", CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID);
@@ -2382,7 +2381,6 @@ NODE_DEFINE(GlossyBsdfNode)
 GlossyBsdfNode::GlossyBsdfNode() : BsdfNode(get_node_type())
 {
   closure = CLOSURE_BSDF_MICROFACET_GGX_ID;
-  distribution_orig = NBUILTIN_CLOSURES;
 }
 
 bool GlossyBsdfNode::is_isotropic()
@@ -2403,68 +2401,27 @@ void GlossyBsdfNode::attributes(Shader *shader, AttributeRequestSet *attributes)
   ShaderNode::attributes(shader, attributes);
 }
 
-void GlossyBsdfNode::simplify_settings(Scene *scene)
+void GlossyBsdfNode::simplify_settings(Scene * /* scene */)
 {
   /* If the anisotropy is close enough to zero, fall back to the isotropic case. */
   ShaderInput *tangent_input = input("Tangent");
   if (tangent_input->link && is_isotropic()) {
     tangent_input->disconnect();
   }
-
-  if (distribution_orig == NBUILTIN_CLOSURES) {
-    roughness_orig = roughness;
-    distribution_orig = distribution;
-  }
-  else {
-    /* By default we use original values, so we don't worry about restoring
-     * defaults later one and can only do override when needed.
-     */
-    roughness = roughness_orig;
-    distribution = distribution_orig;
-  }
-  Integrator *integrator = scene->integrator;
-  ShaderInput *roughness_input = input("Roughness");
-  if (integrator->get_filter_glossy() == 0.0f) {
-    /* Fallback to Sharp closure for Roughness close to 0.
-     * NOTE: Keep the epsilon in sync with kernel!
-     */
-    if (!roughness_input->link && roughness <= 1e-4f) {
-      VLOG_DEBUG << "Using sharp glossy BSDF.";
-      distribution = CLOSURE_BSDF_REFLECTION_ID;
-    }
-  }
-  else {
-    /* If filter glossy is used we replace Sharp glossy with GGX so we can
-     * benefit from closure blur to remove unwanted noise.
-     */
-    if (roughness_input->link == NULL && distribution == CLOSURE_BSDF_REFLECTION_ID) {
-      VLOG_DEBUG << "Using GGX glossy with filter glossy.";
-      distribution = CLOSURE_BSDF_MICROFACET_GGX_ID;
-      roughness = 0.0f;
-    }
-  }
-  closure = distribution;
-}
-
-bool GlossyBsdfNode::has_integrator_dependency()
-{
-  ShaderInput *roughness_input = input("Roughness");
-  return !roughness_input->link &&
-         (distribution == CLOSURE_BSDF_REFLECTION_ID || roughness <= 1e-4f);
 }
 
 void GlossyBsdfNode::compile(SVMCompiler &compiler)
 {
   closure = distribution;
 
-  if (closure == CLOSURE_BSDF_REFLECTION_ID)
-    BsdfNode::compile(compiler, NULL, NULL);
   /* TODO: Just use weight for legacy MultiGGX? Would also simplify OSL. */
-  else if (closure == CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID)
+  if (closure == CLOSURE_BSDF_MICROFACET_MULTI_GGX_ID) {
     BsdfNode::compile(
         compiler, input("Roughness"), input("Anisotropy"), input("Rotation"), input("Color"));
-  else
+  }
+  else {
     BsdfNode::compile(compiler, input("Roughness"), input("Anisotropy"), input("Rotation"));
+  }
 }
 
 void GlossyBsdfNode::compile(OSLCompiler &compiler)
@@ -2484,7 +2441,6 @@ NODE_DEFINE(GlassBsdfNode)
   SOCKET_IN_FLOAT(surface_mix_weight, "SurfaceMixWeight", 0.0f, SocketType::SVM_INTERNAL);
 
   static NodeEnum distribution_enum;
-  distribution_enum.insert("sharp", CLOSURE_BSDF_SHARP_GLASS_ID);
   distribution_enum.insert("beckmann", CLOSURE_BSDF_MICROFACET_BECKMANN_GLASS_ID);
   distribution_enum.insert("ggx", CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID);
   distribution_enum.insert("multi_ggx", CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID);
@@ -2500,64 +2456,19 @@ NODE_DEFINE(GlassBsdfNode)
 
 GlassBsdfNode::GlassBsdfNode() : BsdfNode(get_node_type())
 {
-  closure = CLOSURE_BSDF_SHARP_GLASS_ID;
-  distribution_orig = NBUILTIN_CLOSURES;
-}
-
-void GlassBsdfNode::simplify_settings(Scene *scene)
-{
-  if (distribution_orig == NBUILTIN_CLOSURES) {
-    roughness_orig = roughness;
-    distribution_orig = distribution;
-  }
-  else {
-    /* By default we use original values, so we don't worry about restoring
-     * defaults later one and can only do override when needed.
-     */
-    roughness = roughness_orig;
-    distribution = distribution_orig;
-  }
-  Integrator *integrator = scene->integrator;
-  ShaderInput *roughness_input = input("Roughness");
-  if (integrator->get_filter_glossy() == 0.0f) {
-    /* Fallback to Sharp closure for Roughness close to 0.
-     * NOTE: Keep the epsilon in sync with kernel!
-     */
-    if (!roughness_input->link && roughness <= 1e-4f) {
-      VLOG_DEBUG << "Using sharp glass BSDF.";
-      distribution = CLOSURE_BSDF_SHARP_GLASS_ID;
-    }
-  }
-  else {
-    /* If filter glossy is used we replace Sharp glossy with GGX so we can
-     * benefit from closure blur to remove unwanted noise.
-     */
-    if (roughness_input->link == NULL && distribution == CLOSURE_BSDF_SHARP_GLASS_ID) {
-      VLOG_DEBUG << "Using GGX glass with filter glossy.";
-      distribution = CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID;
-      roughness = 0.0f;
-    }
-  }
-  closure = distribution;
-}
-
-bool GlassBsdfNode::has_integrator_dependency()
-{
-  ShaderInput *roughness_input = input("Roughness");
-  return !roughness_input->link &&
-         (distribution == CLOSURE_BSDF_SHARP_GLASS_ID || roughness <= 1e-4f);
+  closure = CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID;
 }
 
 void GlassBsdfNode::compile(SVMCompiler &compiler)
 {
   closure = distribution;
 
-  if (closure == CLOSURE_BSDF_SHARP_GLASS_ID)
-    BsdfNode::compile(compiler, NULL, input("IOR"));
-  else if (closure == CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID)
+  if (closure == CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID) {
     BsdfNode::compile(compiler, input("Roughness"), input("IOR"), input("Color"));
-  else
+  }
+  else {
     BsdfNode::compile(compiler, input("Roughness"), input("IOR"));
+  }
 }
 
 void GlassBsdfNode::compile(OSLCompiler &compiler)
@@ -2577,7 +2488,6 @@ NODE_DEFINE(RefractionBsdfNode)
   SOCKET_IN_FLOAT(surface_mix_weight, "SurfaceMixWeight", 0.0f, SocketType::SVM_INTERNAL);
 
   static NodeEnum distribution_enum;
-  distribution_enum.insert("sharp", CLOSURE_BSDF_REFRACTION_ID);
   distribution_enum.insert("beckmann", CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID);
   distribution_enum.insert("ggx", CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID);
   SOCKET_ENUM(
@@ -2593,62 +2503,14 @@ NODE_DEFINE(RefractionBsdfNode)
 
 RefractionBsdfNode::RefractionBsdfNode() : BsdfNode(get_node_type())
 {
-  closure = CLOSURE_BSDF_REFRACTION_ID;
-  distribution_orig = NBUILTIN_CLOSURES;
-}
-
-void RefractionBsdfNode::simplify_settings(Scene *scene)
-{
-  if (distribution_orig == NBUILTIN_CLOSURES) {
-    roughness_orig = roughness;
-    distribution_orig = distribution;
-  }
-  else {
-    /* By default we use original values, so we don't worry about restoring
-     * defaults later one and can only do override when needed.
-     */
-    roughness = roughness_orig;
-    distribution = distribution_orig;
-  }
-  Integrator *integrator = scene->integrator;
-  ShaderInput *roughness_input = input("Roughness");
-  if (integrator->get_filter_glossy() == 0.0f) {
-    /* Fallback to Sharp closure for Roughness close to 0.
-     * NOTE: Keep the epsilon in sync with kernel!
-     */
-    if (!roughness_input->link && roughness <= 1e-4f) {
-      VLOG_DEBUG << "Using sharp refraction BSDF.";
-      distribution = CLOSURE_BSDF_REFRACTION_ID;
-    }
-  }
-  else {
-    /* If filter glossy is used we replace Sharp glossy with GGX so we can
-     * benefit from closure blur to remove unwanted noise.
-     */
-    if (roughness_input->link == NULL && distribution == CLOSURE_BSDF_REFRACTION_ID) {
-      VLOG_DEBUG << "Using GGX refraction with filter glossy.";
-      distribution = CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID;
-      roughness = 0.0f;
-    }
-  }
-  closure = distribution;
-}
-
-bool RefractionBsdfNode::has_integrator_dependency()
-{
-  ShaderInput *roughness_input = input("Roughness");
-  return !roughness_input->link &&
-         (distribution == CLOSURE_BSDF_REFRACTION_ID || roughness <= 1e-4f);
+  closure = CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID;
 }
 
 void RefractionBsdfNode::compile(SVMCompiler &compiler)
 {
   closure = distribution;
 
-  if (closure == CLOSURE_BSDF_REFRACTION_ID)
-    BsdfNode::compile(compiler, NULL, input("IOR"));
-  else
-    BsdfNode::compile(compiler, input("Roughness"), input("IOR"));
+  BsdfNode::compile(compiler, input("Roughness"), input("IOR"));
 }
 
 void RefractionBsdfNode::compile(OSLCompiler &compiler)
@@ -2797,7 +2659,6 @@ NODE_DEFINE(PrincipledBsdfNode)
   SOCKET_IN_FLOAT(clearcoat_roughness, "Clearcoat Roughness", 0.03f);
   SOCKET_IN_FLOAT(ior, "IOR", 0.0f);
   SOCKET_IN_FLOAT(transmission, "Transmission", 0.0f);
-  SOCKET_IN_FLOAT(transmission_roughness, "Transmission Roughness", 0.0f);
   SOCKET_IN_FLOAT(anisotropic_rotation, "Anisotropic Rotation", 0.0f);
   SOCKET_IN_COLOR(emission, "Emission", zero_float3());
   SOCKET_IN_FLOAT(emission_strength, "Emission Strength", 1.0f);
@@ -2816,7 +2677,6 @@ PrincipledBsdfNode::PrincipledBsdfNode() : BsdfBaseNode(get_node_type())
 {
   closure = CLOSURE_BSDF_PRINCIPLED_ID;
   distribution = CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID;
-  distribution_orig = NBUILTIN_CLOSURES;
 }
 
 void PrincipledBsdfNode::expand(ShaderGraph *graph)
@@ -2909,8 +2769,7 @@ void PrincipledBsdfNode::compile(SVMCompiler &compiler,
                                  ShaderInput *p_clearcoat_roughness,
                                  ShaderInput *p_ior,
                                  ShaderInput *p_transmission,
-                                 ShaderInput *p_anisotropic_rotation,
-                                 ShaderInput *p_transmission_roughness)
+                                 ShaderInput *p_anisotropic_rotation)
 {
   ShaderInput *base_color_in = input("Base Color");
   ShaderInput *subsurface_color_in = input("Subsurface Color");
@@ -2935,7 +2794,6 @@ void PrincipledBsdfNode::compile(SVMCompiler &compiler,
   int clearcoat_roughness_offset = compiler.stack_assign(p_clearcoat_roughness);
   int ior_offset = compiler.stack_assign(p_ior);
   int transmission_offset = compiler.stack_assign(p_transmission);
-  int transmission_roughness_offset = compiler.stack_assign(p_transmission_roughness);
   int anisotropic_rotation_offset = compiler.stack_assign(p_anisotropic_rotation);
   int subsurface_radius_offset = compiler.stack_assign(p_subsurface_radius);
   int subsurface_ior_offset = compiler.stack_assign(p_subsurface_ior);
@@ -2957,13 +2815,12 @@ void PrincipledBsdfNode::compile(SVMCompiler &compiler,
       compiler.encode_uchar4(
           sheen_offset, sheen_tint_offset, clearcoat_offset, clearcoat_roughness_offset));
 
-  compiler.add_node(compiler.encode_uchar4(ior_offset,
-                                           transmission_offset,
-                                           anisotropic_rotation_offset,
-                                           transmission_roughness_offset),
-                    distribution,
-                    subsurface_method,
-                    SVM_STACK_INVALID);
+  compiler.add_node(
+      compiler.encode_uchar4(
+          ior_offset, transmission_offset, anisotropic_rotation_offset, SVM_STACK_INVALID),
+      distribution,
+      subsurface_method,
+      SVM_STACK_INVALID);
 
   float3 bc_default = get_float3(base_color_in->socket_type);
 
@@ -2987,12 +2844,6 @@ void PrincipledBsdfNode::compile(SVMCompiler &compiler,
                     __float_as_int(ss_default.z));
 }
 
-bool PrincipledBsdfNode::has_integrator_dependency()
-{
-  ShaderInput *roughness_input = input("Roughness");
-  return !roughness_input->link && roughness <= 1e-4f;
-}
-
 void PrincipledBsdfNode::compile(SVMCompiler &compiler)
 {
   compile(compiler,
@@ -3011,8 +2862,7 @@ void PrincipledBsdfNode::compile(SVMCompiler &compiler)
           input("Clearcoat Roughness"),
           input("IOR"),
           input("Transmission"),
-          input("Anisotropic Rotation"),
-          input("Transmission Roughness"));
+          input("Anisotropic Rotation"));
 }
 
 void PrincipledBsdfNode::compile(OSLCompiler &compiler)

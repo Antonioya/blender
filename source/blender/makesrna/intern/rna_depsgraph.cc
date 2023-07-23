@@ -6,7 +6,7 @@
  * \ingroup RNA
  */
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "BLI_path_util.h"
 #include "BLI_utildefines.h"
@@ -154,7 +154,7 @@ static int rna_DepsgraphObjectInstance_random_id_get(PointerRNA *ptr)
   RNA_DepsgraphIterator *di = static_cast<RNA_DepsgraphIterator *>(ptr->data);
   DEGObjectIterData *deg_iter = (DEGObjectIterData *)di->iter.data;
   if (deg_iter->dupli_object_current != nullptr) {
-    return (int)deg_iter->dupli_object_current->random_id;
+    return int(deg_iter->dupli_object_current->random_id);
   }
   else {
     return 0;

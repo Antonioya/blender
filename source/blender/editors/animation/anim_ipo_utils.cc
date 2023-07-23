@@ -80,9 +80,9 @@ int getname_anim_fcurve(char *name, ID *id, FCurve *fcu)
        * which isn't so clear with option 2.
        */
 
-      /* For structname:
+      /* For struct-name:
        * - As base, we use a custom name from the structs if one is available
-       * - However, if we're showing subdata of bones
+       * - However, if we're showing sub-data of bones
        *   (probably there will be other exceptions later).
        *   need to include that info too since it gets confusing otherwise.
        * - If a pointer just refers to the ID-block, then don't repeat this info
@@ -230,7 +230,7 @@ void getcolor_fcurve_rainbow(int cur, int tot, float out[3])
    * so the base color is simply one of the three primary colors
    */
   grouping = (4 - (tot % 2));
-  hsv[0] = HSV_BANDWIDTH * (float)(cur % grouping);
+  hsv[0] = HSV_BANDWIDTH * float(cur % grouping);
 
   /* 'Value' (i.e. darkness) needs to vary so that larger sets of three will be
    * 'darker' (i.e. smaller value), so that they don't look that similar to previous ones.

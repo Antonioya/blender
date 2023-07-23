@@ -135,7 +135,6 @@ struct TreeElementIcon {
         ID_CV, \
         ID_PT, \
         ID_VO, \
-        ID_SIM, \
         ID_GP) || /* Only in 'blendfile' mode ... :/ */ \
    ELEM(GS((_id)->name), \
         ID_SCR, \
@@ -290,6 +289,11 @@ struct IDsSelectedData {
 struct BoneElementCreateData {
   ID *armature_id;
   Bone *bone;
+};
+
+struct EditBoneElementCreateData {
+  ID *armature_id;
+  EditBone *ebone;
 };
 
 TreeTraversalAction outliner_collect_selected_collections(TreeElement *te, void *customdata);

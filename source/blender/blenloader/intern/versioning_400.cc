@@ -8,8 +8,11 @@
 
 #define DNA_DEPRECATED_ALLOW
 
+#include <cmath>
+
 #include "CLG_log.h"
 
+#include "DNA_brush_types.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_modifier_types.h"
@@ -17,6 +20,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"
 
+#include "DNA_defaults.h"
 #include "DNA_genfile.h"
 
 #include "BLI_assert.h"
@@ -24,6 +28,7 @@
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 
+#include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_main.h"
 #include "BKE_mesh_legacy_convert.h"
@@ -41,7 +46,7 @@
 
 void do_versions_after_linking_400(FileData * /*fd*/, Main *bmain)
 {
-  if (!MAIN_VERSION_ATLEAST(bmain, 400, 9)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 9)) {
     /* Fix area light scaling. */
     LISTBASE_FOREACH (Light *, light, &bmain->lights) {
       light->energy = light->energy_deprecated;
@@ -129,6 +134,24 @@ static void version_geometry_nodes_add_realize_instance_nodes(bNodeTree *ntree)
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
     if (STREQ(node->idname, "GeometryNodeMeshBoolean")) {
       add_realize_instances_before_socket(ntree, node, nodeFindSocket(node, SOCK_IN, "Mesh 2"));
+    }
+  }
+}
+
+/* Version VertexWeightEdit modifier to make existing weights exclusive of the threshold. */
+static void version_vertex_weight_edit_preserve_threshold_exclusivity(Main *bmain)
+{
+  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+    if (ob->type != OB_MESH) {
+      continue;
+    }
+
+    LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+      if (md->type == eModifierType_WeightVGEdit) {
+        WeightVGEditModifierData *wmd = reinterpret_cast<WeightVGEditModifierData *>(md);
+        wmd->add_threshold = nexttoward(wmd->add_threshold, 2.0);
+        wmd->rem_threshold = nexttoward(wmd->rem_threshold, -1.0);
+      }
     }
   }
 }
@@ -243,22 +266,35 @@ static void version_replace_texcoord_normal_socket(bNodeTree *ntree)
   }
 }
 
+static void version_principled_transmission_roughness(bNodeTree *ntree)
+{
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (node->type != SH_NODE_BSDF_PRINCIPLED) {
+      continue;
+    }
+    bNodeSocket *sock = nodeFindSocket(node, SOCK_IN, "Transmission Roughness");
+    if (sock != nullptr) {
+      nodeRemoveSocket(ntree, node, sock);
+    }
+  }
+}
+
 void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 {
-  if (!MAIN_VERSION_ATLEAST(bmain, 400, 1)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 1)) {
     LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
       version_mesh_legacy_to_struct_of_array_format(*mesh);
     }
     version_movieclips_legacy_camera_object(bmain);
   }
 
-  if (!MAIN_VERSION_ATLEAST(bmain, 400, 2)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 2)) {
     LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
       BKE_mesh_legacy_bevel_weight_to_generic(mesh);
     }
   }
 
-  if (!MAIN_VERSION_ATLEAST(bmain, 400, 3)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 3)) {
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
       if (ntree->type == NTREE_GEOMETRY) {
         version_geometry_nodes_add_realize_instance_nodes(ntree);
@@ -268,7 +304,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
   /* 400 4 did not require any do_version here. */
 
-  if (!MAIN_VERSION_ATLEAST(bmain, 400, 5)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 5)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       ToolSettings *ts = scene->toolsettings;
       if (ts->snap_mode_tools != SCE_SNAP_TO_NONE) {
@@ -284,7 +320,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_ATLEAST(bmain, 400, 6)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 6)) {
     LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
       BKE_mesh_legacy_face_map_to_generic(mesh);
     }
@@ -295,25 +331,49 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_ATLEAST(bmain, 400, 7)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 7)) {
     LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
       version_mesh_crease_generic(*bmain);
     }
   }
 
-  if (!MAIN_VERSION_ATLEAST(bmain, 400, 8)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 8)) {
     LISTBASE_FOREACH (bAction *, act, &bmain->actions) {
       act->frame_start = max_ff(act->frame_start, MINAFRAMEF);
       act->frame_end = min_ff(act->frame_end, MAXFRAMEF);
     }
   }
 
-  if (!MAIN_VERSION_ATLEAST(bmain, 400, 9)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 9)) {
     LISTBASE_FOREACH (Light *, light, &bmain->lights) {
       if (light->type == LA_SPOT && light->nodetree) {
         version_replace_texcoord_normal_socket(light->nodetree);
       }
     }
+  }
+
+  /* Fix brush->tip_scale_x which should never be zero. */
+  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+    if (brush->tip_scale_x == 0.0f) {
+      brush->tip_scale_x = 1.0f;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 10)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, space, &area->spacedata) {
+          if (space->spacetype == SPACE_NODE) {
+            SpaceNode *snode = reinterpret_cast<SpaceNode *>(space);
+            snode->overlay.flag |= SN_OVERLAY_SHOW_PREVIEWS;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 11)) {
+    version_vertex_weight_edit_preserve_threshold_exclusivity(bmain);
   }
 
   /**
@@ -327,14 +387,15 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
    * \note Keep this message at the bottom of the function.
    */
   {
-    /* Convert anisotropic BSDF node to glossy BSDF. */
-
     /* Keep this block, even when empty. */
 
-    if (!DNA_struct_elem_find(fd->filesdna, "LightProbe", "int", "grid_bake_sample_count")) {
+    if (!DNA_struct_elem_find(fd->filesdna, "LightProbe", "int", "grid_bake_samples")) {
       LISTBASE_FOREACH (LightProbe *, lightprobe, &bmain->lightprobes) {
         lightprobe->grid_bake_samples = 2048;
         lightprobe->surfel_density = 1.0f;
+        lightprobe->grid_normal_bias = 0.3f;
+        lightprobe->grid_view_bias = 0.0f;
+        lightprobe->grid_facing_bias = 0.5f;
       }
     }
 
@@ -358,5 +419,20 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         scene->r.im_format.flag &= ~R_IMF_FLAG_ZBUF_LEGACY;
       }
     }
+
+    /* Reset the layer opacity for all layers to 1. */
+    LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
+      for (blender::bke::greasepencil::Layer *layer : grease_pencil->layers_for_write()) {
+        layer->opacity = 1.0f;
+      }
+    }
+
+    /* Remove Transmission Roughness from Principled BSDF. */
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_SHADER) {
+        version_principled_transmission_roughness(ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 }

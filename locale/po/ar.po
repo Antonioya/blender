@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.0.0 Alpha (b'44ee5b38ac1b')\n"
+"Project-Id-Version: Blender 4.0.0 Alpha (b'5aff5bc0e72b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-07-04 16:07:54\n"
+"POT-Creation-Date: 2023-07-17 12:39:59\n"
 "PO-Revision-Date: 2016-04-23 22:41+0300\n"
 "Last-Translator: Yousef Harfoush <bat3a@msn.com>\n"
 "Language-Team: Yousef Harfoush, Amine Moussaoui <bat3a@msn.com>\n"
@@ -11411,10 +11411,6 @@ msgid "Light color"
 msgstr "ءﻮﻀﻟﺍ ﻥﻮﻟ"
 
 
-msgid "Falloff distance - the light is at half the original intensity at this point"
-msgstr "ﺔﻄﻘﻨﻟﺍ ﻩﺬﻫ ﺪﻨﻋ ﻪﺗﺪﺷ ﻒﺼﻨﺑ ءﻮﻀﻟﺍ ﻥﻮﻜﻳ - ﻝﺅﺎﻀﺘﻟﺍ ﺔﻓﺎﺴﻣ"
-
-
 msgid "Specular Factor"
 msgstr "ﻖﻳﺮﺒﻟﺍ ﻞﻣﺎﻌﻣ"
 
@@ -11435,42 +11431,6 @@ msgid "Directional area light source"
 msgstr "ﻪﺠﺘﻣ ﺔﻘﻄﻨﻣ ءﻮﺿ ﺭﺪﺼﻣ"
 
 
-msgid "Falloff Type"
-msgstr "ﻲﺷﻼ﻿ﺘﻟﺍ ﻉﻮﻧ"
-
-
-msgid "Intensity Decay with distance"
-msgstr "ﺔﻓﺎﺴﻤﻟﺎﺑ ﺓﺪّﺸﻟﺍ ﻝﺅﺎﻀﺗ"
-
-
-msgid "Inverse Linear"
-msgstr "ﺱﻮﻜﻌﻣ ﻲﻄﺧ"
-
-
-msgid "Inverse Square"
-msgstr "ﻲﺴﻜﻋ ﻲﻌﻴﺑﺮﺗ"
-
-
-msgid "Lin/Quad Weighted"
-msgstr "ﻲﻌﻴﺑﺮﺗ/ﻲﻄﺧ ﻥﻭﺯﻮﻣ"
-
-
-msgid "Linear Attenuation"
-msgstr "ﻲﻄﺧ ﻒﻴﻔﺨﺗ"
-
-
-msgid "Linear distance attenuation"
-msgstr "ﺔﻴﻄﺨﻟﺍ ﺔﻓﺎﺴﻤﻟﺍ ﻝﺅﺎﻀﺗ"
-
-
-msgid "Quadratic Attenuation"
-msgstr "ﻲﻌﻴﺑﺮﺗ ﻒﻴﻔﺨﺗ"
-
-
-msgid "Quadratic distance attenuation"
-msgstr "ﻲﻌﻴﺑﺮﺘﻟﺍ ﺔﻓﺎﺴﻤﻟﺍ ﻲﺷﻼ﻿ﺗ"
-
-
 msgid "Shadow Buffer Bias"
 msgstr "ﻞﻈﻟﺍ ﺔﻜﺒﺷ ﻑﺍﺮﺤﻧﺇ"
 
@@ -11481,22 +11441,6 @@ msgstr "ﺔﻜﺒﺸﻟﺍ ﻞﻇ ﻢﻴﻠﻘﺗ ﺔﻳﺍﺪﺑ"
 
 msgid "Shadow map clip start, below which objects will not generate shadows"
 msgstr "ﻝﻼ﻿ﻇ ﺎﻬﻠﺒﻗ ﺪﻟﻮﺘﻳ ﻦﻟ ﻲﺘﻟﺍ ﻭ ,ﻞﻈﻟﺍ ﺔﻄﻳﺮﺧ ﻢﻴﻠﻘﺗ ﺔﻳﺍﺪﺑ"
-
-
-msgid "Samples"
-msgstr "ﺕﺎﻨﻴﻋ"
-
-
-msgid "Number of shadow buffer samples"
-msgstr "ﻞﻈﻟﺍ ﺔﻜﺒﺷ ﺕﺎﻨﻴﻋ ﺩﺪﻋ"
-
-
-msgid "Shadow Buffer Size"
-msgstr "ﻞﻈﻟﺍ ﺔﻜﺒﺷ ﻢﺠﺣ"
-
-
-msgid "Resolution of the shadow buffer, higher values give crisper shadows but use more memory"
-msgstr "ﺮﺒﻛﺍ ﺓﺮﻛﺍﺫ ﺔﻴﻤﻛ ﻡﺪﺨﺘﺴﺗ ﻦﻜﻟ ﺮﻀﻧﺍ ﻞﻇ ﻲﻄﻌﺗ ﻰﻠﻋﺍ ﻢﻴﻗ ,ﻞﻈﻟﺍ ﺔﻜﺒﺷ ﺔﻗﺩ"
 
 
 msgid "Shadow Color"
@@ -17160,6 +17104,10 @@ msgid "Thickness Min"
 msgstr "ﺔﻛﺎﻤﺳ ﻞﻗﺍ"
 
 
+msgid "Samples"
+msgstr "ﺕﺎﻨﻴﻋ"
+
+
 msgid "Number of samples to test per face"
 msgstr "ﻪﺟﻭ ﻞﻜﻟ ﺔﺻﻮﺤﻔﻤﻟﺍ ﺕﺎﻨﻴﻌﻟﺍ ﺩﺪﻋ"
 
@@ -18443,10 +18391,6 @@ msgstr "ﺔﻋﻮﻤﺠﻣ ﻲﻓ ﻂﻘﻨﻟﺍ ﻥﺍﺯﻭﺍ ﺭﺮﺣ"
 
 msgid "Add Threshold"
 msgstr "ﺔﻓﺎﺿﻻ﻿ﺍ ﺔﺒﺘﻋ"
-
-
-msgid "Lower bound for a vertex's weight to be added to the vgroup"
-msgstr "V ﻂﻘﻧ ﺔﻋﻮﻤﺠﻣ ﻰﻟﺇ ﺔﻄﻘﻧ ﻥﺯﻭ ﺔﻓﺎﺿﻻ﻿ ﻰﻧﺩﻻ﻿ﺍ ﺪﺤﻟﺍ"
 
 
 msgid "Default Weight"
@@ -23915,6 +23859,11 @@ msgstr "ﺔﺒﻄﺸﻟﺍ ﺓﺪﻤﻟ ﺓﺎﺷﺮﻔﻟﺍ ﻞﻤﻋ ﺲﻜ�
 
 
 msgctxt "Operator"
+msgid "Select Mode"
+msgstr "ﺭﺎﻴﺘﺧﺍ ﻂﻤﻧ"
+
+
+msgctxt "Operator"
 msgid "Set Curves Point"
 msgstr "ﺕﺎﻴﻨﺤﻨﻤﻟﺍ ﺔﻄﻘﻧ ﻊﺿ"
 
@@ -25166,11 +25115,6 @@ msgstr "ﻪﺟﻮﻟﺍ ﻂُﺧﺃ"
 
 msgid "Extend the existing selection"
 msgstr "ﻲﻟﺎﺤﻟﺍ ﺭﺎﻴﺘﺧﻹ﻿ﺍ ﺪﻣٌ"
-
-
-msgctxt "Operator"
-msgid "Select Mode"
-msgstr "ﺭﺎﻴﺘﺧﺍ ﻂﻤﻧ"
 
 
 msgid "Change selection mode"
@@ -28016,6 +27960,10 @@ msgid "Detail Flood Fill"
 msgstr "ﻥﺎﻀﻴﻔﺑ ﻞﻴﺻﺎﻔﺘﻟﺍ ﺊﺒّﻋ"
 
 
+msgid "Falloff Type"
+msgstr "ﻲﺷﻼ﻿ﺘﻟﺍ ﻉﻮﻧ"
+
+
 msgid "Operator"
 msgstr "ﻞﻣﺎﻋ"
 
@@ -28870,6 +28818,10 @@ msgid "Align UVs along the line defined by the endpoints along the Y axis"
 msgstr "Y ﺭﻮﺤﻣ ﻝﻮﻃ ﻰﻠﻋ ﺔﻳﺎﻬﻨﻟﺍ ﻁﺎﻘﻨﺑ ﻑﺮّﻌﻤﻟﺍ ﻂﺨﻟﺍ ﻝﻮﻃ ﻰﻠﻋ UV's ـﻟﺍ ﻱﺫﺎﺣ"
 
 
+msgid "Correct Aspect"
+msgstr "ﺐﺳﺎﻨﺘﻟﺍ ﺢﺤﺻ"
+
+
 msgctxt "Operator"
 msgid "Average Islands Scale"
 msgstr "ﻂﺳﻮﺘﻤﻟﺍ ﺓﺮﻳﺰﺠﻟﺍ ﻢﺠﺣ"
@@ -28882,10 +28834,6 @@ msgstr "ﻲﺒﻌﻜﻣ ﻁﺎﻘﺳﺍ"
 
 msgid "Clip UV coordinates to bounds after unwrapping"
 msgstr "ﻁﺎﻘﺳﻻ﻿ﺍ ﺪﻌﺑ ﺩﻭﺪﺤﻠﻟ UV ـﻟﺍ ﺕﺎﻴﺛﺍﺪﺣﺍ ﻢﻠّﻗ"
-
-
-msgid "Correct Aspect"
-msgstr "ﺐﺳﺎﻨﺘﻟﺍ ﺢﺤﺻ"
 
 
 msgid "Size of the cube to project on"
@@ -35962,14 +35910,6 @@ msgid "Length of rays, defines how far away other faces give occlusion effect"
 msgstr "ﺱﺎﺒﺤﻧﻻ﻿ﺍ ﺮﻴﺛﺄﺗ ﻯﺮﺧﻷ﻿ﺍ ﻪﺟﻭﻷ﻿ﺍ ﻪﻴﻓ ﻲﻄﻌﺗ ﻱﺬﻟﺍ ﺪﻌﺒﻟﺍ ﺩﺪﺤﺗ ،ﺔﻌﺷﻷ﻿ﺍ ﻝﺍﻮﻃﺃ"
 
 
-msgid "Use Ambient Occlusion"
-msgstr "  ﻂﻴﺤﻤﻟﺍ ﺱﺎﺒﺤﻧﻻ﻿ﺍ ﻡﺪﺨﺘﺳﺇ"
-
-
-msgid "Use Ambient Occlusion to add shadowing based on distance between objects"
-msgstr "ﺕﺎﻨﺋﺎﻜﻟﺍ ﻦﻴﺑ ﺔﻓﺎﺴﻤﻟﺍ ﻰﻠﻋ ﺪﻤﺘﻌﻣ ﻞﻴﻠﻈﺗ ﺔﻓﺎﺿﻹ﻿ ﻂﻴﺤﻤﻟﺍ ﺱﺎﺒﺤﻧﻻ﻿ﺍ ﻡﺍﺪﺨﺘﺳﺍ"
-
-
 msgid "World Mist"
 msgstr "ﻢﻟﺎﻋ ﺏﺎﺒﺿ"
 
@@ -39427,12 +39367,12 @@ msgid "No active camera set"
 msgstr "ﻞﻌﻔﻣ ﺭﺎﺴﻣ ﻻ﻿"
 
 
-msgid "Active group is locked, aborting"
-msgstr "ﺔﻠﻔﻘﻣ ﺙﺪﺤﻟﺍ ﺔﻋﻮﻤﺠﻣ"
-
-
 msgid "No active vertex group for painting, aborting"
 msgstr "ﻂﻘﻨﻟﺍ ﺖﻴﺒﺜﺘﻟ ﻂﻘﻨﻟﺍ ﺔﻋﻮﻤﺠﻣ"
+
+
+msgid "Active group is locked, aborting"
+msgstr "ﺔﻠﻔﻘﻣ ﺙﺪﺤﻟﺍ ﺔﻋﻮﻤﺠﻣ"
 
 
 msgid "Warning!"
@@ -40398,12 +40338,12 @@ msgid "Nothing indicated"
 msgstr "ﺭﺎﺘﺨﻣ ءﻲﺷ ﻻ﻿"
 
 
-msgid "'%s': not a library"
-msgstr "'‪%s‬': ﺔﺒﺘﻜﻣ ﺲﻴﻟ"
-
-
 msgid "'%s': nothing indicated"
 msgstr "'‪%s‬': ﺩﺪﺤﻣ ءﻲﺷ ﻻ﻿"
+
+
+msgid "'%s': not a library"
+msgstr "'‪%s‬': ﺔﺒﺘﻜﻣ ﺲﻴﻟ"
 
 
 msgid "OK?"

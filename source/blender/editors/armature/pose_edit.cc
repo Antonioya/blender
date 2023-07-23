@@ -236,8 +236,9 @@ static int pose_calculate_paths_invoke(bContext *C, wmOperator *op, const wmEven
   return WM_operator_props_dialog_popup(C, op, 270);
 }
 
-/* For the object with pose/action: create path curves for selected bones
- * This recalculates the WHOLE path within the pchan->pathsf and pchan->pathef range
+/**
+ * For the object with pose/action: create path curves for selected bones
+ * This recalculates the WHOLE path within the `pchan->pathsf` and `pchan->pathef` range.
  */
 static int pose_calculate_paths_exec(bContext *C, wmOperator *op)
 {
@@ -272,7 +273,7 @@ static int pose_calculate_paths_exec(bContext *C, wmOperator *op)
   TIMEIT_START(recalc_pose_paths);
 #endif
 
-  /* Calculate the bones that now have motionpaths. */
+  /* Calculate the bones that now have motion-paths. */
   /* TODO: only make for the selected bones? */
   ED_pose_recalculate_paths(C, scene, ob, POSE_PATH_CALC_RANGE_FULL);
 
@@ -715,7 +716,7 @@ static int pose_armature_layers_showall_exec(bContext *C, wmOperator *op)
   RNA_id_pointer_create(&arm->id, &ptr);
 
   for (int i = 0; i < maxLayers; i++) {
-    layers[i] = 1;
+    layers[i] = true;
   }
 
   RNA_boolean_set_array(&ptr, "layers", layers);
@@ -744,7 +745,7 @@ void ARMATURE_OT_layers_show_all(wmOperatorType *ot)
 
   /* properties */
   ot->prop = RNA_def_boolean(
-      ot->srna, "all", 1, "All Layers", "Enable all layers or just the first 16 (top row)");
+      ot->srna, "all", true, "All Layers", "Enable all layers or just the first 16 (top row)");
 }
 
 /* ------------------- */
@@ -826,7 +827,7 @@ void ARMATURE_OT_armature_layers(wmOperatorType *ot)
 static int pose_bone_layers_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* hardcoded for now - we can only have 32 armature layers, so this should be fine... */
-  bool layers[32] = {0};
+  bool layers[32] = {false};
 
   /* get layers that are active already */
   CTX_DATA_BEGIN (C, bPoseChannel *, pchan, selected_pose_bones) {
@@ -916,7 +917,7 @@ void POSE_OT_bone_layers(wmOperatorType *ot)
 static int armature_bone_layers_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* hardcoded for now - we can only have 32 armature layers, so this should be fine... */
-  bool layers[32] = {0};
+  bool layers[32] = {false};
 
   /* get layers that are active already */
   CTX_DATA_BEGIN (C, EditBone *, ebone, selected_editable_bones) {
@@ -925,7 +926,7 @@ static int armature_bone_layers_invoke(bContext *C, wmOperator *op, const wmEven
     /* loop over the bits for this pchan's layers, adding layers where they're needed */
     for (bit = 0; bit < 32; bit++) {
       if (ebone->layer & (1u << bit)) {
-        layers[bit] = 1;
+        layers[bit] = true;
       }
     }
   }
@@ -992,7 +993,7 @@ void ARMATURE_OT_bone_layers(wmOperatorType *ot)
 static int hide_pose_bone_fn(Object *ob, Bone *bone, void *ptr)
 {
   bArmature *arm = static_cast<bArmature *>(ob->data);
-  const bool hide_select = (bool)POINTER_AS_INT(ptr);
+  const bool hide_select = bool(POINTER_AS_INT(ptr));
   int count = 0;
   if (arm->layer & bone->layer) {
     if (((bone->flag & BONE_SELECTED) != 0) == hide_select) {
@@ -1055,7 +1056,7 @@ void POSE_OT_hide(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* props */
-  RNA_def_boolean(ot->srna, "unselected", 0, "Unselected", "");
+  RNA_def_boolean(ot->srna, "unselected", false, "Unselected", "");
 }
 
 static int show_pose_bone_cb(Object *ob, Bone *bone, void *data)

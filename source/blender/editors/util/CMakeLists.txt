@@ -6,20 +6,10 @@ set(INC
   ../include
   ../space_sequencer
   ../../asset_system
-  ../../blenfont
-  ../../blenkernel
-  ../../blenlib
-  ../../blentranslation
-  ../../bmesh
-  ../../depsgraph
   ../../gpu
   ../../imbuf
-  ../../makesdna
   ../../makesrna
   ../../sequencer
-  ../../windowmanager
-  ../../../../intern/clog
-  ../../../../intern/guardedalloc
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -28,15 +18,15 @@ set(INC_SYS
 )
 
 set(SRC
-  ed_draw.c
-  ed_transverts.c
+  ed_draw.cc
+  ed_transverts.cc
   ed_util.cc
-  ed_util_imbuf.c
+  ed_util_imbuf.cc
   ed_util_ops.cc
   ed_viewer_path.cc
-  gizmo_utils.c
-  numinput.c
-  select_utils.c
+  gizmo_utils.cc
+  numinput.cc
+  select_utils.cc
 
   # general includes
   ../include/BIF_glutil.h
@@ -46,7 +36,7 @@ set(SRC
   ../include/ED_buttons.h
   ../include/ED_clip.h
   ../include/ED_curve.h
-  ../include/ED_curves.h
+  ../include/ED_curves.hh
   ../include/ED_curves_sculpt.h
   ../include/ED_datafiles.h
   ../include/ED_file_indexer.h
@@ -110,6 +100,16 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenfont
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
+  PRIVATE bf::intern::clog
+  PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
 
 

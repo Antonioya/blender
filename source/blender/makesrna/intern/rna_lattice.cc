@@ -6,7 +6,7 @@
  * \ingroup RNA
  */
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "DNA_curve_types.h"
 #include "DNA_key_types.h"
@@ -229,7 +229,7 @@ static char *rna_LatticePoint_path(const PointerRNA *ptr)
 
     /* only return index if in range */
     if ((point >= (void *)points) && (point < (void *)(points + tot))) {
-      int pt_index = (int)((BPoint *)point - points);
+      int pt_index = int((BPoint *)point - points);
 
       return BLI_sprintfN("points[%d]", pt_index);
     }

@@ -6,8 +6,8 @@
  * \ingroup RNA
  */
 
-#include <limits.h>
-#include <stdlib.h>
+#include <climits>
+#include <cstdlib>
 
 #include "DNA_anim_types.h"
 #include "DNA_movieclip_types.h"
@@ -274,7 +274,7 @@ static int rna_SequenceEditor_elements_length(PointerRNA *ptr)
 
   /* The problem with seq->strip->len and seq->len is that it's discounted from the offset
    * (hard cut trim). */
-  return (int)olen;
+  return int(olen);
 }
 
 static void rna_Sequence_elements_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -931,7 +931,7 @@ static void rna_Sequence_pan_range(
 
   *min = -FLT_MAX;
   *max = FLT_MAX;
-  *softmax = 1 + (int)(scene->r.ffcodecdata.audio_channels > 2);
+  *softmax = 1 + int(scene->r.ffcodecdata.audio_channels > 2);
   *softmin = -*softmax;
 }
 
@@ -1474,8 +1474,9 @@ static Sequence *rna_SeqTimelineChannel_owner_get(Editing *ed, SeqTimelineChanne
     if (seq->type != SEQ_TYPE_META) {
       continue;
     }
-    if (BLI_findindex(&seq->channels, channel) >= 0) {
+    if (BLI_findindex(&seq->channels, channel) != -1) {
       channel_owner = seq;
+      break;
     }
   }
 
@@ -2869,8 +2870,11 @@ static void rna_def_movie(BlenderRNA *brna)
   func = RNA_def_function(srna, "reload_if_needed", "rna_MovieSequence_reload_if_needed");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN);
   /* return type */
-  parm = RNA_def_boolean(
-      func, "can_produce_frames", 0, "True if the strip can produce frames, False otherwise", "");
+  parm = RNA_def_boolean(func,
+                         "can_produce_frames",
+                         false,
+                         "True if the strip can produce frames, False otherwise",
+                         "");
   RNA_def_function_return(func, parm);
 
   /* metadata */

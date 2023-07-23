@@ -1023,7 +1023,7 @@ static void ccgDM_release(DerivedMesh *dm)
   if (ccgdm->multires.modified_flags) {
     /* Check that mmd still exists */
     if (!ccgdm->multires.local_mmd &&
-        BLI_findindex(&ccgdm->multires.ob->modifiers, ccgdm->multires.mmd) < 0)
+        BLI_findindex(&ccgdm->multires.ob->modifiers, ccgdm->multires.mmd) == -1)
     {
       ccgdm->multires.mmd = nullptr;
     }
@@ -1875,7 +1875,7 @@ void subsurf_calculate_limit_positions(Mesh *me, float (*r_positions)[3])
   CCGVertIterator vi;
   DerivedMesh *dm = CDDM_from_mesh(me);
 
-  ss_sync_from_derivedmesh(ss, dm, nullptr, 0, 0);
+  ss_sync_from_derivedmesh(ss, dm, nullptr, 0, false);
 
   for (ccgSubSurf_initVertIterator(ss, &vi); !ccgVertIterator_isStopped(&vi);
        ccgVertIterator_next(&vi))

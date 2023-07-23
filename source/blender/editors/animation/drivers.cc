@@ -6,9 +6,9 @@
  * \ingroup edanimation
  */
 
-#include <ctype.h>
-#include <stdio.h>
-#include <string.h>
+#include <cctype>
+#include <cstdio>
+#include <cstring>
 
 #include "MEM_guardedalloc.h"
 
@@ -605,7 +605,7 @@ bool ANIM_copy_driver(
                 "path = %s)",
                 id->name,
                 rna_path);
-    return 0;
+    return false;
   }
 
   /* try to get F-Curve with Driver */
@@ -630,11 +630,11 @@ bool ANIM_copy_driver(
     fcu->rna_path = tmp_path;
 
     /* copied... */
-    return 1;
+    return true;
   }
 
   /* done */
-  return 0;
+  return false;
 }
 
 bool ANIM_paste_driver(
@@ -653,13 +653,13 @@ bool ANIM_paste_driver(
         "Could not paste driver, as RNA path is invalid for the given ID (ID = %s, path = %s)",
         id->name,
         rna_path);
-    return 0;
+    return false;
   }
 
   /* if the buffer is empty, cannot paste... */
   if (channeldriver_copypaste_buf == nullptr) {
     BKE_report(reports, RPT_ERROR, "Paste driver: no driver to paste");
-    return 0;
+    return false;
   }
 
   /* create Driver F-Curve, but without data which will be copied across... */
@@ -1042,7 +1042,6 @@ static int add_driver_button_invoke(bContext *C, wmOperator *op, const wmEvent *
   PropertyRNA *prop = nullptr;
   int index;
 
-  /* try to find driver using property retrieved from UI */
   UI_context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_animateable(&ptr, prop)) {
@@ -1099,7 +1098,6 @@ static int remove_driver_button_exec(bContext *C, wmOperator *op)
   int index;
   const bool all = RNA_boolean_get(op->ptr, "all");
 
-  /* try to find driver using property retrieved from UI */
   UI_context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (all) {
@@ -1142,7 +1140,7 @@ void ANIM_OT_driver_button_remove(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO | OPTYPE_INTERNAL;
 
   /* properties */
-  RNA_def_boolean(ot->srna, "all", 1, "All", "Delete drivers for all elements of the array");
+  RNA_def_boolean(ot->srna, "all", true, "All", "Delete drivers for all elements of the array");
 }
 
 /* Edit Driver Button Operator ------------------------ */
@@ -1153,7 +1151,6 @@ static int edit_driver_button_exec(bContext *C, wmOperator *op)
   PropertyRNA *prop = nullptr;
   int index;
 
-  /* try to find driver using property retrieved from UI */
   UI_context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop) {
@@ -1188,7 +1185,6 @@ static int copy_driver_button_exec(bContext *C, wmOperator *op)
   bool changed = false;
   int index;
 
-  /* try to create driver using property retrieved from UI */
   UI_context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_animateable(&ptr, prop)) {
@@ -1232,7 +1228,6 @@ static int paste_driver_button_exec(bContext *C, wmOperator *op)
   bool changed = false;
   int index;
 
-  /* try to create driver using property retrieved from UI */
   UI_context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_animateable(&ptr, prop)) {

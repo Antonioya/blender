@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.0.0 Alpha (b'44ee5b38ac1b')\n"
+"Project-Id-Version: Blender 4.0.0 Alpha (b'5aff5bc0e72b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-07-04 16:07:54\n"
+"POT-Creation-Date: 2023-07-17 12:39:59\n"
 "PO-Revision-Date: 2016-10-13 03:05+0900\n"
 "Last-Translator: \n"
 "Language-Team: Japanese Translation Team (https://sites.google.com/site/blugjp/blender-translators)\n"
@@ -2213,10 +2213,6 @@ msgstr "シェイプキー"
 
 msgid "Shape Key data-blocks"
 msgstr "シェイプキーデータブロック"
-
-
-msgid "Simulations"
-msgstr "シミュレーション"
 
 
 msgid "Sounds"
@@ -10024,11 +10020,6 @@ msgstr "シーン"
 
 
 msgctxt "ID"
-msgid "Simulation"
-msgstr "シミュレーション"
-
-
-msgctxt "ID"
 msgid "Sound"
 msgstr "サウンド"
 
@@ -12655,10 +12646,6 @@ msgid "Show Scene data-blocks"
 msgstr "シーンデータブロックを表示します"
 
 
-msgid "Show Simulation data-blocks"
-msgstr "シミュレーションデータブロックを表示します"
-
-
 msgid "Show Sound data-blocks"
 msgstr "音声データブロックを表示します"
 
@@ -12824,10 +12811,6 @@ msgstr "オブジェクトとコレクションを表示します"
 
 msgid "Show scenes"
 msgstr "シーンを表示します"
-
-
-msgid "Show materials, nodetrees, textures and Freestyle's linestyles"
-msgstr "マテリアル、ノードツリー、テクスチャ、Freestyle ラインスタイルを表示します"
 
 
 msgid "Directory"
@@ -22551,10 +22534,6 @@ msgid "Whether the selected text is italics"
 msgstr "選択中のテキストがイタリックかどうか"
 
 
-msgid "Selected Smallcaps"
-msgstr "選択部分が小文字"
-
-
 msgid "Whether the selected text is small caps"
 msgstr "選択中のテキストが小文字かどうか"
 
@@ -24256,10 +24235,6 @@ msgid "Diffuse reflection multiplier"
 msgstr "ディフューズ反射の乗数"
 
 
-msgid "Falloff distance - the light is at half the original intensity at this point"
-msgstr "減衰距離。この地点での照明の強さは元の半分になります"
-
-
 msgid "Node tree for node based lights"
 msgstr "ノードベースのライト用ノードツリー"
 
@@ -24345,14 +24320,6 @@ msgid "Directional area Light"
 msgstr "指向性の面光源"
 
 
-msgid "Constant Coefficient"
-msgstr "一定の係数"
-
-
-msgid "Constant distance attenuation coefficient"
-msgstr "一定の距離減衰係数"
-
-
 msgid "Contact Shadow Bias"
 msgstr "コンタクトシャドウバイアス"
 
@@ -24386,66 +24353,6 @@ msgid "Light energy emitted over the entire area of the light in all directions"
 msgstr "ライトの全領域から全方向に放射する光のエネルギー"
 
 
-msgid "Custom light falloff curve"
-msgstr "カスタムライト減衰曲線"
-
-
-msgid "Falloff Type"
-msgstr "減衰タイプ"
-
-
-msgid "Intensity Decay with distance"
-msgstr "距離による明度の減少方法"
-
-
-msgid "Inverse Linear"
-msgstr "逆線形"
-
-
-msgid "Inverse Square"
-msgstr "逆二乗式"
-
-
-msgid "Inverse Coefficients"
-msgstr "逆係数"
-
-
-msgid "Lin/Quad Weighted"
-msgstr "重み付き線形/二次式"
-
-
-msgid "Linear Attenuation"
-msgstr "線形減衰"
-
-
-msgid "Linear distance attenuation"
-msgstr "線形の距離減衰"
-
-
-msgid "Linear Coefficient"
-msgstr "線形係数"
-
-
-msgid "Linear distance attenuation coefficient"
-msgstr "線形の距離減衰係数"
-
-
-msgid "Quadratic Attenuation"
-msgstr "二次式減衰"
-
-
-msgid "Quadratic distance attenuation"
-msgstr "二次距離減衰"
-
-
-msgid "Quadratic Coefficient"
-msgstr "二次係数"
-
-
-msgid "Quadratic distance attenuation coefficient"
-msgstr "二次の距離減衰係数"
-
-
 msgid "Shadow Buffer Bias"
 msgstr "シャドウバッファーバイアス"
 
@@ -24460,22 +24367,6 @@ msgstr "シャドウバッファークリッピング開始"
 
 msgid "Shadow map clip start, below which objects will not generate shadows"
 msgstr "シャドウマップのクリップ始端。これより近くのオブジェクトには影が生成されません"
-
-
-msgid "Samples"
-msgstr "サンプル数"
-
-
-msgid "Number of shadow buffer samples"
-msgstr "シャドウバッファーのサンプル数"
-
-
-msgid "Shadow Buffer Size"
-msgstr "シャドウバッファーの大きさ"
-
-
-msgid "Resolution of the shadow buffer, higher values give crisper shadows but use more memory"
-msgstr "シャドウバッファーの解像度。高い値で鮮明な影になりますが、より多くのメモリを使用します"
 
 
 msgid "Shadow Color"
@@ -26651,10 +26542,6 @@ msgstr "シェイプキー編集モード"
 
 msgid "Use Simulation Cache"
 msgstr "シミュレーションキャッシュを使用"
-
-
-msgid "Cache all frames during simulation nodes playback"
-msgstr "シミュレーションノードの再生期間中に全フレームをキャッシュします"
 
 
 msgid "Vertex Groups"
@@ -30559,6 +30446,10 @@ msgstr "アニメーションをレンダリングする再、JPEG プレビュ�
 
 msgid "Format of multiview media"
 msgstr "マルチビューメディアのフォーマット"
+
+
+msgid "Multi-View"
+msgstr "マルチビュー"
 
 
 msgid "Tile Number"
@@ -35561,6 +35452,10 @@ msgid "Minimum for measuring thickness"
 msgstr "計測する厚さの最小値"
 
 
+msgid "Samples"
+msgstr "サンプル数"
+
+
 msgid "Number of samples to test per face"
 msgstr "面毎にテストするサンプル数"
 
@@ -39546,10 +39441,6 @@ msgid "Add Threshold"
 msgstr "しきい値を追加"
 
 
-msgid "Lower bound for a vertex's weight to be added to the vgroup"
-msgstr "頂点グループに追加する頂点のウェイトの下限値"
-
-
 msgid "Default Weight"
 msgstr "デフォルトウェイト"
 
@@ -39673,10 +39564,6 @@ msgstr ""
 
 msgid "Remove Threshold"
 msgstr "削除しきい値"
-
-
-msgid "Upper bound for a vertex's weight to be removed from the vgroup"
-msgstr "頂点グループから削除する頂点ウェイトの上限です"
 
 
 msgid "Group Add"
@@ -45769,6 +45656,18 @@ msgid "Delete an attribute with a specified name from a geometry. Typically used
 msgstr "指定の名前の属性をジオメトリから削除します。通常パフォーマンスの最適化に使用します"
 
 
+msgid "Paired Output"
+msgstr "ペアの出力"
+
+
+msgid "Active Item Index"
+msgstr "アクティブアイテムインデックス"
+
+
+msgid "Index of the active item"
+msgstr "アクティブアイテムのインデックス"
+
+
 msgid "Replace Material"
 msgstr "マテリアル置換"
 
@@ -46118,24 +46017,12 @@ msgid "Simulation Input"
 msgstr "シミュレーション入力"
 
 
-msgid "Paired Output"
-msgstr "ペアの出力"
-
-
 msgid "Simulation output node that this input node is paired with"
 msgstr "この入力ノードとペアになるシミュレーション出力ノード"
 
 
 msgid "Simulation Output"
 msgstr "シミュレーション出力"
-
-
-msgid "Active Item Index"
-msgstr "アクティブアイテムインデックス"
-
-
-msgid "Index of the active item"
-msgstr "アクティブアイテムのインデックス"
 
 
 msgid "Spline Length"
@@ -55279,14 +55166,6 @@ msgid "Force keeping channels for bones"
 msgstr "ボーンチャンネルを強制的に最適化"
 
 
-msgid "if all keyframes are identical in a rig, force keeping the minimal animation. When off, all possible channels for the bones will be exported, even if empty (minimal animation, 2 keyframes)"
-msgstr ""
-"あるリグ内の全キーフレームが同一であった場合、アニメーションを\n"
-"強制的に最小限にします。無効時、ボーンの利用可能なチャンネルが\n"
-"空であっても、すべてエクスポートされます（最小アニメーションは\n"
-"キーフレーム２つ）"
-
-
 msgid "Force keeping channel for objects"
 msgstr "オブジェクトチャンネルを強制的に最適化"
 
@@ -59756,6 +59635,23 @@ msgstr "ストローク中にブラシをスムーズモードに切り替えま
 
 
 msgctxt "Operator"
+msgid "Select Mode"
+msgstr "選択モード"
+
+
+msgid "Select only points"
+msgstr "ポイントのみ選択します"
+
+
+msgid "Select all stroke points"
+msgstr "すべてのストロークポイントを選択します"
+
+
+msgid "Select all stroke points between other strokes"
+msgstr "他のストロークとの間のすべてのストロークポイントを選択します"
+
+
+msgctxt "Operator"
 msgid "Add Render Slot"
 msgstr "レンダースロットを追加"
 
@@ -63949,11 +63845,6 @@ msgid "Extend the existing selection"
 msgstr "既存の選択に追加で選択します"
 
 
-msgctxt "Operator"
-msgid "Select Mode"
-msgstr "選択モード"
-
-
 msgid "Change selection mode"
 msgstr "選択モードを変更します"
 
@@ -65158,6 +65049,10 @@ msgid "Add an object info node to the current node editor"
 msgstr "現在のノードエディターにオブジェクト情報ノードを追加します"
 
 
+msgid "Offset of nodes from the cursor when added"
+msgstr "追加時のカーソルからのノードへのオフセット"
+
+
 msgctxt "Operator"
 msgid "Add Reroute"
 msgstr "リルートを追加"
@@ -65187,10 +65082,6 @@ msgstr "シミュレーションゾーンを追加"
 
 msgid "Add simulation zone input and output nodes to the active tree"
 msgstr "シミュレーションゾーンの入出力ノードをアクティブツリーに追加します"
-
-
-msgid "Offset of nodes from the cursor when added"
-msgstr "追加時のカーソルからのノードへのオフセット"
 
 
 msgctxt "Operator"
@@ -73848,6 +73739,10 @@ msgid "Generic sculpt expand operator"
 msgstr "汎用のスカルプト拡大オペレーター"
 
 
+msgid "Falloff Type"
+msgstr "減衰タイプ"
+
+
 msgid "Initial falloff of the expand operation"
 msgstr "拡大操作の初期減衰"
 
@@ -77809,6 +77704,10 @@ msgid "Axis to align to"
 msgstr "揃える対象の軸"
 
 
+msgid "Correct Aspect"
+msgstr "アスペクト比の補正"
+
+
 msgid "Method to calculate rotation angle"
 msgstr "回転角度の計算に使用する方法"
 
@@ -77866,10 +77765,6 @@ msgstr "境界でクリッピング"
 
 msgid "Clip UV coordinates to bounds after unwrapping"
 msgstr "展開後にUV座標を矩形に切り抜きます"
-
-
-msgid "Correct Aspect"
-msgstr "アスペクト比の補正"
 
 
 msgid "Map UVs taking image aspect ratio into account"
@@ -81770,10 +81665,6 @@ msgid "Reload Start-Up File"
 msgstr "スタートアップファイルの再読み込み"
 
 
-msgid "Open the default file (doesn't save the current file)"
-msgstr "デフォルトのファイルを開く(現在のファイルは保存されません)"
-
-
 msgid "Path to an alternative start-up file"
 msgstr "代わりのスタートアップファイルのパス"
 
@@ -82326,10 +82217,6 @@ msgid "Import All Materials"
 msgstr "全マテリアルをインポート"
 
 
-msgid "Also import materials that are not used by any geometry.  Note that when this option is false, materials referenced by geometry will still be imported"
-msgstr "どのジオメトリにも使用されていないマテリアルもインポートします。このオプションが OFF の場合も、ジオメトリが参照するマテリアルはインポートされます"
-
-
 msgid "Import guide geometry"
 msgstr "ガイド形状をインポート"
 
@@ -82444,13 +82331,6 @@ msgstr "同名のマテリアルがすでにあった場合、インポートす
 
 msgid "Path Mask"
 msgstr "パスマスク"
-
-
-msgid "Import only the primitive at the given path and its descendents.  Multiple paths may be specified in a list delimited by commas or semicolons"
-msgstr ""
-"指定のパスのプリミティブとその子のみインポートします\n"
-"コンマまたはセミコロンで区切ったリストで複数のパスが\n"
-"指定されている可能性があります"
 
 
 msgid "Read mesh color attributes"
@@ -92473,10 +92353,6 @@ msgid "Single stereo camera system, adjust the stereo settings in the camera pan
 msgstr "単一のステレオカメラシステム。カメラパネルのステレオ設定で調整します"
 
 
-msgid "Multi-View"
-msgstr "マルチビュー"
-
-
 msgid "Multi camera system, adjust the cameras individually"
 msgstr "複数のカメラシステム。各カメラを別々に調整できます"
 
@@ -92519,6 +92395,10 @@ msgstr "アクティブビューインデックス"
 
 msgid "Active index in render view array"
 msgstr "レンダービュー配列中のアクティブインデックス"
+
+
+msgid "Color of the corresponding socket type in the node editor"
+msgstr "ノードエディター内でソケットタイプに対応する色"
 
 
 msgid "Constraint influencing Objects inside Rigid Body Simulation"
@@ -95980,10 +95860,6 @@ msgstr "シミュレーションアイテム"
 
 msgid "Attribute domain where the attribute is stored in the simulation state"
 msgstr "属性がシミュレーション状態に格納される属性ドメイン"
-
-
-msgid "Color of the corresponding socket type in the node editor"
-msgstr "ノードエディター内でソケットタイプに対応する色"
 
 
 msgid "Soft body simulation settings for an object"
@@ -101448,18 +101324,6 @@ msgid "Settings for stroke sculpting tools and brushes"
 msgstr "ストロークスカルプトツールとブラシ用の設定"
 
 
-msgid "Select only points"
-msgstr "ポイントのみ選択します"
-
-
-msgid "Select all stroke points"
-msgstr "すべてのストロークポイントを選択します"
-
-
-msgid "Select all stroke points between other strokes"
-msgstr "他のストロークとの間のすべてのストロークポイントを選択します"
-
-
 msgid "Stroke Placement (3D View)"
 msgstr "ストロークの配置（3Dビュー）"
 
@@ -104127,16 +103991,6 @@ msgstr "ワールドデータブロック用のライティング"
 
 msgid "Length of rays, defines how far away other faces give occlusion effect"
 msgstr "遮蔽効果が発生する、光線と他の面との距離"
-
-
-msgid "Use Ambient Occlusion"
-msgstr "アンビエントオクルージョンを使用"
-
-
-msgid "Use Ambient Occlusion to add shadowing based on distance between objects"
-msgstr ""
-"オブジェクト間の距離を元に影を追加する\n"
-"アンビエントオクルージョンを使用します"
 
 
 msgid "World Mist"
@@ -107027,10 +106881,6 @@ msgstr "Apple Silicon と macOS %s 以降、"
 
 msgid "or AMD with macOS %s or newer"
 msgstr "または AMD と macOS %s 以降が必要です"
-
-
-msgid "  - intel-level-zero-gpu version %s or newer"
-msgstr "　・intel-level-zero-gpu ver.%s 以降"
 
 
 msgid "Noise Threshold"
@@ -116406,48 +116256,8 @@ msgid "Original Mode"
 msgstr "オリジナルモード"
 
 
-msgid "Kilometers"
-msgstr "キロメートル"
-
-
-msgid "100 Meters"
-msgstr "100メートル"
-
-
-msgid "10 Meters"
-msgstr "10メートル"
-
-
-msgid "Meters"
-msgstr "メートル"
-
-
-msgid "10 Centimeters"
-msgstr "10センチメートル"
-
-
-msgid "Centimeters"
-msgstr "センチメートル"
-
-
 msgid "Micrometers"
 msgstr "マイクロメートル"
-
-
-msgid "Miles"
-msgstr "マイル"
-
-
-msgid "Furlongs"
-msgstr "ハロン"
-
-
-msgid "Chains"
-msgstr "チェーン"
-
-
-msgid "Yards"
-msgstr "ヤード"
 
 
 msgid "Feet"
@@ -116462,196 +116272,12 @@ msgid "Thou"
 msgstr "サウ"
 
 
-msgid "Square Kilometers"
-msgstr "平方キロメートル"
-
-
-msgid "Square Hectometers"
-msgstr "平方ヘクトメートル"
-
-
-msgid "Square Dekameters"
-msgstr "平方デカメートル"
-
-
-msgid "Square Meters"
-msgstr "平方メートル"
-
-
-msgid "Square Decimeters"
-msgstr "平方デシメートル"
-
-
-msgid "Square Centimeters"
-msgstr "平方センチメートル"
-
-
-msgid "Square Millimeters"
-msgstr "平方ミリメートル"
-
-
-msgid "Square Micrometers"
-msgstr "平方マイクロメートル"
-
-
-msgid "Square Miles"
-msgstr "平方マイル"
-
-
-msgid "Square Furlongs"
-msgstr "平方ハロン"
-
-
-msgid "Square Chains"
-msgstr "平方チェーン"
-
-
-msgid "Square Yards"
-msgstr "平方ヤード"
-
-
-msgid "Square Feet"
-msgstr "平方フィート"
-
-
-msgid "Square Inches"
-msgstr "平方インチ"
-
-
-msgid "Square Thou"
-msgstr "平方サウ"
-
-
-msgid "Cubic Kilometers"
-msgstr "立方キロメートル"
-
-
-msgid "Cubic Hectometers"
-msgstr "立方ヘクトメートル"
-
-
-msgid "Cubic Dekameters"
-msgstr "立方デカメートル"
-
-
-msgid "Cubic Meters"
-msgstr "立方メートル"
-
-
-msgid "Cubic Decimeters"
-msgstr "立方デシメートル"
-
-
-msgid "Cubic Centimeters"
-msgstr "立方センチメートル"
-
-
-msgid "Cubic Millimeters"
-msgstr "立方ミリメートル"
-
-
-msgid "Cubic Micrometers"
-msgstr "立方マイクロメートル"
-
-
-msgid "Cubic Miles"
-msgstr "立方マイル"
-
-
-msgid "Cubic Furlongs"
-msgstr "立方ハロン"
-
-
-msgid "Cubic Chains"
-msgstr "立方チェーン"
-
-
-msgid "Cubic Yards"
-msgstr "立方ヤード"
-
-
-msgid "Cubic Feet"
-msgstr "立方フィート"
-
-
-msgid "Cubic Inches"
-msgstr "立方インチ"
-
-
-msgid "Cubic Thou"
-msgstr "立方サウ"
-
-
 msgid "Tonnes"
 msgstr "トン"
 
 
 msgid "100 Kilograms"
 msgstr "100キログラム"
-
-
-msgid "Kilograms"
-msgstr "キログラム"
-
-
-msgid "Hectograms"
-msgstr "ヘクトグラム"
-
-
-msgid "10 Grams"
-msgstr "10グラム"
-
-
-msgid "Grams"
-msgstr "グラム"
-
-
-msgid "Milligrams"
-msgstr "ミリグラム"
-
-
-msgid "Centum weights"
-msgstr "ハンドレッドウェイト"
-
-
-msgid "Stones"
-msgstr "ストーン"
-
-
-msgid "Pounds"
-msgstr "ポンド"
-
-
-msgid "Ounces"
-msgstr "オンス"
-
-
-msgid "Meters per second"
-msgstr "メートル毎秒"
-
-
-msgid "Kilometers per hour"
-msgstr "キロメートル毎時"
-
-
-msgid "Feet per second"
-msgstr "フィート毎秒"
-
-
-msgid "Miles per hour"
-msgstr "マイル毎時"
-
-
-msgid "Meters per second squared"
-msgstr "メートル毎秒毎秒"
-
-
-msgid "Feet per second squared"
-msgstr "フィート毎秒毎秒"
-
-
-msgid "Days"
-msgstr "日"
 
 
 msgid "Hours"
@@ -116662,60 +116288,8 @@ msgid "Minutes"
 msgstr "分"
 
 
-msgid "Milliseconds"
-msgstr "ミリ秒"
-
-
 msgid "Microseconds"
 msgstr "マイクロ秒"
-
-
-msgid "Arcminutes"
-msgstr "分（'）"
-
-
-msgid "Arcseconds"
-msgstr "秒（''）"
-
-
-msgid "Gigawatts"
-msgstr "ギガワット"
-
-
-msgid "Megawatts"
-msgstr "メガワット"
-
-
-msgid "Kilowatts"
-msgstr "キロワット"
-
-
-msgid "Watts"
-msgstr "ワット"
-
-
-msgid "Milliwatts"
-msgstr "ミリワット"
-
-
-msgid "Microwatts"
-msgstr "マイクロワット"
-
-
-msgid "Nanowatts"
-msgstr "ナノワット"
-
-
-msgid "Kelvin"
-msgstr "ケルビン"
-
-
-msgid "Celsius"
-msgstr "℃"
-
-
-msgid "Fahrenheit"
-msgstr "華氏"
 
 
 msgid "Could not load volume for writing"
@@ -117965,10 +117539,6 @@ msgid "Operation is not allowed in edit mode"
 msgstr "編集モード時は実行できません"
 
 
-msgid "Loading Asset Libraries"
-msgstr "アセットライブラリ読み込み"
-
-
 msgid "Cannot evaluate node group"
 msgstr "ノードグループが評価できません"
 
@@ -119165,10 +118735,6 @@ msgid "Browse Volume Data to be linked"
 msgstr "リンクするボリュームデータを閲覧"
 
 
-msgid "Browse Simulation to be linked"
-msgstr "リンクするシミュレーションを閲覧"
-
-
 msgid "Browse Grease Pencil Data to be linked"
 msgstr "リンクするグリースペンシルを閲覧"
 
@@ -119310,11 +118876,6 @@ msgstr "新規"
 
 
 msgctxt "Volume"
-msgid "New"
-msgstr "新規"
-
-
-msgctxt "Simulation"
 msgid "New"
 msgstr "新規"
 
@@ -120359,10 +119920,6 @@ msgstr "コレクションが未選択です"
 
 msgid "Unexpected error, collection not found"
 msgstr "予期せぬエラー、コレクションが見つかりません"
-
-
-msgid "Cannot add objects to a library override collection"
-msgstr "ライブラリオーバーライドコレクションにはオブジェクトを追加できません"
 
 
 msgid "No objects selected"
@@ -121696,6 +121253,14 @@ msgid "Missing%s%s%s%s detected!"
 msgstr "欠けている%s%s%s%sを見つけました！"
 
 
+msgid "The modifier used does not support deformed locations"
+msgstr "使用中のモディファイアーは変形された位置には対応していません"
+
+
+msgid "No active vertex group for painting, aborting"
+msgstr "ペイントするアクティブ頂点グループがありません。中止します"
+
+
 msgid "Active group is locked, aborting"
 msgstr "アクショングループがロックされているため中止します"
 
@@ -121706,14 +121271,6 @@ msgstr "ミラーグループがロックされているため中止します"
 
 msgid "Multipaint group is locked, aborting"
 msgstr "マルチペイントグループがロックされているため中止します"
-
-
-msgid "The modifier used does not support deformed locations"
-msgstr "使用中のモディファイアーは変形された位置には対応していません"
-
-
-msgid "No active vertex group for painting, aborting"
-msgstr "ペイントするアクティブ頂点グループがありません。中止します"
 
 
 msgid "Not supported in dynamic topology mode"
@@ -122905,6 +122462,10 @@ msgstr "「%s」と「%s」の片方または両方が新しい場所に対応�
 
 msgid "Modifier could not be added to (%s : %s) (see console for details)"
 msgstr "モディファイアーが(%s : %s)に追加できませんでした（コンソールに詳細）"
+
+
+msgid "Loading Asset Libraries"
+msgstr "アセットライブラリ読み込み"
 
 
 msgid "The internal clipboard is empty"
@@ -124624,14 +124185,6 @@ msgid " or Alt) Even Thickness %s"
 msgstr "またはAlt）均一な厚さ %s"
 
 
-msgid "Tilt: %s° %s"
-msgstr "傾き：%s° %s"
-
-
-msgid "Tilt: %.2f° %s"
-msgstr "傾き：%.2f° %s"
-
-
 msgid "ScaleX: %s"
 msgstr "拡大縮小X: %s"
 
@@ -125139,62 +124692,6 @@ msgid "No active object or active object isn't a GPencil object"
 msgstr "アクティブオブジェクトなし、またはグリースペンシルオブジェクトではありません"
 
 
-msgid "Object type mismatch, Alembic object path pointed to Camera when importing, but not any more."
-msgstr "オブジェクトタイプミスマッチ。インポート時 Alembic オブジェクトパスは Camera を指していましたが、今は違います"
-
-
-msgid "Object type mismatch, Alembic object path points to Camera."
-msgstr "オブジェクトタイプミスマッチ。Alembic オブジェクトパスは Camera を指しています"
-
-
-msgid "Object type mismatch, Alembic object path pointed to Curves when importing, but not any more."
-msgstr "オブジェクトタイプミスマッチ。インポート時 Alembic オブジェクトパスは Curves を指していましたが、今は違います"
-
-
-msgid "Object type mismatch, Alembic object path points to Curves."
-msgstr "オブジェクトタイプミスマッチ。Alembic オブジェクトパスは Curves を指しています"
-
-
-msgid "Object type mismatch, Alembic object path pointed to PolyMesh when importing, but not any more."
-msgstr "オブジェクトタイプミスマッチ。インポート時 Alembic オブジェクトパスは PolyMesh を指していましたが、今は違います"
-
-
-msgid "Object type mismatch, Alembic object path points to PolyMesh."
-msgstr "オブジェクトタイプミスマッチ。Alembic オブジェクトパスは PolyMesh を指しています"
-
-
-msgid "Object type mismatch, Alembic object path pointed to SubD when importing, but not any more."
-msgstr "オブジェクトタイプミスマッチ。インポート時 Alembic オブジェクトパスは SubD を指していましたが、今は違います"
-
-
-msgid "Object type mismatch, Alembic object path points to SubD."
-msgstr "オブジェクトタイプミスマッチ。Alembic オブジェクトパスは SubD を指しています"
-
-
-msgid "Object type mismatch, Alembic object path pointed to NURBS when importing, but not any more."
-msgstr "オブジェクトタイプミスマッチ。インポート時 Alembic オブジェクトパスは NURBS を指していましたが、今は違います"
-
-
-msgid "Object type mismatch, Alembic object path points to NURBS."
-msgstr "オブジェクトタイプミスマッチ。Alembic オブジェクトパスは NURBS を指しています"
-
-
-msgid "Object type mismatch, Alembic object path pointed to Points when importing, but not any more."
-msgstr "オブジェクトタイプミスマッチ。インポート時 Alembic オブジェクトパスは Points を指していましたが、今は違います"
-
-
-msgid "Object type mismatch, Alembic object path points to Points."
-msgstr "オブジェクトタイプミスマッチ。Alembic オブジェクトパスは Points を指しています"
-
-
-msgid "Object type mismatch, Alembic object path pointed to XForm when importing, but not any more."
-msgstr "オブジェクトタイプミスマッチ。インポート時 Alembic オブジェクトパスは XForm を指していましたが、今は違います"
-
-
-msgid "Object type mismatch, Alembic object path points to XForm."
-msgstr "オブジェクトタイプミスマッチ。Alembic オブジェクトパスが XForm を指しています"
-
-
 msgid "Could not open Alembic archive for reading, see console for detail"
 msgstr "Alembic アーカイブを開いて読み込みできません！（コンソールに詳細）"
 
@@ -125269,10 +124766,6 @@ msgstr "%s: 相手のアセット「%s」がクローズできません"
 
 msgid "%s: Texture import directory path empty, couldn't import %s"
 msgstr "%s: テクスチャインポートディレクトリパスが空で「%s」がインポートできません"
-
-
-msgid "%s: import directory is relative but the blend file path is empty.  Please save the blend file before importing the USD or provide an absolute import directory path.  Can't import %s"
-msgstr "%s: インポートディレクトリが相対パスですが、blend ファイルのパスが空です。USD インポート前に blend ファイルを保存するか、インポートディレクトリを絶対パスにしてください。「%s」がインポートできません"
 
 
 msgid "%s: Couldn't create texture import directory %s"
@@ -129584,18 +129077,6 @@ msgid "%s: failed to load '%s'"
 msgstr "%s:「%s」の読み込みに失敗しました"
 
 
-msgid "reading render result: dimensions don't match, expected %dx%d"
-msgstr "レンダーリザルト読込：寸法が合いません（予定：%d×%d）"
-
-
-msgid "reading render result: expected channel \"%s.%s\" or \"%s\" not found"
-msgstr "レンダーリザルト読込：必要なチャンネル「%s.%s」や「%s」が見つかりません"
-
-
-msgid "reading render result: expected channel \"%s.%s\" not found"
-msgstr "レンダーリザルト読込：必要なチャンネル「%s.%s」が見つかりません"
-
-
 msgctxt "Sequence"
 msgid "Color Balance"
 msgstr "カラーバランス"
@@ -129862,16 +129343,16 @@ msgid "Can't link data-block '%s' of type '%s'"
 msgstr "データブロック「%s」（タイプ「%s」）をリンクできません"
 
 
-msgid "'%s': not a library"
-msgstr "「%s」: ライブラリではありません"
+msgid "'%s': cannot use current file as library"
+msgstr "「%s」: 現在のファイルはライブラリとして使用できません"
 
 
 msgid "'%s': nothing indicated"
 msgstr "「%s」: 何も表示していません"
 
 
-msgid "'%s': cannot use current file as library"
-msgstr "「%s」: 現在のファイルはライブラリとして使用できません"
+msgid "'%s': not a library"
+msgstr "「%s」: ライブラリではありません"
 
 
 msgid "Scene '%s' is linked, instantiation of objects is disabled"

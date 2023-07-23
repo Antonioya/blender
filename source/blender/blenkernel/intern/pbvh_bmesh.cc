@@ -1592,7 +1592,7 @@ bool BKE_pbvh_bmesh_node_raycast_detail(PBVHNode *node,
                                         float *r_edge_length)
 {
   if (node->flag & PBVH_FullyHidden) {
-    return 0;
+    return false;
   }
 
   GSetIterator gs_iter;
@@ -2198,13 +2198,15 @@ static void pbvh_bmesh_print(PBVH *pbvh)
   BMIter iter;
   BMFace *f;
   BM_ITER_MESH (f, &iter, pbvh->header.bm, BM_FACES_OF_MESH) {
-    fprintf(stderr, "  %d -> %d\n", BM_elem_index_get(f), pbvh_bmesh_node_index_from_face(pbvh, f));
+    fprintf(
+        stderr, "  %d -> %d\n", BM_elem_index_get(f), pbvh_bmesh_node_index_from_face(pbvh, f));
   }
 
   fprintf(stderr, "bm_vert_to_node:\n");
   BMVert *v;
   BM_ITER_MESH (v, &iter, pbvh->header.bm, BM_FACES_OF_MESH) {
-    fprintf(stderr, "  %d -> %d\n", BM_elem_index_get(v), pbvh_bmesh_node_index_from_vert(pbvh, v));
+    fprintf(
+        stderr, "  %d -> %d\n", BM_elem_index_get(v), pbvh_bmesh_node_index_from_vert(pbvh, v));
   }
 
   for (int n = 0; n < pbvh->totnode; n++) {

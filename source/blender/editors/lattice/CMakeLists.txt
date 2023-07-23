@@ -4,15 +4,8 @@
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../blenlib
-  ../../depsgraph
-  ../../makesdna
   ../../makesrna
   ../../render
-  ../../windowmanager
-  ../../../../intern/clog
-  ../../../../intern/guardedalloc
 )
 
 set(INC_SYS
@@ -29,6 +22,13 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
+  PRIVATE bf::intern::clog
+  PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
 
 blender_add_lib(bf_editor_lattice "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

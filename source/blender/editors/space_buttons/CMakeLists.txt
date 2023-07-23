@@ -4,19 +4,10 @@
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../blenlib
   ../../blenloader
-  ../../blentranslation
   ../../gpu
-  ../../makesdna
   ../../makesrna
-  ../../windowmanager
-  ../../../../intern/guardedalloc
-  ../../bmesh
 
-  # dna_type_offsets.h
-  ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -25,15 +16,22 @@ set(INC_SYS
 )
 
 set(SRC
-  buttons_context.c
-  buttons_ops.c
+  buttons_context.cc
+  buttons_ops.cc
   buttons_texture.cc
-  space_buttons.c
+  space_buttons.cc
 
   buttons_intern.h
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
 
 

@@ -4,20 +4,11 @@
 
 set(INC
   ../include
-  ../../blenfont
-  ../../blenkernel
-  ../../blenlib
   ../../blenloader
-  ../../blentranslation
-  ../../bmesh
-  ../../depsgraph
   ../../gpu
   ../../imbuf
-  ../../makesdna
   ../../makesrna
   ../../sequencer
-  ../../windowmanager
-  ../../../../intern/guardedalloc
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -27,26 +18,35 @@ set(INC_SYS
 
 set(SRC
   area.cc
-  area_query.c
-  area_utils.c
-  glutil.c
-  screen_context.c
-  screen_draw.c
-  screen_edit.c
-  screen_geometry.c
-  screen_ops.c
-  screen_user_menu.c
-  screendump.c
-  workspace_edit.c
-  workspace_layout_edit.c
+  area_query.cc
+  area_utils.cc
+  glutil.cc
+  screen_context.cc
+  screen_draw.cc
+  screen_edit.cc
+  screen_geometry.cc
+  screen_ops.cc
+  screen_user_menu.cc
+  screendump.cc
+  workspace_edit.cc
+  workspace_layout_edit.cc
   workspace_listen.cc
 
   screen_intern.h
 )
 
 set(LIB
+  PRIVATE bf::blenfont
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
   bf_editor_datafiles
   bf_editor_space_sequencer
+  PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
 
 

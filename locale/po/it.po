@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.0.0 Alpha (b'44ee5b38ac1b')\n"
+"Project-Id-Version: Blender 4.0.0 Alpha (b'5aff5bc0e72b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-07-04 16:07:54\n"
+"POT-Creation-Date: 2023-07-17 12:39:59\n"
 "PO-Revision-Date: 2022-01-21 16:08+0100\n"
 "Last-Translator: MT\n"
 "Language-Team: blend-it <https://developer.blender.org/T42765>\n"
@@ -6415,11 +6415,6 @@ msgstr "Scena"
 
 
 msgctxt "ID"
-msgid "Simulation"
-msgstr "Simulazione"
-
-
-msgctxt "ID"
 msgid "Sound"
 msgstr "Suono"
 
@@ -12318,10 +12313,6 @@ msgid "Cycles light settings"
 msgstr "Impostazioni luci Cycles"
 
 
-msgid "Falloff distance - the light is at half the original intensity at this point"
-msgstr "Distanza decadimento - la luce ha metà dell'intensità originale a questa distanza"
-
-
 msgid "Specular Factor"
 msgstr "Fattore Speculare"
 
@@ -12383,14 +12374,6 @@ msgid "Directional area Light"
 msgstr "Luce area direzionale"
 
 
-msgid "Constant Coefficient"
-msgstr "Coefficiente Costante"
-
-
-msgid "Constant distance attenuation coefficient"
-msgstr "Coefficiente distanza di attenuazione costante"
-
-
 msgid "Contact Shadow Distance"
 msgstr "Distanza Ombre di Contatto"
 
@@ -12399,76 +12382,12 @@ msgid "Contact Shadow Thickness"
 msgstr "Spessore Ombre di Contatto"
 
 
-msgid "Falloff Type"
-msgstr "Tipo Decadimento"
-
-
-msgid "Intensity Decay with distance"
-msgstr "Decadimento dell'intensità con la distanza"
-
-
-msgid "Inverse Linear"
-msgstr "Lineare Inverso"
-
-
-msgid "Inverse Square"
-msgstr "Quadratico Inverso"
-
-
-msgid "Inverse Coefficients"
-msgstr "Coefficienti Inversi"
-
-
-msgid "Lin/Quad Weighted"
-msgstr "Lin/Quadr Pesati"
-
-
-msgid "Linear Attenuation"
-msgstr "Attenuazione Lineare"
-
-
-msgid "Linear distance attenuation"
-msgstr "Attenuazione lineare con la distanza"
-
-
-msgid "Linear Coefficient"
-msgstr "Coefficiente Lineare"
-
-
-msgid "Linear distance attenuation coefficient"
-msgstr "Coefficiente distanza di attenuazione lineare"
-
-
-msgid "Quadratic Attenuation"
-msgstr "Attenuazione Quadratica"
-
-
-msgid "Quadratic distance attenuation"
-msgstr "Attenuazione quadratica con la distanza"
-
-
-msgid "Quadratic Coefficient"
-msgstr "Coefficiente Quadratico"
-
-
-msgid "Quadratic distance attenuation coefficient"
-msgstr "Coefficiente distanza di attenuazione quadratico"
-
-
 msgid "Shadow Buffer Bias"
 msgstr "Influenza Buffer Ombra"
 
 
 msgid "Shadow Buffer Clip Start"
 msgstr "Taglio Iniziale Buffer Ombra"
-
-
-msgid "Samples"
-msgstr "Campioni"
-
-
-msgid "Shadow Buffer Size"
-msgstr "Dimensione Buffer Ombra"
 
 
 msgid "Shadow Color"
@@ -16088,6 +16007,10 @@ msgid "Format of multiview media"
 msgstr "Formato del media multivista"
 
 
+msgid "Multi-View"
+msgstr "Multi-Vista"
+
+
 msgid "Image Preview"
 msgstr "Anteprima Immagine"
 
@@ -18816,6 +18739,10 @@ msgid "Thickness Min"
 msgstr "Spessore Min"
 
 
+msgid "Samples"
+msgstr "Campioni"
+
+
 msgid "Number of samples to test per face"
 msgstr "Numero di campioni da testare per faccia"
 
@@ -21209,10 +21136,6 @@ msgid "Add Threshold"
 msgstr "Aggiunge Soglia"
 
 
-msgid "Lower bound for a vertex's weight to be added to the vgroup"
-msgstr "Limite inferiore per il peso del vertice che deve essere aggiunto al gruppo"
-
-
 msgid "Default Weight"
 msgstr "Peso Predefinito"
 
@@ -21302,10 +21225,6 @@ msgstr "Nome del gruppo di vertici di mascheramento"
 
 msgid "Remove Threshold"
 msgstr "Rimuovi Soglia"
-
-
-msgid "Upper bound for a vertex's weight to be removed from the vgroup"
-msgstr "Limite superiore per il peso del vertice che deve essere rimosso dal gruppo"
 
 
 msgid "Group Add"
@@ -29912,6 +29831,11 @@ msgstr "Dispone il pennello nel modo morbido per la durata del tratto"
 
 
 msgctxt "Operator"
+msgid "Select Mode"
+msgstr "Modo Selezione"
+
+
+msgctxt "Operator"
 msgid "Add Render Slot"
 msgstr "Aggiungi Slot Render"
 
@@ -32295,11 +32219,6 @@ msgstr "Seleziona gli elementi della mesh nelle posizioni specchiate"
 
 msgid "Extend the existing selection"
 msgstr "Espande la selezione esistente"
-
-
-msgctxt "Operator"
-msgid "Select Mode"
-msgstr "Modo Selezione"
 
 
 msgid "Change selection mode"
@@ -37813,6 +37732,10 @@ msgid "Dynamic topology alters the mesh topology while sculpting"
 msgstr "La topologia dinamica altera la topologia della mesh mentre si scolpisce"
 
 
+msgid "Falloff Type"
+msgstr "Tipo Decadimento"
+
+
 msgid "Operator"
 msgstr "Operatore"
 
@@ -39586,6 +39509,10 @@ msgid "Align UVs on Y axis"
 msgstr "Allinea le UV sull'asse Y"
 
 
+msgid "Correct Aspect"
+msgstr "Aspetto Corretto"
+
+
 msgctxt "Operator"
 msgid "Average Islands Scale"
 msgstr "Omogeneizza Scala Isole"
@@ -39610,10 +39537,6 @@ msgstr "Aggancia ai Limiti"
 
 msgid "Clip UV coordinates to bounds after unwrapping"
 msgstr "Aggancia le coordinate UV ai limiti dopo la scucitura"
-
-
-msgid "Correct Aspect"
-msgstr "Aspetto Corretto"
 
 
 msgid "Map UVs taking image aspect ratio into account"
@@ -41367,10 +41290,6 @@ msgstr "Ricarica la cronologia ed i segnalibri"
 msgctxt "Operator"
 msgid "Reload Start-Up File"
 msgstr "Ricarica il File di Avvio"
-
-
-msgid "Open the default file (doesn't save the current file)"
-msgstr "Apre il file predefinito (non salva il file corrente)"
 
 
 msgid "Path to an alternative start-up file"
@@ -46280,10 +46199,6 @@ msgid "Single stereo camera system, adjust the stereo settings in the camera pan
 msgstr "Sistema stereoscopico a camera singola. Aggiusta le impostazioni stereoscopiche nel pannello Camera"
 
 
-msgid "Multi-View"
-msgstr "Multi-Vista"
-
-
 msgid "Multi camera system, adjust the cameras individually"
 msgstr "Sistema stereoscopico multi camera. Aggiusta le camere individualmente"
 
@@ -51051,14 +50966,6 @@ msgstr "Illuminazione per un blocco-dati Mondo"
 
 msgid "Length of rays, defines how far away other faces give occlusion effect"
 msgstr "Lunghezza dei raggi, definisce quanto sono lontane le altre facce che danno l'effetto di occlusione"
-
-
-msgid "Use Ambient Occlusion"
-msgstr "Usa Occlusione Ambientale"
-
-
-msgid "Use Ambient Occlusion to add shadowing based on distance between objects"
-msgstr "Usa Occlusione Ambientale per aggiungere ombre in base alla distanza tra gli oggetti"
 
 
 msgid "World Mist"
@@ -56292,11 +56199,6 @@ msgid "New"
 msgstr "Nuovo"
 
 
-msgctxt "Simulation"
-msgid "New"
-msgstr "Nuova"
-
-
 msgid "%d items"
 msgstr "%d elementi"
 
@@ -58400,14 +58302,6 @@ msgid " or Alt) Even Thickness %s"
 msgstr " o Alt) Spessore Uniforme %s"
 
 
-msgid "Tilt: %s° %s"
-msgstr "Inclinazione: %s° %s"
-
-
-msgid "Tilt: %.2f° %s"
-msgstr "Inclinazione: %.2f° %s"
-
-
 msgid "ScaleX: %s"
 msgstr "ScalaX: %s"
 
@@ -59496,16 +59390,16 @@ msgid "Nothing indicated"
 msgstr "Nessuna selezione"
 
 
-msgid "'%s': not a library"
-msgstr "'%s': non è una libreria"
+msgid "'%s': cannot use current file as library"
+msgstr "'%s': impossibile usare il file corrente come libreria"
 
 
 msgid "'%s': nothing indicated"
 msgstr "'%s': nulla indicato"
 
 
-msgid "'%s': cannot use current file as library"
-msgstr "'%s': impossibile usare il file corrente come libreria"
+msgid "'%s': not a library"
+msgstr "'%s': non è una libreria"
 
 
 msgid "'%s' is not a valid library filepath"

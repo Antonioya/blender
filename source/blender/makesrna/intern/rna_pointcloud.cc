@@ -6,7 +6,7 @@
  * \ingroup RNA
  */
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -52,7 +52,7 @@ static int rna_Point_index_get_const(const PointerRNA *ptr)
   const PointCloud *pointcloud = rna_pointcloud(ptr);
   const float(*co)[3] = static_cast<const float(*)[3]>(ptr->data);
   const float(*positions)[3] = get_pointcloud_positions_const(pointcloud);
-  return (int)(co - positions);
+  return int(co - positions);
 }
 
 static int rna_Point_index_get(PointerRNA *ptr)
@@ -194,7 +194,7 @@ static void rna_def_pointcloud(BlenderRNA *brna)
   RNA_def_property_collection_sdna(prop, nullptr, "mat", "totcol");
   RNA_def_property_struct_type(prop, "Material");
   RNA_def_property_ui_text(prop, "Materials", "");
-  RNA_def_property_srna(prop, "IDMaterials"); /* see rna_ID.c */
+  RNA_def_property_srna(prop, "IDMaterials"); /* see rna_ID.cc */
   RNA_def_property_collection_funcs(prop,
                                     nullptr,
                                     nullptr,

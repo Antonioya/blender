@@ -104,8 +104,7 @@ enum ePoseSlide_Modes {
   POSESLIDE_RELAX,
   /** Slide between the endpoint poses, finding a 'soft' spot. */
   POSESLIDE_BREAKDOWN,
-  POSESLIDE_PUSH_REST,
-  POSESLIDE_RELAX_REST,
+  POSESLIDE_BLEND_REST,
   POSESLIDE_BLEND,
 };
 
@@ -136,7 +135,7 @@ struct tPoseSlideOp {
   /** links between posechannels and f-curves for all the pose objects. */
   ListBase pfLinks;
   /** binary tree for quicker searching for keyframes (when applicable) */
-  struct AnimKeylist *keylist;
+  AnimKeylist *keylist;
 
   /** current frame number - global time */
   int current_frame;
@@ -159,7 +158,7 @@ struct tPoseSlideOp {
   /** Axis-limits for transforms. */
   ePoseSlide_AxisLock axislock;
 
-  struct tSlider *slider;
+  tSlider *slider;
 
   /** Numeric input. */
   NumInput num;
@@ -363,7 +362,7 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, FCurve *fcu, Object *ob, flo
   pose_frame_range_from_object_get(pso, ob, &prev_frame, &next_frame);
 
   const float factor = ED_slider_factor_get(pso->slider);
-  const float current_frame = (float)pso->current_frame;
+  const float current_frame = float(pso->current_frame);
 
   /* Calculate the relative weights of the endpoints. */
   if (pso->mode == POSESLIDE_BREAKDOWN) {
@@ -377,8 +376,8 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, FCurve *fcu, Object *ob, flo
      * - they then get normalized so that they only sum up to 1
      */
 
-    next_weight = current_frame - (float)pso->prev_frame;
-    prev_weight = (float)pso->next_frame - current_frame;
+    next_weight = current_frame - float(pso->prev_frame);
+    prev_weight = float(pso->next_frame) - current_frame;
 
     const float total_weight = next_weight + prev_weight;
     next_weight = (next_weight / total_weight);
@@ -428,8 +427,7 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, FCurve *fcu, Object *ob, flo
       break;
     }
     /* Those are handled in pose_slide_rest_pose_apply. */
-    case POSESLIDE_PUSH_REST:
-    case POSESLIDE_RELAX_REST: {
+    case POSESLIDE_BLEND_REST: {
       break;
     }
   }
@@ -516,7 +514,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
             const bool is_array = RNA_property_array_check(prop);
             float tval;
             if (is_array) {
-              if (UNLIKELY((uint)fcu->array_index >= RNA_property_array_length(&ptr, prop))) {
+              if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
                 break; /* Out of range, skip. */
               }
               tval = RNA_property_float_get_index(&ptr, prop, fcu->array_index);
@@ -539,7 +537,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
             const bool is_array = RNA_property_array_check(prop);
             float tval;
             if (is_array) {
-              if (UNLIKELY((uint)fcu->array_index >= RNA_property_array_length(&ptr, prop))) {
+              if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
                 break; /* Out of range, skip. */
               }
               tval = RNA_property_int_get_index(&ptr, prop, fcu->array_index);
@@ -564,7 +562,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
             const bool is_array = RNA_property_array_check(prop);
             float tval;
             if (is_array) {
-              if (UNLIKELY((uint)fcu->array_index >= RNA_property_array_length(&ptr, prop))) {
+              if (UNLIKELY(uint(fcu->array_index) >= RNA_property_array_length(&ptr, prop))) {
                 break; /* Out of range, skip. */
               }
               tval = RNA_property_boolean_get_index(&ptr, prop, fcu->array_index);
@@ -620,7 +618,7 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
   path = BLI_sprintfN("%s.%s", pfl->pchan_path, "rotation_quaternion");
 
   /* Get the current frame number. */
-  const float current_frame = (float)pso->current_frame;
+  const float current_frame = float(pso->current_frame);
   const float factor = ED_slider_factor_get(pso->slider);
 
   /* Using this path, find each matching F-Curve for the variables we're interested in. */
@@ -677,7 +675,7 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 
         /* Compute breakdown based on actual frame range. */
         const float interp_factor = (current_frame - pso->prev_frame) /
-                                    (float)(pso->next_frame - pso->prev_frame);
+                                    float(pso->next_frame - pso->prev_frame);
 
         interp_qt_qtqt(quat_breakdown, quat_prev, quat_next, interp_factor);
 
@@ -735,13 +733,7 @@ static void pose_slide_rest_pose_apply_vec3(tPoseSlideOp *pso, float vec[3], flo
         ((lock & PS_LOCK_Z) && (idx == 2)))
     {
       float diff_val = default_value - vec[idx];
-      if (pso->mode == POSESLIDE_RELAX_REST) {
-        vec[idx] += factor * diff_val;
-      }
-      else {
-        /* Push */
-        vec[idx] -= factor * diff_val;
-      }
+      vec[idx] += factor * diff_val;
     }
   }
 }
@@ -758,13 +750,7 @@ static void pose_slide_rest_pose_apply_other_rot(tPoseSlideOp *pso, float vec[4]
   const float factor = ED_slider_factor_get(pso->slider);
   for (int idx = 0; idx < 4; idx++) {
     float diff_val = default_values[idx] - vec[idx];
-    if (pso->mode == POSESLIDE_RELAX_REST) {
-      vec[idx] += factor * diff_val;
-    }
-    else {
-      /* Push */
-      vec[idx] -= factor * diff_val;
-    }
+    vec[idx] += factor * diff_val;
   }
 }
 
@@ -911,7 +897,7 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
 static void pose_slide_autoKeyframe(bContext *C, tPoseSlideOp *pso)
 {
   /* Wrapper around the generic call. */
-  poseAnim_mapping_autoKeyframe(C, pso->scene, &pso->pfLinks, (float)pso->current_frame);
+  poseAnim_mapping_autoKeyframe(C, pso->scene, &pso->pfLinks, float(pso->current_frame));
 }
 
 /**
@@ -1052,7 +1038,7 @@ static int pose_slide_invoke_common(bContext *C, wmOperator *op, const wmEvent *
     return OPERATOR_CANCELLED;
   }
 
-  float current_frame = (float)pso->current_frame;
+  float current_frame = float(pso->current_frame);
 
   /* Firstly, check if the current frame is a keyframe. */
   const ActKeyColumn *ak = ED_keylist_find_exact(pso->keylist, current_frame);
@@ -1093,7 +1079,7 @@ static int pose_slide_invoke_common(bContext *C, wmOperator *op, const wmEvent *
 
   /* Initial apply for operator. */
   /* TODO: need to calculate factor for initial round too. */
-  if (!ELEM(pso->mode, POSESLIDE_PUSH_REST, POSESLIDE_RELAX_REST)) {
+  if (!ELEM(pso->mode, POSESLIDE_BLEND_REST)) {
     pose_slide_apply(C, pso);
   }
   else {
@@ -1346,7 +1332,7 @@ static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
     pose_slide_reset(pso);
 
     /* Apply. */
-    if (!ELEM(pso->mode, POSESLIDE_PUSH_REST, POSESLIDE_RELAX_REST)) {
+    if (!ELEM(pso->mode, POSESLIDE_BLEND_REST)) {
       pose_slide_apply(C, pso);
     }
     else {
@@ -1373,7 +1359,7 @@ static void pose_slide_cancel(bContext *C, wmOperator *op)
 static int pose_slide_exec_common(bContext *C, wmOperator *op, tPoseSlideOp *pso)
 {
   /* Settings should have been set up ok for applying, so just apply! */
-  if (!ELEM(pso->mode, POSESLIDE_PUSH_REST, POSESLIDE_RELAX_REST)) {
+  if (!ELEM(pso->mode, POSESLIDE_BLEND_REST)) {
     pose_slide_apply(C, pso);
   }
   else {
@@ -1561,15 +1547,19 @@ void POSE_OT_relax(wmOperatorType *ot)
 
 /* ........................ */
 /**
- * Operator `invoke()` - for 'push from rest pose' mode.
+ * Operator `invoke()` - for 'blend with rest pose' mode.
  */
-static int pose_slide_push_rest_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static int pose_slide_blend_rest_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* Initialize data. */
-  if (pose_slide_init(C, op, POSESLIDE_PUSH_REST) == 0) {
+  if (pose_slide_init(C, op, POSESLIDE_BLEND_REST) == 0) {
     pose_slide_exit(C, op);
     return OPERATOR_CANCELLED;
   }
+
+  tPoseSlideOp *pso = static_cast<tPoseSlideOp *>(op->customdata);
+  ED_slider_factor_set(pso->slider, 0);
+  ED_slider_factor_bounds_set(pso->slider, -1, 1);
 
   /* do common setup work */
   return pose_slide_invoke_common(C, op, event);
@@ -1578,12 +1568,12 @@ static int pose_slide_push_rest_invoke(bContext *C, wmOperator *op, const wmEven
 /**
  * Operator `exec()` - for push.
  */
-static int pose_slide_push_rest_exec(bContext *C, wmOperator *op)
+static int pose_slide_blend_rest_exec(bContext *C, wmOperator *op)
 {
   tPoseSlideOp *pso;
 
   /* Initialize data (from RNA-props). */
-  if (pose_slide_init(C, op, POSESLIDE_PUSH_REST) == 0) {
+  if (pose_slide_init(C, op, POSESLIDE_BLEND_REST) == 0) {
     pose_slide_exit(C, op);
     return OPERATOR_CANCELLED;
   }
@@ -1594,73 +1584,16 @@ static int pose_slide_push_rest_exec(bContext *C, wmOperator *op)
   return pose_slide_exec_common(C, op, pso);
 }
 
-void POSE_OT_push_rest(wmOperatorType *ot)
+void POSE_OT_blend_with_rest(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Push Pose from Rest Pose";
-  ot->idname = "POSE_OT_push_rest";
-  ot->description = "Push the current pose further away from the rest pose";
+  ot->name = "Blend Pose with Rest Pose";
+  ot->idname = "POSE_OT_blend_with_rest";
+  ot->description = "Make the current pose more similar to, or further away from, the rest pose";
 
   /* callbacks */
-  ot->exec = pose_slide_push_rest_exec;
-  ot->invoke = pose_slide_push_rest_invoke;
-  ot->modal = pose_slide_modal;
-  ot->cancel = pose_slide_cancel;
-  ot->poll = ED_operator_posemode;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR_X;
-
-  /* Properties */
-  pose_slide_opdef_properties(ot);
-}
-
-/* ........................ */
-
-/**
- * Operator `invoke()` - for 'relax' mode.
- */
-static int pose_slide_relax_rest_invoke(bContext *C, wmOperator *op, const wmEvent *event)
-{
-  /* Initialize data. */
-  if (pose_slide_init(C, op, POSESLIDE_RELAX_REST) == 0) {
-    pose_slide_exit(C, op);
-    return OPERATOR_CANCELLED;
-  }
-
-  /* Do common setup work. */
-  return pose_slide_invoke_common(C, op, event);
-}
-
-/**
- * Operator `exec()` - for relax.
- */
-static int pose_slide_relax_rest_exec(bContext *C, wmOperator *op)
-{
-  tPoseSlideOp *pso;
-
-  /* Initialize data (from RNA-props). */
-  if (pose_slide_init(C, op, POSESLIDE_RELAX_REST) == 0) {
-    pose_slide_exit(C, op);
-    return OPERATOR_CANCELLED;
-  }
-
-  pso = static_cast<tPoseSlideOp *>(op->customdata);
-
-  /* Do common exec work. */
-  return pose_slide_exec_common(C, op, pso);
-}
-
-void POSE_OT_relax_rest(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Relax Pose to Rest Pose";
-  ot->idname = "POSE_OT_relax_rest";
-  ot->description = "Make the current pose more similar to the rest pose";
-
-  /* callbacks */
-  ot->exec = pose_slide_relax_rest_exec;
-  ot->invoke = pose_slide_relax_rest_invoke;
+  ot->exec = pose_slide_blend_rest_exec;
+  ot->invoke = pose_slide_blend_rest_invoke;
   ot->modal = pose_slide_modal;
   ot->cancel = pose_slide_cancel;
   ot->poll = ED_operator_posemode;
@@ -1802,7 +1735,7 @@ enum ePosePropagate_Termination {
 /* --------------------------------- */
 
 struct FrameLink {
-  struct FrameLink *next, *prev;
+  FrameLink *next, *prev;
   float frame;
 };
 
@@ -1874,7 +1807,7 @@ static void get_keyed_frames_in_range(ListBase *pflinks,
                                       const float end_frame,
                                       ListBase /*FrameLink*/ *target_frames)
 {
-  struct AnimKeylist *keylist = ED_keylist_create();
+  AnimKeylist *keylist = ED_keylist_create();
   LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {
     LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
       FCurve *fcu = (FCurve *)ld->data;
@@ -1897,7 +1830,7 @@ static void get_keyed_frames_in_range(ListBase *pflinks,
 
 static void get_selected_frames(ListBase *pflinks, ListBase /*FrameLink*/ *target_frames)
 {
-  struct AnimKeylist *keylist = ED_keylist_create();
+  AnimKeylist *keylist = ED_keylist_create();
   LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pflinks) {
     LISTBASE_FOREACH (LinkData *, ld, &pfl->fcurves) {
       FCurve *fcu = (FCurve *)ld->data;

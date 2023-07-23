@@ -4,29 +4,17 @@
 
 set(INC
   ../include
-  ../../blenfont
-  ../../blenkernel
-  ../../blenlib
-  ../../blentranslation
-  ../../bmesh
-  ../../depsgraph
   ../../functions
   ../../gpencil_modifiers_legacy
   ../../gpu
   ../../ikplugin
   ../../imbuf
-  ../../makesdna
   ../../makesrna
   ../../modifiers
   ../../python
   ../../render
   ../../shader_fx
-  ../../windowmanager
-  ../../../../intern/clog
-  ../../../../intern/guardedalloc
 
-  # dna_type_offsets.h in BLO_read_write.h
-  ${CMAKE_BINARY_DIR}/source/blender/makesdna/intern
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -66,12 +54,19 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
+  PRIVATE bf::blenfont
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
   bf_editor_mesh
   bf_editor_grease_pencil
+  PRIVATE bf::intern::clog
+  PRIVATE bf::intern::guardedalloc
   bf_render
-  bf_windowmanager
+  PRIVATE bf::windowmanager
 )
 
 
@@ -87,6 +82,5 @@ endif()
 
 blender_add_lib(bf_editor_object "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-add_dependencies(bf_editor_object bf_dna)
 # RNA_prototypes.h
 add_dependencies(bf_editor_object bf_rna)

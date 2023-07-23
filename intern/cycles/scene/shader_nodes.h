@@ -531,8 +531,7 @@ class PrincipledBsdfNode : public BsdfBaseNode {
                ShaderInput *clearcoat_roughness,
                ShaderInput *ior,
                ShaderInput *transmission,
-               ShaderInput *anisotropic_rotation,
-               ShaderInput *transmission_roughness);
+               ShaderInput *anisotropic_rotation);
 
   NODE_SOCKET_API(float3, base_color)
   NODE_SOCKET_API(float3, subsurface_color)
@@ -552,7 +551,6 @@ class PrincipledBsdfNode : public BsdfBaseNode {
   NODE_SOCKET_API(float, ior)
   NODE_SOCKET_API(float, transmission)
   NODE_SOCKET_API(float, anisotropic_rotation)
-  NODE_SOCKET_API(float, transmission_roughness)
   NODE_SOCKET_API(float3, normal)
   NODE_SOCKET_API(float3, clearcoat_normal)
   NODE_SOCKET_API(float3, tangent)
@@ -563,11 +561,7 @@ class PrincipledBsdfNode : public BsdfBaseNode {
   NODE_SOCKET_API(float, emission_strength)
   NODE_SOCKET_API(float, alpha)
 
- private:
-  ClosureType distribution_orig;
-
  public:
-  bool has_integrator_dependency();
   void attributes(Shader *shader, AttributeRequestSet *attributes);
   bool has_attribute_dependency()
   {
@@ -602,7 +596,6 @@ class GlossyBsdfNode : public BsdfNode {
   SHADER_NODE_CLASS(GlossyBsdfNode)
 
   void simplify_settings(Scene *scene);
-  bool has_integrator_dependency();
   ClosureType get_closure_type()
   {
     return distribution;
@@ -620,10 +613,6 @@ class GlossyBsdfNode : public BsdfNode {
     return true;
   }
 
- private:
-  float roughness_orig;
-  ClosureType distribution_orig;
-
   bool is_isotropic();
 };
 
@@ -631,8 +620,6 @@ class GlassBsdfNode : public BsdfNode {
  public:
   SHADER_NODE_CLASS(GlassBsdfNode)
 
-  void simplify_settings(Scene *scene);
-  bool has_integrator_dependency();
   ClosureType get_closure_type()
   {
     return distribution;
@@ -641,18 +628,12 @@ class GlassBsdfNode : public BsdfNode {
   NODE_SOCKET_API(float, roughness)
   NODE_SOCKET_API(float, IOR)
   NODE_SOCKET_API(ClosureType, distribution)
-
- private:
-  float roughness_orig;
-  ClosureType distribution_orig;
 };
 
 class RefractionBsdfNode : public BsdfNode {
  public:
   SHADER_NODE_CLASS(RefractionBsdfNode)
 
-  void simplify_settings(Scene *scene);
-  bool has_integrator_dependency();
   ClosureType get_closure_type()
   {
     return distribution;
@@ -661,10 +642,6 @@ class RefractionBsdfNode : public BsdfNode {
   NODE_SOCKET_API(float, roughness)
   NODE_SOCKET_API(float, IOR)
   NODE_SOCKET_API(ClosureType, distribution)
-
- private:
-  float roughness_orig;
-  ClosureType distribution_orig;
 };
 
 class ToonBsdfNode : public BsdfNode {

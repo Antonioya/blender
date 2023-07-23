@@ -6,8 +6,8 @@
  * \ingroup RNA
  */
 
-#include <float.h>
-#include <stdlib.h>
+#include <cfloat>
+#include <cstdlib>
 
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -96,10 +96,6 @@ static void rna_Material_update_previews(Main * /*bmain*/, Scene * /*scene*/, Po
 {
   Material *ma = (Material *)ptr->owner_id;
 
-  if (ma->nodetree) {
-    BKE_node_preview_clear_tree(ma->nodetree);
-  }
-
   WM_main_add_notifier(NC_MATERIAL | ND_SHADING_PREVIEW, ma);
 }
 
@@ -174,7 +170,8 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
       Object *ob = CTX_data_active_object(C);
       if (ob != nullptr && ob->type == OB_MESH) {
         Mesh *mesh = static_cast<Mesh *>(ob->data);
-        CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh->id, slot->attribute_name);
+        const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh->id,
+                                                                    slot->attribute_name);
         if (layer != nullptr) {
           BKE_id_attributes_active_color_set(&mesh->id, layer->name);
         }
@@ -728,14 +725,14 @@ static void rna_def_material_lineart(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_MaterialLineArt_path");
 
   prop = RNA_def_property(srna, "use_material_mask", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_default(prop, 0);
+  RNA_def_property_boolean_default(prop, false);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", LRT_MATERIAL_MASK_ENABLED);
   RNA_def_property_ui_text(
       prop, "Use Material Mask", "Use material masks to filter out occluded strokes");
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialLineArt_update");
 
   prop = RNA_def_property(srna, "use_material_mask_bits", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_default(prop, 0);
+  RNA_def_property_boolean_default(prop, false);
   RNA_def_property_boolean_sdna(prop, nullptr, "material_mask_bits", 1);
   RNA_def_property_array(prop, 8);
   RNA_def_property_ui_text(prop, "Mask", "");
@@ -759,7 +756,7 @@ static void rna_def_material_lineart(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialLineArt_update");
 
   prop = RNA_def_property(srna, "use_intersection_priority_override", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_default(prop, 0);
+  RNA_def_property_boolean_default(prop, false);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", LRT_MATERIAL_CUSTOM_INTERSECTION_PRIORITY);
   RNA_def_property_ui_text(prop,
                            "Use Intersection Priority",

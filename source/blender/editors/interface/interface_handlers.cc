@@ -3558,7 +3558,7 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
           data->escapecancel = true;
 
           WM_reportf(RPT_ERROR, "Failed to find '%s'", but->editstr);
-          WM_report_banner_show();
+          WM_report_banner_show(CTX_wm_manager(C), win);
         }
       }
 
@@ -8107,7 +8107,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
     case UI_BTYPE_ROUNDBOX:
     case UI_BTYPE_LABEL:
     case UI_BTYPE_IMAGE:
-    case UI_BTYPE_PROGRESS_BAR:
+    case UI_BTYPE_PROGRESS:
     case UI_BTYPE_NODE_SOCKET:
     case UI_BTYPE_PREVIEW_TILE:
       retval = ui_do_but_EXIT(C, but, data, event);
@@ -8272,7 +8272,7 @@ void UI_but_tooltip_timer_remove(bContext *C, uiBut *but)
   uiHandleButtonData *data = but->active;
   if (data) {
     if (data->autoopentimer) {
-      WM_event_remove_timer(data->wm, data->window, data->autoopentimer);
+      WM_event_timer_remove(data->wm, data->window, data->autoopentimer);
       data->autoopentimer = nullptr;
     }
 
@@ -8385,7 +8385,7 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
         }
 
         if (time >= 0) {
-          data->autoopentimer = WM_event_add_timer(
+          data->autoopentimer = WM_event_timer_add(
               data->wm, data->window, TIMER, 0.02 * double(time));
         }
       }
@@ -8458,20 +8458,20 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
 
   /* add a short delay before exiting, to ensure there is some feedback */
   if (state == BUTTON_STATE_WAIT_FLASH) {
-    data->flashtimer = WM_event_add_timer(data->wm, data->window, TIMER, BUTTON_FLASH_DELAY);
+    data->flashtimer = WM_event_timer_add(data->wm, data->window, TIMER, BUTTON_FLASH_DELAY);
   }
   else if (data->flashtimer) {
-    WM_event_remove_timer(data->wm, data->window, data->flashtimer);
+    WM_event_timer_remove(data->wm, data->window, data->flashtimer);
     data->flashtimer = nullptr;
   }
 
   /* add hold timer if it's used */
   if (state == BUTTON_STATE_WAIT_RELEASE && (but->hold_func != nullptr)) {
-    data->hold_action_timer = WM_event_add_timer(
+    data->hold_action_timer = WM_event_timer_add(
         data->wm, data->window, TIMER, BUTTON_AUTO_OPEN_THRESH);
   }
   else if (data->hold_action_timer) {
-    WM_event_remove_timer(data->wm, data->window, data->hold_action_timer);
+    WM_event_timer_remove(data->wm, data->window, data->hold_action_timer);
     data->hold_action_timer = nullptr;
   }
 
@@ -9278,7 +9278,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
       case TIMER: {
         /* Handle menu auto open timer. */
         if (event->customdata == data->autoopentimer) {
-          WM_event_remove_timer(data->wm, data->window, data->autoopentimer);
+          WM_event_timer_remove(data->wm, data->window, data->autoopentimer);
           data->autoopentimer = nullptr;
 
           if (ui_but_contains_point_px(but, region, event->xy) || but->active) {
@@ -9320,7 +9320,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
             /* Do this so we can still mouse-up, closing the menu and running the button.
              * This is nice to support but there are times when the button gets left pressed.
              * Keep disabled for now. */
-            WM_event_remove_timer(data->wm, data->window, data->hold_action_timer);
+            WM_event_timer_remove(data->wm, data->window, data->hold_action_timer);
             data->hold_action_timer = nullptr;
           }
           retval = WM_UI_HANDLER_CONTINUE;
@@ -9341,8 +9341,8 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
                 /* pass */
               }
               else {
-                WM_event_remove_timer(data->wm, data->window, data->hold_action_timer);
-                data->hold_action_timer = WM_event_add_timer(data->wm, data->window, TIMER, 0.0f);
+                WM_event_timer_remove(data->wm, data->window, data->hold_action_timer);
+                data->hold_action_timer = WM_event_timer_add(data->wm, data->window, TIMER, 0.0f);
               }
             }
           }
@@ -10157,9 +10157,13 @@ static void ui_region_auto_open_clear(ARegion *region)
 static bool ui_menu_pass_event_to_parent_if_nonactive(uiPopupBlockHandle *menu,
                                                       const uiBut *but,
                                                       const int level,
+                                                      const bool is_parent_menu,
                                                       const int retval)
 {
-  if ((level != 0) && (but == nullptr)) {
+  /* NOTE(@ideasman42): For `menu->popup` (not a nested tree of menus), don't pass events parents.
+   * This is needed because enum popups (for example) aren't created with an active button.
+   * Otherwise opening a popup & pressing the accelerator key would fail, see: #107838. */
+  if ((level != 0) && (but == nullptr) && (is_parent_menu || menu->popup == false)) {
     menu->menuretval = UI_RETURN_OUT | UI_RETURN_OUT_PARENT;
     (void)retval; /* so release builds with strict flags are happy as well */
     BLI_assert(retval == WM_UI_HANDLER_CONTINUE);
@@ -10324,7 +10328,7 @@ static int ui_handle_menu_event(bContext *C,
       /* add menu scroll timer, if needed */
       if (ui_menu_scroll_test(block, my)) {
         if (menu->scrolltimer == nullptr) {
-          menu->scrolltimer = WM_event_add_timer(
+          menu->scrolltimer = WM_event_timer_add(
               CTX_wm_manager(C), CTX_wm_window(C), TIMER, MENU_SCROLL_INTERVAL);
         }
       }
@@ -10377,7 +10381,8 @@ static int ui_handle_menu_event(bContext *C,
         case EVT_RIGHTARROWKEY:
           if (event->val == KM_PRESS && (block->flag & UI_BLOCK_LOOP)) {
 
-            if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, retval)) {
+            if (ui_menu_pass_event_to_parent_if_nonactive(
+                    menu, but, level, is_parent_menu, retval)) {
               break;
             }
 
@@ -10478,7 +10483,8 @@ static int ui_handle_menu_event(bContext *C,
                 scrolltype = ui_block_flipped ? MENU_SCROLL_DOWN : MENU_SCROLL_UP;
               }
 
-              if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, retval)) {
+              if (ui_menu_pass_event_to_parent_if_nonactive(
+                      menu, but, level, is_parent_menu, retval)) {
                 break;
               }
 
@@ -10589,7 +10595,8 @@ static int ui_handle_menu_event(bContext *C,
           if ((block->flag & UI_BLOCK_NUMSELECT) && event->val == KM_PRESS) {
             int count;
 
-            if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, retval)) {
+            if (ui_menu_pass_event_to_parent_if_nonactive(
+                    menu, but, level, is_parent_menu, retval)) {
               break;
             }
 
@@ -10686,7 +10693,8 @@ static int ui_handle_menu_event(bContext *C,
                * activating an item when the key is held. */
               (event->flag & WM_EVENT_IS_REPEAT) == 0)
           {
-            if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, retval)) {
+            if (ui_menu_pass_event_to_parent_if_nonactive(
+                    menu, but, level, is_parent_menu, retval)) {
               break;
             }
 
@@ -11028,7 +11036,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
   uiBut *but_active = ui_region_find_active_but(region);
 
   if (menu->scrolltimer == nullptr) {
-    menu->scrolltimer = WM_event_add_timer(
+    menu->scrolltimer = WM_event_timer_add(
         CTX_wm_manager(C), CTX_wm_window(C), TIMER, PIE_MENU_INTERVAL);
     menu->scrolltimer->duration = 0.0;
   }

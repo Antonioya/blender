@@ -5,20 +5,13 @@
 set(INC
   .
   ../common
-  ../../blenkernel
-  ../../blenlib
   ../../blenloader
-  ../../bmesh
-  ../../depsgraph
   ../../editors/include
   ../../imbuf
   ../../makesdna
   ../../makesrna
-  ../../windowmanager
-  ../../../../intern/clog
   ../../../../intern/guardedalloc
-  ../../../../intern/utfconv
-  ../../../../extern/nanosvg
+  ../../../../intern/utfconv 
 )
 
 set(INC_SYS
@@ -37,15 +30,19 @@ set(SRC
   intern/gpencil_io_import_base.hh
   intern/gpencil_io_import_svg.hh
   intern/gpencil_io_sheet.hh
-
-  # Only so this file is known by CMake.
-  ../../../../extern/nanosvg/nanosvg.h
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::bmesh
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
+  PRIVATE bf::extern::nanosvg
+  PRIVATE bf::intern::clog
+  PRIVATE bf::intern::guardedalloc
   bf_io_common
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_PUGIXML)

@@ -6,7 +6,7 @@
  * \ingroup edanimation
  */
 
-#include <math.h>
+#include <cmath>
 
 #include "MEM_guardedalloc.h"
 
@@ -104,7 +104,7 @@ int ED_markers_post_apply_transform(
     ListBase *markers, Scene *scene, int mode, float value, char side)
 {
   TimeMarker *marker;
-  float cfra = (float)scene->r.cfra;
+  float cfra = float(scene->r.cfra);
   int changed_tot = 0;
 
   /* sanity check - no markers, or locked markers */
@@ -129,7 +129,7 @@ int ED_markers_post_apply_transform(
         }
         case TFM_TIME_SCALE: {
           /* rescale the distance between the marker and the current frame */
-          marker->frame = cfra + round_fl_to_int((float)(marker->frame - cfra) * value);
+          marker->frame = cfra + round_fl_to_int(float(marker->frame - cfra) * value);
           changed_tot++;
           break;
         }
@@ -149,7 +149,7 @@ TimeMarker *ED_markers_find_nearest_marker(ListBase *markers, float x)
 
   if (markers) {
     for (marker = static_cast<TimeMarker *>(markers->first); marker; marker = marker->next) {
-      dist = fabsf((float)marker->frame - x);
+      dist = fabsf(float(marker->frame) - x);
 
       if (dist < min_dist) {
         min_dist = dist;
@@ -185,10 +185,10 @@ void ED_markers_get_minmax(ListBase *markers, short sel, float *r_first, float *
   for (marker = static_cast<TimeMarker *>(markers->first); marker; marker = marker->next) {
     if (!sel || (marker->flag & SELECT)) {
       if (marker->frame < min) {
-        min = (float)marker->frame;
+        min = float(marker->frame);
       }
       if (marker->frame > max) {
-        max = (float)marker->frame;
+        max = float(marker->frame);
       }
     }
   }
@@ -361,7 +361,7 @@ TimeMarker *ED_markers_get_first_selected(ListBase *markers)
 
 void debug_markers_print_list(ListBase *markers)
 {
-  /* NOTE: do NOT make static or put in if-defs as "unused code".
+  /* NOTE: do NOT make static or use `ifdef`'s as "unused code".
    * That's too much trouble when we need to use for quick debugging! */
 
   TimeMarker *marker;
@@ -709,7 +709,7 @@ static bool ed_markers_poll_markers_exist(bContext *C)
   ToolSettings *ts = CTX_data_tool_settings(C);
 
   if (ts->lock_markers || !ED_operator_markers_region_active(C)) {
-    return 0;
+    return false;
   }
 
   /* list of markers must exist, as well as some markers in it! */
@@ -780,7 +780,7 @@ static void MARKER_OT_add(wmOperatorType *ot)
  * \{ */
 
 /* operator state vars used:
- *     frs: delta movement
+ *    frames: delta movement
  *
  * functions:
  *
@@ -957,7 +957,7 @@ static int ed_marker_move_invoke(bContext *C, wmOperator *op, const wmEvent *eve
     /* add temp handler */
     WM_event_add_modal_handler(C, op);
 
-    /* reset frs delta */
+    /* Reset frames delta. */
     RNA_int_set(op->ptr, "frames", 0);
 
     ed_marker_move_update_header(C, op);
@@ -1021,7 +1021,7 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
 
   /* Modal numinput active, try to handle numeric inputs first... */
   if (event->val == KM_PRESS && has_numinput && handleNumInput(C, &mm->num, event)) {
-    float value = (float)RNA_int_get(op->ptr, "frames");
+    float value = float(RNA_int_get(op->ptr, "frames"));
 
     applyNumInput(&mm->num, &value);
     if (use_time) {
@@ -1068,7 +1068,7 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
             float fac;
 
             mm->evtx = event->xy[0];
-            fac = ((float)(event->xy[0] - mm->firstx) * dx);
+            fac = (float(event->xy[0] - mm->firstx) * dx);
 
             apply_keyb_grid((event->modifier & KM_SHIFT) != 0,
                             (event->modifier & KM_CTRL) != 0,
@@ -1087,7 +1087,7 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
     }
 
     if (!handled && event->val == KM_PRESS && handleNumInput(C, &mm->num, event)) {
-      float value = (float)RNA_int_get(op->ptr, "frames");
+      float value = float(RNA_int_get(op->ptr, "frames"));
 
       applyNumInput(&mm->num, &value);
       if (use_time) {
@@ -1133,7 +1133,7 @@ static void MARKER_OT_move(wmOperatorType *ot)
   /* rna storage */
   RNA_def_int(ot->srna, "frames", 0, INT_MIN, INT_MAX, "Frames", "", INT_MIN, INT_MAX);
   PropertyRNA *prop = RNA_def_boolean(
-      ot->srna, "tweak", 0, "Tweak", "Operator has been activated using a click-drag event");
+      ot->srna, "tweak", false, "Tweak", "Operator has been activated using a click-drag event");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
@@ -1144,7 +1144,7 @@ static void MARKER_OT_move(wmOperatorType *ot)
  * \{ */
 
 /* operator state vars used:
- *     frs: delta movement
+ *    frames: delta movement
  *
  * functions:
  *
@@ -1201,7 +1201,7 @@ static void ed_marker_duplicate_apply(bContext *C)
 static int ed_marker_duplicate_exec(bContext *C, wmOperator *op)
 {
   ed_marker_duplicate_apply(C);
-  ed_marker_move_exec(C, op); /* assumes frs delta set */
+  ed_marker_move_exec(C, op); /* Assumes frame delta set. */
 
   return OPERATOR_FINISHED;
 }
@@ -1407,10 +1407,10 @@ static void MARKER_OT_select(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 
   WM_operator_properties_generic_select(ot);
-  prop = RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend the selection");
+  prop = RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 #ifdef DURIAN_CAMERA_SWITCH
-  prop = RNA_def_boolean(ot->srna, "camera", 0, "Camera", "Select the camera");
+  prop = RNA_def_boolean(ot->srna, "camera", false, "Camera", "Select the camera");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 #endif
 }
@@ -1511,7 +1511,7 @@ static void MARKER_OT_select_box(wmOperatorType *ot)
   WM_operator_properties_select_operation_simple(ot);
 
   PropertyRNA *prop = RNA_def_boolean(
-      ot->srna, "tweak", 0, "Tweak", "Operator has been activated using a click-drag event");
+      ot->srna, "tweak", false, "Tweak", "Operator has been activated using a click-drag event");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -1748,7 +1748,11 @@ static void MARKER_OT_rename(wmOperatorType *ot)
                             "Name",
                             "New name for marker");
 #if 0
-RNA_def_boolean(ot->srna, "ensure_unique", 0, "Ensure Unique", "Ensure that new name is unique within collection of markers");
+  RNA_def_boolean(ot->srna,
+                  "ensure_unique",
+                  0,
+                  "Ensure Unique",
+                  "Ensure that new name is unique within collection of markers");
 #endif
 }
 

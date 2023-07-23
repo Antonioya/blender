@@ -88,7 +88,7 @@
 #include "DEG_depsgraph_build.h"
 
 #include "view3d_intern.h" /* own include */
-#include "view3d_navigate.h"
+#include "view3d_navigate.hh"
 
 /* ******************** manage regions ********************* */
 
@@ -216,7 +216,7 @@ void ED_view3d_stop_render_preview(wmWindowManager *wm, ARegion *region)
 {
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  if (rv3d->render_engine) {
+  if (rv3d->view_render) {
 #ifdef WITH_PYTHON
     BPy_BEGIN_ALLOW_THREADS;
 #endif
@@ -227,8 +227,8 @@ void ED_view3d_stop_render_preview(wmWindowManager *wm, ARegion *region)
     BPy_END_ALLOW_THREADS;
 #endif
 
-    RE_engine_free(rv3d->render_engine);
-    rv3d->render_engine = nullptr;
+    RE_FreeViewRender(rv3d->view_render);
+    rv3d->view_render = nullptr;
   }
 
   /* A bit overkill but this make sure the viewport is reset completely. (fclem) */
@@ -1082,8 +1082,8 @@ static void view3d_main_region_free(ARegion *region)
       MEM_freeN(rv3d->clipbb);
     }
 
-    if (rv3d->render_engine) {
-      RE_engine_free(rv3d->render_engine);
+    if (rv3d->view_render) {
+      RE_FreeViewRender(rv3d->view_render);
     }
 
     if (rv3d->sms) {
@@ -1110,7 +1110,7 @@ static void *view3d_main_region_duplicate(void *poin)
       new_rv3d->clipbb = static_cast<BoundBox *>(MEM_dupallocN(rv3d->clipbb));
     }
 
-    new_rv3d->render_engine = nullptr;
+    new_rv3d->view_render = nullptr;
     new_rv3d->sms = nullptr;
     new_rv3d->smooth_timer = nullptr;
 
@@ -1179,7 +1179,7 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
           break;
         case ND_OB_ACTIVE:
         case ND_OB_SELECT:
-          ATTR_FALLTHROUGH;
+          [[fallthrough]];
         case ND_FRAME:
         case ND_TRANSFORM:
         case ND_OB_VISIBLE:

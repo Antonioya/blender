@@ -142,8 +142,9 @@ ccl_device void osl_closure_reflection_setup(KernelGlobals kg,
   }
 
   bsdf->N = ensure_valid_specular_reflection(sd->Ng, sd->wi, closure->N);
+  bsdf->alpha_x = bsdf->alpha_y = 0.0f;
 
-  sd->flag |= bsdf_reflection_setup(bsdf);
+  sd->flag |= bsdf_microfacet_ggx_setup(bsdf);
 }
 
 ccl_device void osl_closure_refraction_setup(KernelGlobals kg,
@@ -164,8 +165,9 @@ ccl_device void osl_closure_refraction_setup(KernelGlobals kg,
 
   bsdf->N = ensure_valid_specular_reflection(sd->Ng, sd->wi, closure->N);
   bsdf->ior = closure->ior;
+  bsdf->alpha_x = bsdf->alpha_y = 0.0f;
 
-  sd->flag |= bsdf_refraction_setup(bsdf);
+  sd->flag |= bsdf_microfacet_ggx_refraction_setup(bsdf);
 }
 
 ccl_device void osl_closure_transparent_setup(KernelGlobals kg,
@@ -397,21 +399,13 @@ ccl_device void osl_closure_microfacet_setup(KernelGlobals kg,
       sd->flag |= bsdf_microfacet_beckmann_setup(bsdf);
     }
   }
-  /* Sharp */
-  else if (closure->distribution == make_string("sharp", 1870681295563127462ull)) {
-    if (closure->refract == 1) {
-      sd->flag |= bsdf_refraction_setup(bsdf);
-    }
-    else if (closure->refract == 2) {
-      sd->flag |= bsdf_sharp_glass_setup(bsdf);
-    }
-    else {
-      sd->flag |= bsdf_reflection_setup(bsdf);
-    }
-  }
   /* Ashikhmin-Shirley */
   else if (closure->distribution == make_string("ashikhmin_shirley", 11318482998918370922ull)) {
     sd->flag |= bsdf_ashikhmin_shirley_setup(bsdf);
+  }
+  /* Clearcoat */
+  else if (closure->distribution == make_string("clearcoat", 3490136178980547276ull)) {
+    sd->flag |= bsdf_microfacet_ggx_clearcoat_setup(bsdf, sd);
   }
   /* GGX (either single- or multi-scattering) */
   else {
@@ -653,30 +647,6 @@ ccl_device void osl_closure_principled_sheen_setup(
   bsdf->avg_value = 0.0f;
 
   sd->flag |= bsdf_principled_sheen_setup(sd, bsdf);
-}
-
-ccl_device void osl_closure_principled_clearcoat_setup(
-    KernelGlobals kg,
-    ccl_private ShaderData *sd,
-    uint32_t path_flag,
-    float3 weight,
-    ccl_private const PrincipledClearcoatClosure *closure)
-{
-  weight *= 0.25f * closure->clearcoat;
-  ccl_private MicrofacetBsdf *bsdf = (ccl_private MicrofacetBsdf *)bsdf_alloc(
-      sd, sizeof(MicrofacetBsdf), rgb_to_spectrum(weight));
-  if (!bsdf) {
-    return;
-  }
-
-  bsdf->N = ensure_valid_specular_reflection(sd->Ng, sd->wi, closure->N);
-  bsdf->alpha_x = closure->clearcoat_roughness;
-  bsdf->alpha_y = closure->clearcoat_roughness;
-  bsdf->ior = 1.5f;
-
-  bsdf->T = zero_float3();
-
-  sd->flag |= bsdf_microfacet_ggx_clearcoat_setup(bsdf, sd);
 }
 
 /* Variable cone emissive closure

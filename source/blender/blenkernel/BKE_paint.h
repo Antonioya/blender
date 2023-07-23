@@ -12,6 +12,7 @@
 #include "BLI_compiler_compat.h"
 #ifdef __cplusplus
 #  include "BLI_array.hh"
+#  include "BLI_math_vector_types.hh"
 #  include "BLI_offset_indices.hh"
 #endif
 #include "BLI_utildefines.h"
@@ -247,7 +248,8 @@ void BKE_paint_face_set_overlay_color_get(int face_set, int seed, uchar r_color[
 bool paint_calculate_rake_rotation(struct UnifiedPaintSettings *ups,
                                    struct Brush *brush,
                                    const float mouse_pos[2],
-                                   ePaintMode paint_mode);
+                                   ePaintMode paint_mode,
+                                   bool stroke_has_started);
 void paint_update_brush_rake_rotation(struct UnifiedPaintSettings *ups,
                                       struct Brush *brush,
                                       float rotation);
@@ -593,7 +595,7 @@ typedef struct SculptSession {
   struct Depsgraph *depsgraph;
 
   /* These are always assigned to base mesh data when using PBVH_FACES and PBVH_GRIDS. */
-  float (*vert_positions)[3];
+  blender::MutableSpan<blender::float3> vert_positions;
   blender::OffsetIndices<int> polys;
   blender::Span<int> corner_verts;
 

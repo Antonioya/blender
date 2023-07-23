@@ -354,7 +354,7 @@ void MESH_OT_extrude_repeat(wmOperatorType *ot)
 /** \name Extrude Operator
  * \{ */
 
-/* generic extern called extruder */
+/** Implement generic externally called extrude function. */
 static bool edbm_extrude_mesh(Object *obedit, BMEditMesh *em, wmOperator *op)
 {
   const bool use_normal_flip = RNA_boolean_get(op->ptr, "use_normal_flip");
@@ -701,7 +701,7 @@ void MESH_OT_extrude_faces_indiv(wmOperatorType *ot)
 
 static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  struct Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc;
   BMVert *v1;
   BMIter iter;
@@ -781,7 +781,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
       float nor[3] = {0.0, 0.0, 0.0};
 
       /* 2D normal calc */
-      const float mval_f[2] = {(float)event->mval[0], (float)event->mval[1]};
+      const float mval_f[2] = {float(event->mval[0]), float(event->mval[1])};
 
       /* check for edges that are half selected, use for rotation */
       bool done = false;

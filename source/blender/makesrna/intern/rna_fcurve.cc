@@ -6,7 +6,7 @@
  * \ingroup RNA
  */
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "DNA_anim_types.h"
 #include "DNA_curve_types.h"
@@ -1080,7 +1080,7 @@ static void rna_FKeyframe_points_remove(
     ID *id, FCurve *fcu, Main *bmain, ReportList *reports, PointerRNA *bezt_ptr, bool do_fast)
 {
   BezTriple *bezt = static_cast<BezTriple *>(bezt_ptr->data);
-  int index = (int)(bezt - fcu->bezt);
+  int index = int(bezt - fcu->bezt);
   if (index < 0 || index >= fcu->totvert) {
     BKE_report(reports, RPT_ERROR, "Keyframe not in F-Curve");
     return;
@@ -1173,7 +1173,7 @@ static void rna_FModifierEnvelope_points_remove(
   FCM_EnvelopeData *cp = static_cast<FCM_EnvelopeData *>(point->data);
   FMod_Envelope *env = (FMod_Envelope *)fmod->data;
 
-  int index = (int)(cp - env->data);
+  int index = int(cp - env->data);
 
   /* test point is in range */
   if (index < 0 || index >= env->totvert) {
@@ -2412,8 +2412,11 @@ static void rna_def_fcurve_keyframe_points(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
   /* optional */
-  RNA_def_boolean(
-      func, "fast", 0, "Fast", "Fast keyframe removal to avoid recalculating the curve each time");
+  RNA_def_boolean(func,
+                  "fast",
+                  false,
+                  "Fast",
+                  "Fast keyframe removal to avoid recalculating the curve each time");
 
   func = RNA_def_function(srna, "clear", "rna_FKeyframe_points_clear");
   RNA_def_function_ui_description(func, "Remove all keyframes from an F-Curve");

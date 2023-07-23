@@ -122,7 +122,7 @@ static void rna_Mesh_normals_split_custom_set(Mesh *mesh,
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Number of custom normals is not number of loops (%f / %d)",
-                (float)normals_len / 3.0f,
+                float(normals_len) / 3.0f,
                 numloops);
     return;
   }
@@ -143,7 +143,7 @@ static void rna_Mesh_normals_split_custom_set_from_vertices(Mesh *mesh,
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Number of custom normals is not number of vertices (%f / %d)",
-                (float)normals_len / 3.0f,
+                float(normals_len) / 3.0f,
                 numverts);
     return;
   }
@@ -229,7 +229,7 @@ void RNA_api_mesh(StructRNA *srna)
                                   "(Warning: inverts normals if matrix is negative)");
   parm = RNA_def_float_matrix(func, "matrix", 4, 4, nullptr, 0.0f, 0.0f, "", "Matrix", 0.0f, 0.0f);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  RNA_def_boolean(func, "shape_keys", 0, "", "Transform Shape Keys");
+  RNA_def_boolean(func, "shape_keys", false, "", "Transform Shape Keys");
 
   func = RNA_def_function(srna, "flip_normals", "rna_Mesh_flip_normals");
   RNA_def_function_ui_description(func,
@@ -305,10 +305,10 @@ void RNA_api_mesh(StructRNA *srna)
   RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_REQUIRED);
 
   func = RNA_def_function(srna, "update", "rna_Mesh_update");
-  RNA_def_boolean(func, "calc_edges", 0, "Calculate Edges", "Force recalculation of edges");
+  RNA_def_boolean(func, "calc_edges", false, "Calculate Edges", "Force recalculation of edges");
   RNA_def_boolean(func,
                   "calc_edges_loose",
-                  0,
+                  false,
                   "Calculate Loose Edges",
                   "Calculate the loose state of each edge");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
@@ -346,7 +346,7 @@ void RNA_api_mesh(StructRNA *srna)
                   true,
                   "Clean Custom Data",
                   "Remove temp/cached custom-data layers, like e.g. normals...");
-  parm = RNA_def_boolean(func, "result", 0, "Result", "");
+  parm = RNA_def_boolean(func, "result", false, "Result", "");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "validate_material_indices", "BKE_mesh_validate_material_indices");
@@ -354,7 +354,7 @@ void RNA_api_mesh(StructRNA *srna)
       func,
       "Validate material indices of polygons, return True when the mesh has had "
       "invalid indices corrected (to default 0)");
-  parm = RNA_def_boolean(func, "result", 0, "Result", "");
+  parm = RNA_def_boolean(func, "result", false, "Result", "");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "count_selected_items", "rna_Mesh_count_selected_items ");

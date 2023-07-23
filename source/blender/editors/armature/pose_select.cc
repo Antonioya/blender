@@ -6,7 +6,7 @@
  * \ingroup edarmature
  */
 
-#include <string.h>
+#include <cstring>
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -131,7 +131,7 @@ bool ED_armature_pose_select_pick_bone(const Scene *scene,
                                        View3D *v3d,
                                        Object *ob,
                                        Bone *bone,
-                                       const struct SelectPick_Params *params)
+                                       const SelectPick_Params *params)
 {
   bool found = false;
   bool changed = false;
@@ -255,22 +255,22 @@ bool ED_armature_pose_select_pick_with_buffer(const Scene *scene,
                                               ViewLayer *view_layer,
                                               View3D *v3d,
                                               Base *base,
-                                              const struct GPUSelectResult *buffer,
+                                              const GPUSelectResult *buffer,
                                               const short hits,
-                                              const struct SelectPick_Params *params,
+                                              const SelectPick_Params *params,
                                               bool do_nearest)
 {
   Object *ob = base->object;
   Bone *nearBone;
 
   if (!ob || !ob->pose) {
-    return 0;
+    return false;
   }
 
   /* Callers happen to already get the active base */
   Base *base_dummy = nullptr;
   nearBone = ED_armature_pick_bone_from_selectbuffer(
-      &base, 1, buffer, hits, 1, do_nearest, &base_dummy);
+      &base, 1, buffer, hits, true, do_nearest, &base_dummy);
 
   return ED_armature_pose_select_pick_bone(scene, view_layer, v3d, ob, nearBone, params);
 }
@@ -715,7 +715,7 @@ static int pose_select_constraint_target_exec(bContext *C, wmOperator * /*op*/)
             }
           }
 
-          BKE_constraint_targets_flush(con, &targets, 1);
+          BKE_constraint_targets_flush(con, &targets, true);
         }
       }
     }

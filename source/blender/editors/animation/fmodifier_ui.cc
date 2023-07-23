@@ -13,7 +13,7 @@
  * F-Modifiers, as used by F-Curves in the Graph Editor and NLA-Strips in the NLA Editor.
  */
 
-#include <string.h>
+#include <cstring>
 
 #include "DNA_anim_types.h"
 #include "DNA_scene_types.h"
@@ -582,13 +582,13 @@ static void fmod_envelope_addpoint_cb(bContext *C, void *fcm_dv, void * /*arg*/)
   /* init template data */
   fed.min = -1.0f;
   fed.max = 1.0f;
-  fed.time = (float)scene->r.cfra; /* XXX make this int for ease of use? */
+  fed.time = float(scene->r.cfra); /* XXX make this int for ease of use? */
   fed.f1 = fed.f2 = 0;
 
   /* check that no data exists for the current frame... */
   if (env->data) {
     bool exists;
-    int i = BKE_fcm_envelope_find_index(env->data, (float)(scene->r.cfra), env->totvert, &exists);
+    int i = BKE_fcm_envelope_find_index(env->data, float(scene->r.cfra), env->totvert, &exists);
 
     /* binarysearch_...() will set exists by default to 0,
      * so if it is non-zero, that means that the point exists already */
@@ -962,7 +962,7 @@ bool ANIM_fmodifiers_copy_to_buf(ListBase *modifiers, bool active)
 
   /* sanity checks */
   if (ELEM(nullptr, modifiers, modifiers->first)) {
-    return 0;
+    return false;
   }
 
   /* copy the whole list, or just the active one? */
@@ -974,7 +974,7 @@ bool ANIM_fmodifiers_copy_to_buf(ListBase *modifiers, bool active)
       BLI_addtail(&fmodifier_copypaste_buf, fcmN);
     }
     else {
-      ok = 0;
+      ok = false;
     }
   }
   else {
@@ -992,7 +992,7 @@ bool ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, bool replace, FCurve *c
 
   /* sanity checks */
   if (modifiers == nullptr) {
-    return 0;
+    return false;
   }
 
   bool was_cyclic = curve && BKE_fcurve_is_cyclic(curve);
@@ -1014,7 +1014,7 @@ bool ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, bool replace, FCurve *c
 
     /* now add it to the end of the list */
     BLI_addtail(modifiers, fcmN);
-    ok = 1;
+    ok = true;
   }
 
   /* adding or removing the Cycles modifier requires an update to handles */

@@ -4,11 +4,6 @@
 
 set(INC
   .
-  ../../blenkernel
-  ../../blenlib
-  ../../depsgraph
-  ../../makesdna
-  ../../../../intern/guardedalloc
   ../../makesrna
 )
 
@@ -33,8 +28,11 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
 )
 
 blender_add_lib(bf_io_common "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

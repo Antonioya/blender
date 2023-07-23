@@ -10,25 +10,15 @@ if(WITH_COMPOSITOR_CPU)
     intern
     nodes
     operations
-    ../blenkernel
-    ../blenlib
-    ../blentranslation
-    ../depsgraph
     ../imbuf
-    ../makesdna
     ../makesrna
     ../nodes
-    ../windowmanager
     ../nodes/composite
     ../nodes/intern
     ../render
     ../render/intern
     ../../../extern/clew/include
-    ../../../intern/clog
-    ../../../intern/guardedalloc
 
-    # dna_type_offsets.h
-    ${CMAKE_CURRENT_BINARY_DIR}/../makesdna/intern
     # RNA_prototypes.h
     ${CMAKE_BINARY_DIR}/source/blender/makesrna
   )
@@ -599,8 +589,14 @@ if(WITH_COMPOSITOR_CPU)
   )
 
   set(LIB
-    bf_blenkernel
-    bf_blenlib
+    PRIVATE bf::blenkernel
+    PRIVATE bf::blenlib
+    PRIVATE bf::blentranslation
+    PRIVATE bf::depsgraph
+    PRIVATE bf::dna
+    PRIVATE bf::intern::clog
+    PRIVATE bf::intern::guardedalloc
+    PRIVATE bf::windowmanager
     extern_clew
     PRIVATE bf::intern::atomic
   )
@@ -675,8 +671,6 @@ if(WITH_COMPOSITOR_CPU)
     blender_add_test_lib(bf_compositor_tests "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
   endif()
 
-  # Needed so we can use dna_type_offsets.h for defaults initialization.
-  add_dependencies(bf_compositor bf_dna)
   # RNA_prototypes.h
   add_dependencies(bf_compositor bf_rna)
 

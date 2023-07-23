@@ -6,8 +6,8 @@
  * \ingroup edanimation
  */
 
-#include <math.h>
-#include <stdlib.h>
+#include <cmath>
+#include <cstdlib>
 
 #include "BLI_sys_types.h"
 
@@ -148,8 +148,8 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
 
   /* set the new frame number */
   if (scene->r.flag & SCER_SHOW_SUBFRAME) {
-    scene->r.cfra = (int)frame;
-    scene->r.subframe = frame - (int)frame;
+    scene->r.cfra = int(frame);
+    scene->r.subframe = frame - int(frame);
   }
   else {
     scene->r.cfra = round_fl_to_int(frame);

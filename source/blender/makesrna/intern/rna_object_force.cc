@@ -6,7 +6,7 @@
  * \ingroup RNA
  */
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "BLT_translation.h"
 
@@ -445,7 +445,7 @@ int rna_Cache_info_length(PointerRNA *ptr)
     BKE_ptcache_update_info(&pid);
   }
 
-  return (int)strlen(cache->info);
+  return int(strlen(cache->info));
 }
 
 static char *rna_CollisionSettings_path(const PointerRNA * /*ptr*/)

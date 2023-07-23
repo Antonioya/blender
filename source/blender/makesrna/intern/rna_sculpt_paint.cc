@@ -6,7 +6,7 @@
  * \ingroup RNA
  */
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
@@ -295,7 +295,7 @@ static bool rna_Brush_mode_poll(PointerRNA *ptr, PointerRNA value)
 static bool paint_contains_brush_slot(const Paint *paint, const PaintToolSlot *tslot, int *r_index)
 {
   if ((tslot >= paint->tool_slots) && (tslot < (paint->tool_slots + paint->tool_slots_len))) {
-    *r_index = (int)(tslot - paint->tool_slots);
+    *r_index = int(tslot - paint->tool_slots);
     return true;
   }
   return false;
@@ -1151,7 +1151,7 @@ static void rna_def_image_paint(BlenderRNA *brna)
   RNA_def_function_ui_description(func, "Check if required texpaint data exist");
 
   /* return type */
-  RNA_def_function_return(func, RNA_def_boolean(func, "ok", 1, "", ""));
+  RNA_def_function_return(func, RNA_def_boolean(func, "ok", true, "", ""));
 
   /* booleans */
   prop = RNA_def_property(srna, "use_occlude", PROP_BOOLEAN, PROP_NONE);

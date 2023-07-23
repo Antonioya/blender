@@ -49,7 +49,7 @@ static int grease_pencil_layer_add_exec(bContext *C, wmOperator *op)
   MEM_SAFE_FREE(new_layer_name);
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -86,7 +86,7 @@ static int grease_pencil_layer_remove_exec(bContext *C, wmOperator * /*op*/)
   grease_pencil.remove_layer(*grease_pencil.get_active_layer_for_write());
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -137,13 +137,13 @@ static int grease_pencil_layer_reorder_exec(bContext *C, wmOperator *op)
 
   switch (reorder_location) {
     case LAYER_REORDER_ABOVE: {
-      /* Note: The layers are stored from bottom to top, so inserting above (visually), means
+      /* NOTE: The layers are stored from bottom to top, so inserting above (visually), means
        * inserting the link after the target. */
       target_layer->parent_group().add_layer_after(active_layer, &target_layer->as_node());
       break;
     }
     case LAYER_REORDER_BELOW: {
-      /* Note: The layers are stored from bottom to top, so inserting below (visually), means
+      /* NOTE: The layers are stored from bottom to top, so inserting below (visually), means
        * inserting the link before the target. */
       target_layer->parent_group().add_layer_before(active_layer, &target_layer->as_node());
       break;

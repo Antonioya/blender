@@ -5,28 +5,18 @@
 set(INC
   ../include
   ../../asset_system
-  ../../blenfont
-  ../../blenkernel
-  ../../blenlib
   ../../blenloader
-  ../../blentranslation
   ../../compositor
-  ../../depsgraph
   ../../draw
   ../../functions
   ../../geometry
   ../../gpu
   ../../imbuf
-  ../../makesdna
   ../../makesrna
   ../../nodes
   ../../render
-  ../../windowmanager
-  ../../../../intern/guardedalloc
   ../../../../extern/fmtlib/include
 
-  # dna_type_offsets.h
-  ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -56,9 +46,15 @@ set(SRC
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
+  PRIVATE bf::blenfont
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
   bf_editor_screen
+  PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
   extern_fmtlib
 )
 

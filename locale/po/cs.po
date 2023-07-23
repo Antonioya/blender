@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.0.0 Alpha (b'44ee5b38ac1b')\n"
+"Project-Id-Version: Blender 4.0.0 Alpha (b'5aff5bc0e72b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-07-04 16:07:54\n"
+"POT-Creation-Date: 2023-07-17 12:39:59\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Martin Tabačan <tabycz@gmail.com>\n"
 "Language-Team: Taby <tabycz@gmail.com>\n"
@@ -1576,10 +1576,6 @@ msgstr "Obrazovky"
 
 msgid "Shape Keys"
 msgstr "Tvarové klávesy"
-
-
-msgid "Simulations"
-msgstr "Simulace"
 
 
 msgid "Sounds"
@@ -5653,11 +5649,6 @@ msgstr "Scéna"
 
 
 msgctxt "ID"
-msgid "Simulation"
-msgstr "Simulace"
-
-
-msgctxt "ID"
 msgid "Sound"
 msgstr "Zvuk"
 
@@ -7021,10 +7012,6 @@ msgstr "Zobrazit objekty a kolekce"
 
 msgid "Show scenes"
 msgstr "Ukázat scény"
-
-
-msgid "Show materials, nodetrees, textures and Freestyle's linestyles"
-msgstr "Zobrazit materiály, větvení uzlů, textury a Freestyle čáry"
 
 
 msgid "Directory"
@@ -10149,56 +10136,12 @@ msgid "Area Light"
 msgstr "Plošné Světlo"
 
 
-msgid "Constant Coefficient"
-msgstr "Konstantní Koeficient"
-
-
 msgid "Contact Shadow Distance"
 msgstr "Vzdálenost Stykového Stínu"
 
 
-msgid "Falloff Type"
-msgstr "Typ poklesu"
-
-
-msgid "Inverse Linear"
-msgstr "Prohodit"
-
-
-msgid "Inverse Square"
-msgstr "Opustit Editační mód"
-
-
-msgid "Lin/Quad Weighted"
-msgstr "Lineární"
-
-
-msgid "Linear Attenuation"
-msgstr "Rotace"
-
-
-msgid "Linear distance attenuation"
-msgstr "Opustit Editační mód"
-
-
-msgid "Quadratic Attenuation"
-msgstr "Rotace"
-
-
 msgid "Shadow Buffer Bias"
 msgstr "Vložit barvu z bufferu"
-
-
-msgid "Samples"
-msgstr "Vzorky"
-
-
-msgid "Number of shadow buffer samples"
-msgstr "Číslo, určující počet 'Spin' kroků"
-
-
-msgid "Shadow Buffer Size"
-msgstr "Velikost stínu"
 
 
 msgid "Shadow Color"
@@ -14690,6 +14633,10 @@ msgstr "Přidat barvu"
 
 msgid "Name of skin layer"
 msgstr "Nelze uložit soubor"
+
+
+msgid "Samples"
+msgstr "Vzorky"
 
 
 msgid "Intersect"
@@ -23139,6 +23086,11 @@ msgstr "Režim tahu"
 
 
 msgctxt "Operator"
+msgid "Select Mode"
+msgstr "Seskupený objekt"
+
+
+msgctxt "Operator"
 msgid "Add Render Slot"
 msgstr "Přidat Slot pro Vykreslení"
 
@@ -24984,11 +24936,6 @@ msgstr "Odstranit aktuální skript link"
 
 msgid "Extend the existing selection"
 msgstr "Přidá existující výběr"
-
-
-msgctxt "Operator"
-msgid "Select Mode"
-msgstr "Seskupený objekt"
 
 
 msgid "Change selection mode"
@@ -29336,6 +29283,10 @@ msgid "Expand"
 msgstr "Rozšířit"
 
 
+msgid "Falloff Type"
+msgstr "Typ poklesu"
+
+
 msgctxt "Operator"
 msgid "Face Sets Visibility"
 msgstr "Viditelnost Sady Ploch"
@@ -32061,10 +32012,6 @@ msgstr "Načíst Tovární Předvolby"
 msgctxt "Operator"
 msgid "Reload Start-Up File"
 msgstr "Znovu načíst Spouštěcí Soubor"
-
-
-msgid "Open the default file (doesn't save the current file)"
-msgstr "Otevře výchozí soubor (neuloží současný soubor)"
 
 
 msgctxt "Operator"
@@ -40118,10 +40065,6 @@ msgid "Walk Speed"
 msgstr "Rychlost chůze"
 
 
-msgid "Use Ambient Occlusion"
-msgstr "Použít Okolní Okluzi"
-
-
 msgid "World Mist"
 msgstr "Světová Mlha"
 
@@ -45122,10 +45065,6 @@ msgid "Browse Volume Data to be linked"
 msgstr "Procházet Data Objemu k připojení"
 
 
-msgid "Browse Simulation to be linked"
-msgstr "Procházet Simulacik připojení"
-
-
 msgid "Browse Grease Pencil Data to be linked"
 msgstr "Procházet Data Skicovací Tužky k připojení"
 
@@ -45250,11 +45189,6 @@ msgstr "Nový"
 
 
 msgctxt "Volume"
-msgid "New"
-msgstr "Nový"
-
-
-msgctxt "Simulation"
 msgid "New"
 msgstr "Nový"
 
@@ -46031,12 +45965,12 @@ msgid "No active camera set"
 msgstr "Přidat primitivum"
 
 
-msgid "Active group is locked, aborting"
-msgstr "Skupina pro akce je zamčena"
-
-
 msgid "No active vertex group for painting, aborting"
 msgstr "Odstranit skupinu vertexů"
+
+
+msgid "Active group is locked, aborting"
+msgstr "Skupina pro akce je zamčena"
 
 
 msgid "Warning!"

@@ -132,7 +132,7 @@ static void gizmo_mesh_placement_update_from_op(GizmoPlacementGroup *ggd)
   UNUSED_VARS(op);
 /* For now don't read back from the operator. */
 #if 0
-RNA_property_float_get_array(op->ptr, ggd->data.prop_matrix, &ggd->cage->matrix_offset[0][0]);
+  RNA_property_float_get_array(op->ptr, ggd->data.prop_matrix, &ggd->cage->matrix_offset[0][0]);
 #endif
 }
 
@@ -216,7 +216,7 @@ static void gizmo_mesh_placement_modal_from_setup(const bContext *C, wmGizmoGrou
       copy_v3_v3(gz->matrix_basis[3], location);
     }
 
-    if (1) {
+    if (true) {
       wmGizmoMap *gzmap = gzgroup->parent_gzmap;
       WM_gizmo_modal_set_from_setup(gzmap,
                                     (bContext *)C,
@@ -363,7 +363,7 @@ static int add_primitive_cube_gizmo_invoke(bContext *C, wmOperator *op, const wm
     if (v3d && ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0)) {
       wmGizmoGroupType *gzgt = WM_gizmogrouptype_find("MESH_GGT_add_bounds", false);
       if (!WM_gizmo_group_type_ensure_ptr(gzgt)) {
-        struct Main *bmain = CTX_data_main(C);
+        Main *bmain = CTX_data_main(C);
         WM_gizmo_group_type_reinit_ptr(bmain, gzgt);
       }
     }

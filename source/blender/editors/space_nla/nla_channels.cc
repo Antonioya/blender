@@ -177,8 +177,7 @@ static int mouse_nla_channels(bContext *C, bAnimContext *ac, int channel_index, 
     case ANIMTYPE_PALETTE:
     case ANIMTYPE_DSHAIR:
     case ANIMTYPE_DSPOINTCLOUD:
-    case ANIMTYPE_DSVOLUME:
-    case ANIMTYPE_DSSIMULATION: {
+    case ANIMTYPE_DSVOLUME: {
       /* sanity checking... */
       if (ale->adt) {
         /* select/deselect */
@@ -351,7 +350,7 @@ void NLA_OT_channels_click(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 
   /* props */
-  prop = RNA_def_boolean(ot->srna, "extend", 0, "Extend Select", ""); /* SHIFTKEY */
+  prop = RNA_def_boolean(ot->srna, "extend", false, "Extend Select", ""); /* SHIFTKEY */
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -690,7 +689,7 @@ void NLA_OT_tracks_add(wmOperatorType *ot)
   /* properties */
   RNA_def_boolean(ot->srna,
                   "above_selected",
-                  0,
+                  false,
                   "Above Selected",
                   "Add a new NLA Track above every existing selected one");
 }

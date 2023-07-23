@@ -6,8 +6,8 @@
  * \ingroup RNA
  */
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include "BLI_utildefines.h"
 
@@ -470,6 +470,20 @@ static void rna_uiItemPopoverPanelFromGroup(uiLayout *layout,
   uiItemPopoverPanelFromGroup(layout, C, space_id, region_id, context, category);
 }
 
+static void rna_uiItemProgress(struct uiLayout *layout,
+                               const char *text,
+                               const char *text_ctxt,
+                               bool translate,
+                               float factor,
+                               int progress_type)
+{
+  if (translate && BLT_translate_iface()) {
+    text = BLT_pgettext((text_ctxt && text_ctxt[0]) ? text_ctxt : BLT_I18NCONTEXT_DEFAULT, text);
+  }
+
+  uiItemProgressIndicator(layout, text, factor, eButProgressType(progress_type));
+}
+
 static void rna_uiTemplateID(uiLayout *layout,
                              bContext *C,
                              PointerRNA *ptr,
@@ -738,13 +752,17 @@ static void rna_uiLayout_template_node_operator_asset_menu_items(uiLayout *layou
                                                                  bContext *C,
                                                                  const char *catalog_path)
 {
-  blender::ed::geometry::ui_template_node_operator_asset_menu_items(
-      *layout, *C, blender::StringRef(catalog_path));
+  if (U.experimental.use_node_group_operators) {
+    blender::ed::geometry::ui_template_node_operator_asset_menu_items(
+        *layout, *C, blender::StringRef(catalog_path));
+  }
 }
 
 static void rna_uiLayout_template_node_operator_root_items(uiLayout *layout, bContext *C)
 {
-  blender::ed::geometry::ui_template_node_operator_asset_root_items(*layout, *C);
+  if (U.experimental.use_node_group_operators) {
+    blender::ed::geometry::ui_template_node_operator_asset_root_items(*layout, *C);
+  }
 }
 
 static int rna_ui_get_rnaptr_icon(bContext *C, PointerRNA *ptr_icon)
@@ -935,6 +953,12 @@ void RNA_api_ui_layout(StructRNA *srna)
   static const EnumPropertyItem id_template_filter_items[] = {
       {UI_TEMPLATE_ID_FILTER_ALL, "ALL", 0, "All", ""},
       {UI_TEMPLATE_ID_FILTER_AVAILABLE, "AVAILABLE", 0, "Available", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem progress_type_items[] = {
+      {UI_BUT_PROGRESS_TYPE_BAR, "BAR", 0, "Bar", ""},
+      {UI_BUT_PROGRESS_TYPE_RING, "RING", 0, "Ring", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1331,6 +1355,25 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_ui_description(
       func, "Item. Inserts horizontal spacing empty space into the layout between items");
 
+  func = RNA_def_function(srna, "progress", "rna_uiItemProgress");
+  RNA_def_function_ui_description(func, "Progress indicator");
+  api_ui_item_common_text(func);
+  RNA_def_float(func,
+                "factor",
+                0.0f,
+                0.0f,
+                1.0f,
+                "Factor",
+                "Amount of progress from 0.0f to 1.0f",
+                0.0f,
+                1.0f);
+  RNA_def_enum(func,
+               "type",
+               progress_type_items,
+               UI_BUT_PROGRESS_TYPE_BAR,
+               "Type",
+               "The type of progress indicator");
+
   /* context */
   func = RNA_def_function(srna, "context_pointer_set", "uiLayoutSetContextPointer");
   parm = RNA_def_string(func, "name", nullptr, 0, "Name", "Name of entry in the context");
@@ -1640,7 +1683,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   func = RNA_def_function(srna, "template_palette", "uiTemplatePalette");
   RNA_def_function_ui_description(func, "Item. A palette used to pick colors");
   api_ui_item_rna_common(func);
-  RNA_def_boolean(func, "color", 0, "", "Display the colors as colors or values");
+  RNA_def_boolean(func, "color", false, "", "Display the colors as colors or values");
 
   func = RNA_def_function(srna, "template_image_layers", "uiTemplateImageLayers");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);

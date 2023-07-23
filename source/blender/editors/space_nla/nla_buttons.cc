@@ -129,8 +129,7 @@ bool nla_panel_context(const bContext *C,
       case ANIMTYPE_PALETTE:
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
-      case ANIMTYPE_DSVOLUME:
-      case ANIMTYPE_DSSIMULATION: {
+      case ANIMTYPE_DSVOLUME: {
         /* for these channels, we only do AnimData */
         if (ale->adt && adt_ptr) {
           ID *id;
@@ -229,10 +228,10 @@ static bool nla_strip_actclip_panel_poll(const bContext *C, PanelType * /*pt*/)
   PointerRNA ptr;
 
   if (!nla_panel_context(C, nullptr, nullptr, &ptr)) {
-    return 0;
+    return false;
   }
   if (ptr.data == nullptr) {
-    return 0;
+    return false;
   }
 
   NlaStrip *strip = static_cast<NlaStrip *>(ptr.data);
@@ -244,19 +243,19 @@ static bool nla_strip_eval_panel_poll(const bContext *C, PanelType * /*pt*/)
   PointerRNA ptr;
 
   if (!nla_panel_context(C, nullptr, nullptr, &ptr)) {
-    return 0;
+    return false;
   }
   if (ptr.data == nullptr) {
-    return 0;
+    return false;
   }
 
   NlaStrip *strip = static_cast<NlaStrip *>(ptr.data);
 
   if (strip->type == NLASTRIP_TYPE_SOUND) {
-    return 0;
+    return false;
   }
 
-  return 1;
+  return true;
 }
 
 /* -------------- */

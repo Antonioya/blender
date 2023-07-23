@@ -1117,7 +1117,7 @@ void MESH_OT_mark_seam(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  prop = RNA_def_boolean(ot->srna, "clear", 0, "Clear", "");
+  prop = RNA_def_boolean(ot->srna, "clear", false, "Clear", "");
   RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 
   WM_operatortype_props_advanced_begin(ot);
@@ -3703,7 +3703,7 @@ void MESH_OT_remove_doubles(wmOperatorType *ot)
  * \{ */
 
 /* BMESH_TODO this should be properly encapsulated in a bmop.  but later. */
-static bool shape_propagate(BMEditMesh *em)
+static bool shape_propagate(BMEditMesh *em, bool use_symmetry)
 {
   BMIter iter;
   BMVert *eve = nullptr;
@@ -3716,7 +3716,12 @@ static bool shape_propagate(BMEditMesh *em)
 
   BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
     if (!BM_elem_flag_test(eve, BM_ELEM_SELECT) || BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
-      continue;
+      BMVert *mirr = use_symmetry ? EDBM_verts_mirror_get(em, eve) : nullptr;
+
+      if (!mirr || !BM_elem_flag_test(mirr, BM_ELEM_SELECT) ||
+          BM_elem_flag_test(mirr, BM_ELEM_HIDDEN)) {
+        continue;
+      }
     }
 
     for (int i = 0; i < totshape; i++) {
@@ -3748,8 +3753,20 @@ static int edbm_shape_propagate_to_all_exec(bContext *C, wmOperator *op)
     }
     tot_selected_verts_objects++;
 
-    if (shape_propagate(em)) {
+    const bool use_symmetry = (me->symmetry & ME_SYMMETRY_X) != 0;
+
+    if (use_symmetry) {
+      const bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+
+      EDBM_verts_mirror_cache_begin(em, 0, false, true, false, use_topology);
+    }
+
+    if (shape_propagate(em, use_symmetry)) {
       tot_shapekeys++;
+    }
+
+    if (use_symmetry) {
+      EDBM_verts_mirror_cache_end(em);
     }
 
     EDBMUpdate_Params params{};
@@ -3853,6 +3870,14 @@ static int edbm_blend_from_shape_exec(bContext *C, wmOperator *op)
     shape = BLI_findindex(&key->block, kb);
 
     if (kb) {
+      const bool use_symmetry = (me->symmetry & ME_SYMMETRY_X) != 0;
+
+      if (use_symmetry) {
+        const bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+
+        EDBM_verts_mirror_cache_begin(em, 0, false, true, false, use_topology);
+      }
+
       /* Perform blending on selected vertices. */
       BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
         if (!BM_elem_flag_test(eve, BM_ELEM_SELECT) || BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
@@ -3877,6 +3902,12 @@ static int edbm_blend_from_shape_exec(bContext *C, wmOperator *op)
           interp_v3_v3v3(eve->co, eve->co, co, blend);
         }
       }
+
+      if (use_symmetry) {
+        EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0);
+        EDBM_verts_mirror_cache_end(em);
+      }
+
       EDBMUpdate_Params params{};
       params.calc_looptri = true;
       params.calc_normals = true;
@@ -9743,7 +9774,8 @@ void MESH_OT_set_normals_from_faces(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_boolean(ot->srna, "keep_sharp", 0, "Keep Sharp Edges", "Do not set sharp edges to face");
+  RNA_def_boolean(
+      ot->srna, "keep_sharp", false, "Keep Sharp Edges", "Do not set sharp edges to face");
 }
 
 /** \} */
@@ -9958,7 +9990,7 @@ void MESH_OT_mod_weighted_strength(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ot->prop = RNA_def_boolean(ot->srna, "set", 0, "Set Value", "Set value of faces");
+  ot->prop = RNA_def_boolean(ot->srna, "set", false, "Set Value", "Set value of faces");
 
   ot->prop = RNA_def_enum(
       ot->srna,

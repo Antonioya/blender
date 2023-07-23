@@ -4,25 +4,13 @@
 
 set(INC
   ../include
-  ../../blenfont
-  ../../blenkernel
-  ../../blenlib
   ../../blenloader
-  ../../blentranslation
-  ../../bmesh
-  ../../depsgraph
   ../../draw
   ../../gpu
   ../../imbuf
-  ../../makesdna
   ../../makesrna
   ../../render
-  ../../windowmanager
-  ../../../../intern/clog
-  ../../../../intern/guardedalloc
 
-  # dna_type_offsets.h
-  ${CMAKE_CURRENT_BINARY_DIR}/../../makesdna/intern
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -31,21 +19,29 @@ set(INC_SYS
 )
 
 set(SRC
-  image_buttons.c
-  image_draw.c
-  image_edit.c
-  image_ops.c
-  image_sequence.c
+  image_buttons.cc
+  image_draw.cc
+  image_edit.cc
+  image_ops.cc
+  image_sequence.cc
   image_undo.cc
-  space_image.c
+  space_image.cc
 
   image_intern.h
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
+  PRIVATE bf::blenfont
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
+  PRIVATE bf::depsgraph
+  PRIVATE bf::dna
   bf_editor_uvedit
+  PRIVATE bf::intern::clog
+  PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
 
 if(WITH_IMAGE_OPENJPEG)

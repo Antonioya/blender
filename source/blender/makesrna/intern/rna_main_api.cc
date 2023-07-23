@@ -6,9 +6,9 @@
  * \ingroup RNA
  */
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
 
 #include "DNA_ID.h"
 #include "DNA_modifier_types.h"
@@ -53,7 +53,6 @@
 #  include "BKE_particle.h"
 #  include "BKE_pointcloud.h"
 #  include "BKE_scene.h"
-#  include "BKE_simulation.h"
 #  include "BKE_sound.h"
 #  include "BKE_speaker.h"
 #  include "BKE_text.h"
@@ -84,7 +83,6 @@
 #  include "DNA_node_types.h"
 #  include "DNA_particle_types.h"
 #  include "DNA_pointcloud_types.h"
-#  include "DNA_simulation_types.h"
 #  include "DNA_sound_types.h"
 #  include "DNA_speaker_types.h"
 #  include "DNA_text_types.h"
@@ -791,21 +789,6 @@ static Volume *rna_Main_volumes_new(Main *bmain, const char *name)
   return volume;
 }
 
-#  ifdef WITH_SIMULATION_DATABLOCK
-static Simulation *rna_Main_simulations_new(Main *bmain, const char *name)
-{
-  char safe_name[MAX_ID_NAME - 2];
-  rna_idname_validate(name, safe_name);
-
-  Simulation *simulation = static_cast<Simulation *>(BKE_simulation_add(bmain, safe_name));
-  id_us_min(&simulation->id);
-
-  WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
-
-  return simulation;
-}
-#  endif
-
 /* tag functions, all the same */
 #  define RNA_MAIN_ID_TAG_FUNCS_DEF(_func_name, _listbase_name, _id_type) \
     static void rna_Main_##_func_name##_tag(Main *bmain, bool value) \
@@ -851,9 +834,6 @@ RNA_MAIN_ID_TAG_FUNCS_DEF(lightprobes, lightprobes, ID_LP)
 RNA_MAIN_ID_TAG_FUNCS_DEF(hair_curves, hair_curves, ID_CV)
 RNA_MAIN_ID_TAG_FUNCS_DEF(pointclouds, pointclouds, ID_PT)
 RNA_MAIN_ID_TAG_FUNCS_DEF(volumes, volumes, ID_VO)
-#  ifdef WITH_SIMULATION_DATABLOCK
-RNA_MAIN_ID_TAG_FUNCS_DEF(simulations, simulations, ID_SIM)
-#  endif
 
 #  undef RNA_MAIN_ID_TAG_FUNCS_DEF
 
@@ -916,7 +896,7 @@ void RNA_def_main_cameras(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this camera");
 
   func = RNA_def_function(srna, "tag", "rna_Main_cameras_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -949,7 +929,7 @@ void RNA_def_main_scenes(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_unlink", true, "", "Unlink all usages of this scene before deleting it");
 
   func = RNA_def_function(srna, "tag", "rna_Main_scenes_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -993,7 +973,7 @@ void RNA_def_main_objects(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this object");
 
   func = RNA_def_function(srna, "tag", "rna_Main_objects_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -1043,7 +1023,7 @@ void RNA_def_main_materials(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this material");
 
   func = RNA_def_function(srna, "tag", "rna_Main_materials_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 void RNA_def_main_node_groups(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1090,7 +1070,7 @@ void RNA_def_main_node_groups(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this node tree");
 
   func = RNA_def_function(srna, "tag", "rna_Main_node_groups_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 void RNA_def_main_meshes(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1161,7 +1141,7 @@ void RNA_def_main_meshes(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this mesh data");
 
   func = RNA_def_function(srna, "tag", "rna_Main_meshes_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -1208,7 +1188,7 @@ void RNA_def_main_lights(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this light data");
 
   func = RNA_def_function(srna, "tag", "rna_Main_lights_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -1224,7 +1204,7 @@ void RNA_def_main_libraries(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_struct_ui_text(srna, "Main Libraries", "Collection of libraries");
 
   func = RNA_def_function(srna, "tag", "rna_Main_libraries_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "remove", "rna_Main_ID_remove");
@@ -1256,7 +1236,7 @@ void RNA_def_main_screens(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_struct_ui_text(srna, "Main Screens", "Collection of screens");
 
   func = RNA_def_function(srna, "tag", "rna_Main_screens_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -1272,7 +1252,7 @@ void RNA_def_main_window_managers(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_struct_ui_text(srna, "Main Window Managers", "Collection of window managers");
 
   func = RNA_def_function(srna, "tag", "rna_Main_window_managers_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 void RNA_def_main_images(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1294,12 +1274,13 @@ void RNA_def_main_images(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int(func, "height", 1024, 1, INT_MAX, "", "Height of the image", 1, INT_MAX);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  RNA_def_boolean(func, "alpha", 0, "Alpha", "Use alpha channel");
+  RNA_def_boolean(func, "alpha", false, "Alpha", "Use alpha channel");
   RNA_def_boolean(
-      func, "float_buffer", 0, "Float Buffer", "Create an image with floating-point color");
-  RNA_def_boolean(func, "stereo3d", 0, "Stereo 3D", "Create left and right views");
-  RNA_def_boolean(func, "is_data", 0, "Is Data", "Create image with non-color data color space");
-  RNA_def_boolean(func, "tiled", 0, "Tiled", "Create a tiled image");
+      func, "float_buffer", false, "Float Buffer", "Create an image with floating-point color");
+  RNA_def_boolean(func, "stereo3d", false, "Stereo 3D", "Create left and right views");
+  RNA_def_boolean(
+      func, "is_data", false, "Is Data", "Create image with non-color data color space");
+  RNA_def_boolean(func, "tiled", false, "Tiled", "Create a tiled image");
   /* return type */
   parm = RNA_def_pointer(func, "image", "Image", "", "New image data-block");
   RNA_def_function_return(func, parm);
@@ -1333,7 +1314,7 @@ void RNA_def_main_images(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this image");
 
   func = RNA_def_function(srna, "tag", "rna_Main_images_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -1377,7 +1358,7 @@ void RNA_def_main_lattices(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this lattice data");
 
   func = RNA_def_function(srna, "tag", "rna_Main_lattices_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 void RNA_def_main_curves(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1423,7 +1404,7 @@ void RNA_def_main_curves(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this curve data");
 
   func = RNA_def_function(srna, "tag", "rna_Main_curves_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 void RNA_def_main_metaballs(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1466,7 +1447,7 @@ void RNA_def_main_metaballs(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this metaball data");
 
   func = RNA_def_function(srna, "tag", "rna_Main_metaballs_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 void RNA_def_main_fonts(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1509,7 +1490,7 @@ void RNA_def_main_fonts(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this font");
 
   func = RNA_def_function(srna, "tag", "rna_Main_fonts_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 void RNA_def_main_textures(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1551,7 +1532,7 @@ void RNA_def_main_textures(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this texture");
 
   func = RNA_def_function(srna, "tag", "rna_Main_textures_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 void RNA_def_main_brushes(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1593,7 +1574,7 @@ void RNA_def_main_brushes(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this brush");
 
   func = RNA_def_function(srna, "tag", "rna_Main_brushes_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "create_gpencil_data", "rna_Main_brush_gpencil_data");
@@ -1635,7 +1616,7 @@ void RNA_def_main_worlds(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this world");
 
   func = RNA_def_function(srna, "tag", "rna_Main_worlds_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -1675,7 +1656,7 @@ void RNA_def_main_collections(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this collection");
 
   func = RNA_def_function(srna, "tag", "rna_Main_collections_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -1719,7 +1700,7 @@ void RNA_def_main_speakers(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this speaker data");
 
   func = RNA_def_function(srna, "tag", "rna_Main_speakers_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -1763,13 +1744,13 @@ void RNA_def_main_texts(BlenderRNA *brna, PropertyRNA *cprop)
       func, "filepath", "Path", FILE_MAX, "", "path for the data-block");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_boolean(
-      func, "internal", 0, "Make internal", "Make text file internal after loading");
+      func, "internal", false, "Make internal", "Make text file internal after loading");
   /* return type */
   parm = RNA_def_pointer(func, "text", "Text", "", "New text data-block");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "tag", "rna_Main_texts_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -1813,7 +1794,7 @@ void RNA_def_main_sounds(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this sound");
 
   func = RNA_def_function(srna, "tag", "rna_Main_sounds_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -1857,7 +1838,7 @@ void RNA_def_main_armatures(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this armature data");
 
   func = RNA_def_function(srna, "tag", "rna_Main_armatures_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 void RNA_def_main_actions(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1896,7 +1877,7 @@ void RNA_def_main_actions(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this action");
 
   func = RNA_def_function(srna, "tag", "rna_Main_actions_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 void RNA_def_main_particles(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1944,7 +1925,7 @@ void RNA_def_main_particles(BlenderRNA *brna, PropertyRNA *cprop)
                   "Make sure interface does not reference this particle settings");
 
   func = RNA_def_function(srna, "tag", "rna_Main_particles_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -1984,7 +1965,7 @@ void RNA_def_main_palettes(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this palette");
 
   func = RNA_def_function(srna, "tag", "rna_Main_palettes_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 void RNA_def_main_cachefiles(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1999,7 +1980,7 @@ void RNA_def_main_cachefiles(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_struct_ui_text(srna, "Main Cache Files", "Collection of cache files");
 
   func = RNA_def_function(srna, "tag", "rna_Main_cachefiles_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 void RNA_def_main_paintcurves(BlenderRNA *brna, PropertyRNA *cprop)
@@ -2014,7 +1995,7 @@ void RNA_def_main_paintcurves(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_struct_ui_text(srna, "Main Paint Curves", "Collection of paint curves");
 
   func = RNA_def_function(srna, "tag", "rna_Main_paintcurves_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 void RNA_def_main_gpencil_legacy(BlenderRNA *brna, PropertyRNA *cprop)
@@ -2029,7 +2010,7 @@ void RNA_def_main_gpencil_legacy(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_struct_ui_text(srna, "Main Grease Pencils", "Collection of grease pencils");
 
   func = RNA_def_function(srna, "tag", "rna_Main_gpencils_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "new", "rna_Main_gpencils_new");
@@ -2081,7 +2062,7 @@ void RNA_def_main_movieclips(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_struct_ui_text(srna, "Main Movie Clips", "Collection of movie clips");
 
   func = RNA_def_function(srna, "tag", "rna_Main_movieclips_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "remove", "rna_Main_ID_remove");
@@ -2133,7 +2114,7 @@ void RNA_def_main_masks(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_struct_ui_text(srna, "Main Masks", "Collection of masks");
 
   func = RNA_def_function(srna, "tag", "rna_Main_masks_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   /* new func */
@@ -2173,7 +2154,7 @@ void RNA_def_main_linestyles(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_struct_ui_text(srna, "Main Line Styles", "Collection of line styles");
 
   func = RNA_def_function(srna, "tag", "rna_Main_linestyle_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "new", "rna_Main_linestyles_new");
@@ -2213,7 +2194,7 @@ void RNA_def_main_workspaces(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_struct_ui_text(srna, "Main Workspaces", "Collection of workspaces");
 
   func = RNA_def_function(srna, "tag", "rna_Main_workspaces_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -2260,7 +2241,7 @@ void RNA_def_main_lightprobes(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this light probe");
 
   func = RNA_def_function(srna, "tag", "rna_Main_lightprobes_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -2304,7 +2285,7 @@ void RNA_def_main_hair_curves(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this curves data");
 
   func = RNA_def_function(srna, "tag", "rna_Main_hair_curves_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -2351,7 +2332,7 @@ void RNA_def_main_pointclouds(BlenderRNA *brna, PropertyRNA *cprop)
                   "Make sure interface does not reference this point cloud data");
 
   func = RNA_def_function(srna, "tag", "rna_Main_pointclouds_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
@@ -2395,50 +2376,8 @@ void RNA_def_main_volumes(BlenderRNA *brna, PropertyRNA *cprop)
       func, "do_ui_user", true, "", "Make sure interface does not reference this volume data");
 
   func = RNA_def_function(srna, "tag", "rna_Main_volumes_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
+  parm = RNA_def_boolean(func, "value", false, "Value", "");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
-
-#  ifdef WITH_SIMULATION_DATABLOCK
-void RNA_def_main_simulations(BlenderRNA *brna, PropertyRNA *cprop)
-{
-  StructRNA *srna;
-  FunctionRNA *func;
-  PropertyRNA *parm;
-
-  RNA_def_property_srna(cprop, "BlendDataSimulations");
-  srna = RNA_def_struct(brna, "BlendDataSimulations", nullptr);
-  RNA_def_struct_sdna(srna, "Main");
-  RNA_def_struct_ui_text(srna, "Main Simulations", "Collection of simulations");
-
-  func = RNA_def_function(srna, "new", "rna_Main_simulations_new");
-  RNA_def_function_ui_description(func, "Add a new simulation to the main database");
-  parm = RNA_def_string(func, "name", "Simulation", 0, "", "New name for the data-block");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  /* return type */
-  parm = RNA_def_pointer(func, "simulation", "Simulation", "", "New simulation data-block");
-  RNA_def_function_return(func, parm);
-
-  func = RNA_def_function(srna, "remove", "rna_Main_ID_remove");
-  RNA_def_function_flag(func, FUNC_USE_REPORTS);
-  RNA_def_function_ui_description(func, "Remove a simulation from the current blendfile");
-  parm = RNA_def_pointer(func, "simulation", "Simulation", "", "Simulation to remove");
-  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
-  RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
-  RNA_def_boolean(
-      func, "do_unlink", true, "", "Unlink all usages of this simulation before deleting it");
-  RNA_def_boolean(func,
-                  "do_id_user",
-                  true,
-                  "",
-                  "Decrement user counter of all datablocks used by this simulation data");
-  RNA_def_boolean(
-      func, "do_ui_user", true, "", "Make sure interface does not reference this simulation data");
-
-  func = RNA_def_function(srna, "tag", "rna_Main_simulations_tag");
-  parm = RNA_def_boolean(func, "value", 0, "Value", "");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-}
-#  endif
 
 #endif

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.0.0 Alpha (b'44ee5b38ac1b')\n"
+"Project-Id-Version: Blender 4.0.0 Alpha (b'5aff5bc0e72b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-07-04 16:07:54\n"
+"POT-Creation-Date: 2023-07-17 12:39:59\n"
 "PO-Revision-Date: 2018-01-03 14:47+0000\n"
 "Last-Translator: Lockal <lockalsash@gmail.com>, 2023\n"
 "Language-Team: Russian (https://app.transifex.com/translateblender/teams/82039/ru/)\n"
@@ -2004,10 +2004,6 @@ msgstr "Ключи формы"
 
 msgid "Shape Key data-blocks"
 msgstr "Датаблоки ключей формы"
-
-
-msgid "Simulations"
-msgstr "Симуляции"
 
 
 msgid "Sounds"
@@ -9230,11 +9226,6 @@ msgstr "Сцена"
 
 
 msgctxt "ID"
-msgid "Simulation"
-msgstr "Симуляция"
-
-
-msgctxt "ID"
 msgid "Sound"
 msgstr "Звук"
 
@@ -11760,10 +11751,6 @@ msgid "Show Scene data-blocks"
 msgstr "Показать датаблоки сцен"
 
 
-msgid "Show Simulation data-blocks"
-msgstr "Показать датаблоки симуляций"
-
-
 msgid "Show Sound data-blocks"
 msgstr "Показать датаблоки звуков"
 
@@ -11922,10 +11909,6 @@ msgstr "Показать объекты и коллекции"
 
 msgid "Show scenes"
 msgstr "Показать сцены"
-
-
-msgid "Show materials, nodetrees, textures and Freestyle's linestyles"
-msgstr "Показать материалы, системы нодов и стили линий Freestyle"
 
 
 msgid "Directory"
@@ -20702,10 +20685,6 @@ msgid "Cycles light settings"
 msgstr "Настройки освещения в Cycles"
 
 
-msgid "Falloff distance - the light is at half the original intensity at this point"
-msgstr "Расстояние полурассеивания - расстояние, на котором интенсивность освещения уменьшается в два раза"
-
-
 msgid "Node tree for node based lights"
 msgstr "Система нодов для источников света"
 
@@ -20779,14 +20758,6 @@ msgid "Directional area Light"
 msgstr "Направленный протяжённый источник света"
 
 
-msgid "Constant Coefficient"
-msgstr "Постоянный коэффициент"
-
-
-msgid "Constant distance attenuation coefficient"
-msgstr "Постоянный коэффициент затухания на расстоянии"
-
-
 msgid "Contact Shadow Bias"
 msgstr "Погрешность контактных теней"
 
@@ -20816,66 +20787,6 @@ msgid "Power"
 msgstr "Мощность"
 
 
-msgid "Custom light falloff curve"
-msgstr "Особая кривая ослабления света"
-
-
-msgid "Falloff Type"
-msgstr "Тип спада"
-
-
-msgid "Intensity Decay with distance"
-msgstr "Характер зависимости интенсивности от расстояния"
-
-
-msgid "Inverse Linear"
-msgstr "Обратно-линейно"
-
-
-msgid "Inverse Square"
-msgstr "Обратно-квадратично"
-
-
-msgid "Inverse Coefficients"
-msgstr "Обратные коэффициенты"
-
-
-msgid "Lin/Quad Weighted"
-msgstr "Смесь лин./квад."
-
-
-msgid "Linear Attenuation"
-msgstr "Линейное затухание"
-
-
-msgid "Linear distance attenuation"
-msgstr "Линейное затухание от расстояния"
-
-
-msgid "Linear Coefficient"
-msgstr "Линейный коэффициент"
-
-
-msgid "Linear distance attenuation coefficient"
-msgstr "Линейный коэффициент затухания на расстоянии"
-
-
-msgid "Quadratic Attenuation"
-msgstr "Квадратичное затухание"
-
-
-msgid "Quadratic distance attenuation"
-msgstr "Квадратичное затухание от расстояния"
-
-
-msgid "Quadratic Coefficient"
-msgstr "Квадратичный коэффициент"
-
-
-msgid "Quadratic distance attenuation coefficient"
-msgstr "Квадратичный коэффициент затухания на расстоянии"
-
-
 msgid "Shadow Buffer Bias"
 msgstr "Погрешность теневого буфера"
 
@@ -20890,22 +20801,6 @@ msgstr "Начало отсечения для теневого буфера"
 
 msgid "Shadow map clip start, below which objects will not generate shadows"
 msgstr "Ближняя граница отсечения для теневого буфера, до которой расчёт теней не производится"
-
-
-msgid "Samples"
-msgstr "Сэмплы"
-
-
-msgid "Number of shadow buffer samples"
-msgstr "Количество сэмплов теневого буфера"
-
-
-msgid "Shadow Buffer Size"
-msgstr "Размер теневого буфера"
-
-
-msgid "Resolution of the shadow buffer, higher values give crisper shadows but use more memory"
-msgstr "Разрешение теневого буфера. Чем выше — тем чётче тень, но требуется больше памяти"
 
 
 msgid "Shadow Color"
@@ -25919,6 +25814,10 @@ msgid "Format of multiview media"
 msgstr "Формат среды мультипросмотра"
 
 
+msgid "Multi-View"
+msgstr "Мультивид"
+
+
 msgid "Image Preview"
 msgstr "Предпросмотр изображения"
 
@@ -30219,6 +30118,10 @@ msgid "Minimum for measuring thickness"
 msgstr "Минимум для измерения толщины"
 
 
+msgid "Samples"
+msgstr "Сэмплы"
+
+
 msgid "Number of samples to test per face"
 msgstr "Количество сэмплов для тестирования на грань"
 
@@ -33206,10 +33109,6 @@ msgid "Add Threshold"
 msgstr "Порог добавления"
 
 
-msgid "Lower bound for a vertex's weight to be added to the vgroup"
-msgstr "Нижняя граница веса вершин, добавляемых в группу вершин"
-
-
 msgid "Default Weight"
 msgstr "Вес по умолчанию"
 
@@ -33303,10 +33202,6 @@ msgstr "Нормализовать веса"
 
 msgid "Remove Threshold"
 msgstr "Порог удаления"
-
-
-msgid "Upper bound for a vertex's weight to be removed from the vgroup"
-msgstr "Верхняя граница веса вершин, удаляемых из группы вершин"
 
 
 msgid "Group Add"
@@ -46275,6 +46170,23 @@ msgstr "Переключить кисть в режим сглаживания �
 
 
 msgctxt "Operator"
+msgid "Select Mode"
+msgstr "Режим выделения"
+
+
+msgid "Select only points"
+msgstr "Выделять только точки"
+
+
+msgid "Select all stroke points"
+msgstr "Выделять все точки штрихов"
+
+
+msgid "Select all stroke points between other strokes"
+msgstr "Выделить все точки штриха между другими штрихами"
+
+
+msgctxt "Operator"
 msgid "Add Render Slot"
 msgstr "Добавить рендер слот"
 
@@ -49806,11 +49718,6 @@ msgstr "Выделить элементы меша, соответствующи
 
 msgid "Extend the existing selection"
 msgstr "Расширить существующее выделение"
-
-
-msgctxt "Operator"
-msgid "Select Mode"
-msgstr "Режим выделения"
 
 
 msgid "Change selection mode"
@@ -57177,6 +57084,10 @@ msgid "Dynamic topology alters the mesh topology while sculpting"
 msgstr "Динамическая топология изменяет топологию сетки во время скульптинга"
 
 
+msgid "Falloff Type"
+msgstr "Тип спада"
+
+
 msgid "Grow Face Set"
 msgstr "Увеличить набор граней"
 
@@ -59845,6 +59756,10 @@ msgid "Align UVs on Y axis"
 msgstr "Выровнять UV по оси Y"
 
 
+msgid "Correct Aspect"
+msgstr "Коррекция соотн. сторон"
+
+
 msgctxt "Operator"
 msgid "Average Islands Scale"
 msgstr "Усреднить масштаб островов"
@@ -59869,10 +59784,6 @@ msgstr "Отсекать по границам"
 
 msgid "Clip UV coordinates to bounds after unwrapping"
 msgstr "Отсекать UV-координаты по границам после развёртки"
-
-
-msgid "Correct Aspect"
-msgstr "Коррекция соотн. сторон"
 
 
 msgid "Map UVs taking image aspect ratio into account"
@@ -62532,10 +62443,6 @@ msgstr "Перезагрузить историю и закладки"
 msgctxt "Operator"
 msgid "Reload Start-Up File"
 msgstr "Перезагрузить начальный файл"
-
-
-msgid "Open the default file (doesn't save the current file)"
-msgstr "Открыть файл по умолчанию (без сохранения текущего файла)"
 
 
 msgid "Path to an alternative start-up file"
@@ -69954,10 +69861,6 @@ msgid "Single stereo camera system, adjust the stereo settings in the camera pan
 msgstr "Система из одной стереокамеры; настраивается в параметрах стерео панели камеры"
 
 
-msgid "Multi-View"
-msgstr "Мультивид"
-
-
 msgid "Multi camera system, adjust the cameras individually"
 msgstr "Система с несколькими камерами и индивидуальной настройкой камер"
 
@@ -77110,18 +77013,6 @@ msgid "Settings for stroke sculpting tools and brushes"
 msgstr "Свойства инструмента скульптинга штрихов Grease Pencil"
 
 
-msgid "Select only points"
-msgstr "Выделять только точки"
-
-
-msgid "Select all stroke points"
-msgstr "Выделять все точки штрихов"
-
-
-msgid "Select all stroke points between other strokes"
-msgstr "Выделить все точки штриха между другими штрихами"
-
-
 msgid "Stroke Placement (3D View)"
 msgstr "Расположение штрихов (3D-вид)"
 
@@ -78774,14 +78665,6 @@ msgstr "Освещение для датаблока мира"
 
 msgid "Length of rays, defines how far away other faces give occlusion effect"
 msgstr "Длина лучей, определяет, на каком расстоянии друг от друга грани дают эффект окклюзии"
-
-
-msgid "Use Ambient Occlusion"
-msgstr "Использовать Ambient Occlusion"
-
-
-msgid "Use Ambient Occlusion to add shadowing based on distance between objects"
-msgstr "Использовать Ambient Occlusion для добавления затенения на основе расстояния между объектами"
 
 
 msgid "World Mist"
@@ -87293,11 +87176,6 @@ msgid "New"
 msgstr "Создать"
 
 
-msgctxt "Simulation"
-msgid "New"
-msgstr "Создать"
-
-
 msgid "%d items"
 msgstr "%d элем."
 
@@ -88809,6 +88687,14 @@ msgid "Missing%s%s%s%s detected!"
 msgstr "Недостающие элементы: %s%s%s%s!"
 
 
+msgid "The modifier used does not support deformed locations"
+msgstr "Использованный модификатор не поддерживает деформированные положения"
+
+
+msgid "No active vertex group for painting, aborting"
+msgstr "Нет активной группы вершин для рисования, операция прервана"
+
+
 msgid "Active group is locked, aborting"
 msgstr "Активная группа заблокирована, операция прервана"
 
@@ -88819,14 +88705,6 @@ msgstr "Симметричная группа заблокирована, отм
 
 msgid "Multipaint group is locked, aborting"
 msgstr "Группа мультирисования заблокирована, операция прервана"
-
-
-msgid "The modifier used does not support deformed locations"
-msgstr "Использованный модификатор не поддерживает деформированные положения"
-
-
-msgid "No active vertex group for painting, aborting"
-msgstr "Нет активной группы вершин для рисования, операция прервана"
 
 
 msgid "Click on the mesh to set the detail"
@@ -90627,14 +90505,6 @@ msgid " or Alt) Even Thickness %s"
 msgstr " или Alt) равномерная толщина %s"
 
 
-msgid "Tilt: %s° %s"
-msgstr "Наклон: %s° %s"
-
-
-msgid "Tilt: %.2f° %s"
-msgstr "Наклон: %.2f° %s"
-
-
 msgid "ScaleX: %s"
 msgstr "Масштаб по X: %s"
 
@@ -92268,16 +92138,16 @@ msgid "Can't link data-block '%s' of type '%s'"
 msgstr "Невозможно связать датаблок «%s» типа «%s"
 
 
-msgid "'%s': not a library"
-msgstr "«%s»: не библиотека"
+msgid "'%s': cannot use current file as library"
+msgstr "«%s»: невозможно использовать файл как библиотеку"
 
 
 msgid "'%s': nothing indicated"
 msgstr "«%s»: ничего не указано"
 
 
-msgid "'%s': cannot use current file as library"
-msgstr "«%s»: невозможно использовать файл как библиотеку"
+msgid "'%s': not a library"
+msgstr "«%s»: не библиотека"
 
 
 msgid "'%s' is not a valid library filepath"

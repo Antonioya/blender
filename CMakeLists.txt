@@ -517,6 +517,7 @@ mark_as_advanced(WITH_CYCLES_LOGGING)
 mark_as_advanced(WITH_CYCLES_DEBUG_NAN)
 mark_as_advanced(WITH_CYCLES_NATIVE_ONLY)
 mark_as_advanced(WITH_CYCLES_PRECOMPUTE)
+mark_as_advanced(CYCLES_TEST_DEVICES)
 
 # NVIDIA CUDA & OptiX
 if(NOT APPLE)
@@ -639,17 +640,22 @@ if(UNIX AND NOT APPLE)
 endif()
 
 
-# OpenGL
-
-option(WITH_OPENGL "When off limits visibility of the opengl headers to just bf_gpu and gawain (temporary option for development purposes)" ON)
+# GPU Module
 option(WITH_GPU_BUILDTIME_SHADER_BUILDER "Shader builder is a developer option enabling linting on GLSL during compilation" OFF)
 option(WITH_RENDERDOC "Use Renderdoc API to capture frames" OFF)
 
 mark_as_advanced(
-  WITH_OPENGL
   WITH_GPU_BUILDTIME_SHADER_BUILDER
   WITH_RENDERDOC
 )
+
+# OpenGL
+if(NOT APPLE)
+  option(WITH_OPENGL_BACKEND "Enable OpenGL support as graphic backend" ON)
+  mark_as_advanced(WITH_OPENGL_BACKEND)
+else()
+  set(WITH_OPENGL_BACKEND OFF)
+endif()
 
 # Vulkan
 option(WITH_VULKAN_BACKEND "Enable Vulkan as graphics backend (only for development)" OFF)
@@ -660,7 +666,6 @@ mark_as_advanced(
 )
 
 # Metal
-
 if(APPLE)
   option(WITH_METAL_BACKEND "Use Metal for graphics instead of (or as well as) OpenGL on macOS." ON)
   mark_as_advanced(WITH_METAL_BACKEND)
@@ -1248,14 +1253,6 @@ if(WITH_OPENVDB)
   list(APPEND OPENVDB_LIBRARIES ${BOOST_LIBRARIES} ${TBB_LIBRARIES})
 endif()
 
-
-# -----------------------------------------------------------------------------
-# Configure OpenGL
-
-if(WITH_OPENGL)
-  add_definitions(-DWITH_OPENGL)
-endif()
-
 # -----------------------------------------------------------------------------
 # Configure Metal
 
@@ -1292,6 +1289,9 @@ if(WITH_OPENMP)
       add_definitions("${OpenMP_C_FLAGS}")
 
       find_library_static(OpenMP_LIBRARIES gomp ${CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES})
+      mark_as_advanced(
+        OpenMP_LIBRARIES
+      )
     endif()
   endif()
 

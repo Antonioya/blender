@@ -6,7 +6,7 @@
  * \ingroup RNA
  */
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "BLI_math.h"
 
@@ -1214,7 +1214,7 @@ static void rna_GpencilCurvePoint_BezTriple_ctrlpoint_select_set(PointerRNA *ptr
 static bool rna_GpencilCurvePoint_BezTriple_hide_get(PointerRNA *ptr)
 {
   bGPDcurve_point *cpt = (bGPDcurve_point *)ptr->data;
-  return (bool)cpt->bezt.hide;
+  return bool(cpt->bezt.hide);
 }
 
 static void rna_GpencilCurvePoint_BezTriple_hide_set(PointerRNA *ptr, const bool value)
@@ -1881,7 +1881,7 @@ static void rna_def_gpencil_frames_api(BlenderRNA *brna, PropertyRNA *cprop)
                      MINAFRAME,
                      MAXFRAME);
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  RNA_def_boolean(func, "active", 0, "Active", "");
+  RNA_def_boolean(func, "active", false, "Active", "");
   parm = RNA_def_pointer(func, "frame", "GPencilFrame", "", "The newly created frame");
   RNA_def_function_return(func, parm);
 
@@ -2474,7 +2474,7 @@ static void rna_def_gpencil_data(BlenderRNA *brna)
   RNA_def_property_collection_sdna(prop, nullptr, "mat", "totcol");
   RNA_def_property_struct_type(prop, "Material");
   RNA_def_property_ui_text(prop, "Materials", "");
-  RNA_def_property_srna(prop, "IDMaterials"); /* see rna_ID.c */
+  RNA_def_property_srna(prop, "IDMaterials"); /* see rna_ID.cc */
   RNA_def_property_collection_funcs(prop,
                                     nullptr,
                                     nullptr,

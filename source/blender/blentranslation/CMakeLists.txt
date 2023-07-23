@@ -3,13 +3,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
-  ../blenkernel
-  ../blenlib
-  ../imbuf
-  ../makesdna
+  PUBLIC .
   ../makesrna
-  ../../../intern/guardedalloc
   ../../../intern/locale
 )
 
@@ -17,16 +12,18 @@ set(INC_SYS
 )
 
 set(SRC
-  intern/blt_lang.c
-  intern/blt_translation.c
+  intern/blt_lang.cc
+  intern/blt_translation.cc
 
   BLT_lang.h
   BLT_translation.h
 )
 
 set(LIB
-  bf_blenkernel
-  bf_blenlib
+  PRIVATE bf::blenkernel
+  PRIVATE bf::blenlib
+  PRIVATE bf::dna
+  PRIVATE bf::intern::guardedalloc
 )
 
 if(WITH_INTERNATIONAL)
@@ -50,6 +47,7 @@ if(WIN32 OR APPLE)
 endif()
 
 blender_add_lib(bf_blentranslation "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::blentranslation ALIAS bf_blentranslation)
 
 if(WITH_INTERNATIONAL)
   add_subdirectory(msgfmt)

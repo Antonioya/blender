@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.0.0 Alpha (b'44ee5b38ac1b')\n"
+"Project-Id-Version: Blender 4.0.0 Alpha (b'5aff5bc0e72b')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-07-04 16:07:54\n"
+"POT-Creation-Date: 2023-07-17 12:39:59\n"
 "PO-Revision-Date: 2021-03-01 19:15+0000\n"
 "Last-Translator: lxlalexlxl <lxlalexlxl@ukr.net>\n"
 "Language-Team: Ukrainian (Ukraine) (http://www.transifex.com/lxlalexlxl/blender/language/uk_UA/)\n"
@@ -1800,10 +1800,6 @@ msgstr "Ключі форм"
 
 msgid "Shape Key data-blocks"
 msgstr "Блоки даних ключів форми"
-
-
-msgid "Simulations"
-msgstr "Симуляції"
 
 
 msgid "Sounds"
@@ -8729,11 +8725,6 @@ msgstr "Сцена"
 
 
 msgctxt "ID"
-msgid "Simulation"
-msgstr "Симуляція"
-
-
-msgctxt "ID"
 msgid "Sound"
 msgstr "Звук"
 
@@ -11251,10 +11242,6 @@ msgid "Show Scene data-blocks"
 msgstr "Показ блоків даних Сцени"
 
 
-msgid "Show Simulation data-blocks"
-msgstr "Показати блоки даних Симуляції"
-
-
 msgid "Show Sound data-blocks"
 msgstr "Показ блоків даних Звуку"
 
@@ -11401,10 +11388,6 @@ msgstr "Показати об'єкти та колекції"
 
 msgid "Show scenes"
 msgstr "Показ сцен"
-
-
-msgid "Show materials, nodetrees, textures and Freestyle's linestyles"
-msgstr "Показ матеріалів, дерев вузлів, текстур та стилів ліній Freestyle"
 
 
 msgid "Directory"
@@ -20537,10 +20520,6 @@ msgid "Cycles light settings"
 msgstr "Устави освітлення Cycles"
 
 
-msgid "Falloff distance - the light is at half the original intensity at this point"
-msgstr "Відстань спаду - інтенсивність світла у цій точці становить половину початкової"
-
-
 msgid "Node tree for node based lights"
 msgstr "Дерево вузлів для базованих на вузлах освітлювачів"
 
@@ -20618,14 +20597,6 @@ msgid "Directional area Light"
 msgstr "Направлений площинний Освітлювач"
 
 
-msgid "Constant Coefficient"
-msgstr "Постійний коефіцієнт"
-
-
-msgid "Constant distance attenuation coefficient"
-msgstr "Постійний коефіцієнт згасання з відстанню"
-
-
 msgid "Contact Shadow Bias"
 msgstr "Відхил Тіні Контакту"
 
@@ -20654,66 +20625,6 @@ msgid "Light energy emitted over the entire area of the light in all directions"
 msgstr "Енергія світла, емітована на всю область освітлювача у всіх напрямках"
 
 
-msgid "Custom light falloff curve"
-msgstr "Власна крива спаду освітлення"
-
-
-msgid "Falloff Type"
-msgstr "Тип спаду"
-
-
-msgid "Intensity Decay with distance"
-msgstr "Зменшення інтенсивності з відстанню"
-
-
-msgid "Inverse Linear"
-msgstr "Обернено пропорційно"
-
-
-msgid "Inverse Square"
-msgstr "Обернено до квадрату"
-
-
-msgid "Inverse Coefficients"
-msgstr "Обернути коефіцієнти"
-
-
-msgid "Lin/Quad Weighted"
-msgstr "Лін/квад виважено"
-
-
-msgid "Linear Attenuation"
-msgstr "Лінійне послаблення"
-
-
-msgid "Linear distance attenuation"
-msgstr "Лінійне послаблення з відстанню"
-
-
-msgid "Linear Coefficient"
-msgstr "Лінійний коефіцієнт"
-
-
-msgid "Linear distance attenuation coefficient"
-msgstr "Лінійний коефіцієнт згасання з відстанню"
-
-
-msgid "Quadratic Attenuation"
-msgstr "Квадратичне послаблення"
-
-
-msgid "Quadratic distance attenuation"
-msgstr "Квадратичне послаблення з відстанню"
-
-
-msgid "Quadratic Coefficient"
-msgstr "Квадратичний коефіцієнт"
-
-
-msgid "Quadratic distance attenuation coefficient"
-msgstr "Квадратичний коефіцієнт згасання з відстанню"
-
-
 msgid "Shadow Buffer Bias"
 msgstr "Похибка тіньового буфера"
 
@@ -20728,22 +20639,6 @@ msgstr "Початок відсікання для буфера тіні"
 
 msgid "Shadow map clip start, below which objects will not generate shadows"
 msgstr "Ближня межа відсікання для тіньового буфера, нижче від якої об'єкти не будуть генерувати тіні"
-
-
-msgid "Samples"
-msgstr "Вибірки"
-
-
-msgid "Number of shadow buffer samples"
-msgstr "Кількість вибірок буфера тіней"
-
-
-msgid "Shadow Buffer Size"
-msgstr "Розмір буфера тіней"
-
-
-msgid "Resolution of the shadow buffer, higher values give crisper shadows but use more memory"
-msgstr "Роздільність тіньового буфера. Більші значення дають чіткіші тіні, але потребують більше пам'яті"
 
 
 msgid "Shadow Color"
@@ -26075,6 +25970,10 @@ msgid "Format of multiview media"
 msgstr "Формат багатовиглядних медіаданих"
 
 
+msgid "Multi-View"
+msgstr "Багато-вигляд"
+
+
 msgid "Image Preview"
 msgstr "Перегляд зображення"
 
@@ -30418,6 +30317,10 @@ msgid "Minimum for measuring thickness"
 msgstr "Найменша вимірювана товщина"
 
 
+msgid "Samples"
+msgstr "Вибірки"
+
+
 msgid "Number of samples to test per face"
 msgstr "Кількість вибірок грані на тест"
 
@@ -34101,10 +34004,6 @@ msgid "Add Threshold"
 msgstr "Додати поріг"
 
 
-msgid "Lower bound for a vertex's weight to be added to the vgroup"
-msgstr "Нижня межа вагомості вершин, вершини з вищими значеннями якої будуть додані у групу вершин"
-
-
 msgid "Default Weight"
 msgstr "Стандартна вагомість"
 
@@ -34222,10 +34121,6 @@ msgstr "Нормалізувати результатні вагомості (і
 
 msgid "Remove Threshold"
 msgstr "Поріг вилучення"
-
-
-msgid "Upper bound for a vertex's weight to be removed from the vgroup"
-msgstr "Верхня межа вагомості вершин, вершини з вищими значеннями якої будуть вилучені з групи вершин"
 
 
 msgid "Group Add"
@@ -49104,6 +48999,23 @@ msgstr "Перемкнути пензель у режим згладжуванн
 
 
 msgctxt "Operator"
+msgid "Select Mode"
+msgstr "Режим Вибору"
+
+
+msgid "Select only points"
+msgstr "Вибрати лише точки"
+
+
+msgid "Select all stroke points"
+msgstr "Вибрати усі точки штрихів"
+
+
+msgid "Select all stroke points between other strokes"
+msgstr "Вибрати усі точки штрихів між іншими штрихами"
+
+
+msgctxt "Operator"
 msgid "Add Render Slot"
 msgstr "Додати Гніздо Рендера"
 
@@ -53027,11 +52939,6 @@ msgstr "Виділити елементи сіті у дзеркальних п�
 
 msgid "Extend the existing selection"
 msgstr "Розширити наявний вибір"
-
-
-msgctxt "Operator"
-msgid "Select Mode"
-msgstr "Режим Вибору"
 
 
 msgid "Change selection mode"
@@ -61400,6 +61307,10 @@ msgid "Edit Dyntopo Detail Size"
 msgstr "Редагувати Розмір Детальності Динтопо"
 
 
+msgid "Falloff Type"
+msgstr "Тип спаду"
+
+
 msgctxt "Operator"
 msgid "Face Set Box Gesture"
 msgstr "Набір Граней Коробки Жестом"
@@ -64789,6 +64700,10 @@ msgid "Align UVs on Y axis"
 msgstr "Вирівняти UV за віссю Y"
 
 
+msgid "Correct Aspect"
+msgstr "Виправити Пропорцію Боків"
+
+
 msgctxt "Operator"
 msgid "Average Islands Scale"
 msgstr "Усереднити масштаб островів"
@@ -64813,10 +64728,6 @@ msgstr "Відсікати вздовж меж"
 
 msgid "Clip UV coordinates to bounds after unwrapping"
 msgstr "Відсікати UV-координати вздовж меж після розгортання"
-
-
-msgid "Correct Aspect"
-msgstr "Виправити Пропорцію Боків"
 
 
 msgid "Map UVs taking image aspect ratio into account"
@@ -67853,10 +67764,6 @@ msgstr "Перезавантажити файл історії та заклад
 msgctxt "Operator"
 msgid "Reload Start-Up File"
 msgstr "Перезавантажити стартовий файл"
-
-
-msgid "Open the default file (doesn't save the current file)"
-msgstr "Відкрити стандартний файл (не зберігаючи поточного файлу)"
 
 
 msgid "Path to an alternative start-up file"
@@ -76139,10 +76046,6 @@ msgid "Single stereo camera system, adjust the stereo settings in the camera pan
 msgstr "Система  одиничної стерео камери, наладнуйте дані параметри стерео на панелі камери"
 
 
-msgid "Multi-View"
-msgstr "Багато-вигляд"
-
-
 msgid "Multi camera system, adjust the cameras individually"
 msgstr "Багатокамерна система, наладнуйте кожну камеру окремо"
 
@@ -84024,18 +83927,6 @@ msgid "Settings for stroke sculpting tools and brushes"
 msgstr "Параметри для пензлів та інструментів ліплення штрихів"
 
 
-msgid "Select only points"
-msgstr "Вибрати лише точки"
-
-
-msgid "Select all stroke points"
-msgstr "Вибрати усі точки штрихів"
-
-
-msgid "Select all stroke points between other strokes"
-msgstr "Вибрати усі точки штрихів між іншими штрихами"
-
-
 msgid "Stroke Placement (3D View)"
 msgstr "Розміщення Штриха (3D Огляд)"
 
@@ -86099,14 +85990,6 @@ msgstr "Світло для блока даних світу"
 
 msgid "Length of rays, defines how far away other faces give occlusion effect"
 msgstr "Довжина променів; визначає, на якій відстані грані дають ефект оклюзії"
-
-
-msgid "Use Ambient Occlusion"
-msgstr "Вжити загороду оточення (АО)"
-
-
-msgid "Use Ambient Occlusion to add shadowing based on distance between objects"
-msgstr "Використати загороду оточення (АО), щоб додати відтінення залежно від відстані між об'єктами"
 
 
 msgid "World Mist"
@@ -96174,10 +96057,6 @@ msgid "Browse Volume Data to be linked"
 msgstr "Переглянути Дані Об'єму для пов'язання"
 
 
-msgid "Browse Simulation to be linked"
-msgstr "Проглянути щодо Симуляції для пов'язання"
-
-
 msgid "Browse Grease Pencil Data to be linked"
 msgstr "Переглянути дані нарисного пензля для пов'язання"
 
@@ -96302,11 +96181,6 @@ msgstr "Нове"
 
 
 msgctxt "Volume"
-msgid "New"
-msgstr "Нове"
-
-
-msgctxt "Simulation"
 msgid "New"
 msgstr "Нове"
 
@@ -98067,6 +97941,14 @@ msgid "Missing%s%s%s%s detected!"
 msgstr "Виявлено відсутність %s%s%s%s!"
 
 
+msgid "The modifier used does not support deformed locations"
+msgstr "Використаний модифікатор не підтримує деформованих розміщень"
+
+
+msgid "No active vertex group for painting, aborting"
+msgstr "Немає активної групи вершин для фарбування; припинення"
+
+
 msgid "Active group is locked, aborting"
 msgstr "Активна група заблокована, припинено"
 
@@ -98077,14 +97959,6 @@ msgstr "Дзеркалення групи заблоковано, збій"
 
 msgid "Multipaint group is locked, aborting"
 msgstr "Багатомалювальна група заблокована, збій"
-
-
-msgid "The modifier used does not support deformed locations"
-msgstr "Використаний модифікатор не підтримує деформованих розміщень"
-
-
-msgid "No active vertex group for painting, aborting"
-msgstr "Немає активної групи вершин для фарбування; припинення"
 
 
 msgid "Click on the mesh to set the detail"
@@ -100126,14 +100000,6 @@ msgid " or Alt) Even Thickness %s"
 msgstr " або Alt) однакова товщина %s"
 
 
-msgid "Tilt: %s° %s"
-msgstr "Нахил: %s° %s"
-
-
-msgid "Tilt: %.2f° %s"
-msgstr "Нахил: %.2f° %s"
-
-
 msgid "ScaleX: %s"
 msgstr "Масштаб_X: %s"
 
@@ -101960,16 +101826,16 @@ msgid "Can't link data-block '%s' of type '%s'"
 msgstr "Неможливо пов'язати блок даних '%s' типу '%s'"
 
 
-msgid "'%s': not a library"
-msgstr "'%s': не є бібліотекою"
+msgid "'%s': cannot use current file as library"
+msgstr "'%s': неможливо використати поточний файл як бібліотеку"
 
 
 msgid "'%s': nothing indicated"
 msgstr "'%s': нічого не вказано"
 
 
-msgid "'%s': cannot use current file as library"
-msgstr "'%s': неможливо використати поточний файл як бібліотеку"
+msgid "'%s': not a library"
+msgstr "'%s': не є бібліотекою"
 
 
 msgid "Scene '%s' is linked, instantiation of objects is disabled"

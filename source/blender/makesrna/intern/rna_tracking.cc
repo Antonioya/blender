@@ -6,8 +6,8 @@
  * \ingroup RNA
  */
 
-#include <limits.h>
-#include <stdlib.h>
+#include <climits>
+#include <cstdlib>
 
 #include "MEM_guardedalloc.h"
 
@@ -379,7 +379,7 @@ static float rna_trackingCamera_focal_mm_get(PointerRNA *ptr)
   float val = camera->focal;
 
   if (clip->lastsize[0]) {
-    val = val * camera->sensor_width / (float)clip->lastsize[0];
+    val = val * camera->sensor_width / float(clip->lastsize[0]);
   }
 
   return val;
