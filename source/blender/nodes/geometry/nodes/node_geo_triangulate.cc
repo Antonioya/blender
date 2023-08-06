@@ -10,8 +10,8 @@
 
 #include "DNA_mesh_types.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
@@ -27,8 +27,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "quad_method", 0, "", ICON_NONE);
-  uiItemR(layout, ptr, "ngon_method", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "quad_method", UI_ITEM_NONE, "", ICON_NONE);
+  uiItemR(layout, ptr, "ngon_method", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void geo_triangulate_init(bNodeTree * /*tree*/, bNode *node)
@@ -81,10 +81,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!geometry_set.has_mesh()) {
       return;
     }
-    const Mesh &mesh_in = *geometry_set.get_mesh_for_read();
+    const Mesh &mesh_in = *geometry_set.get_mesh();
 
     const bke::MeshFieldContext context{mesh_in, ATTR_DOMAIN_FACE};
-    FieldEvaluator evaluator{context, mesh_in.totpoly};
+    FieldEvaluator evaluator{context, mesh_in.faces_num};
     evaluator.add(selection_field);
     evaluator.evaluate();
     const IndexMask selection = evaluator.get_evaluated_as_mask(0);

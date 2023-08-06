@@ -27,20 +27,20 @@
 #include "BKE_global.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
-#include "BKE_mesh.h"
-#include "BKE_mesh_mapping.h"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_mapping.hh"
 #include "BKE_report.h"
 
 #include "DEG_depsgraph.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_mesh.h"
-#include "ED_screen.h"
-#include "ED_transform_snap_object_context.h"
-#include "ED_uvedit.h"
-#include "ED_view3d.h"
+#include "ED_mesh.hh"
+#include "ED_screen.hh"
+#include "ED_transform_snap_object_context.hh"
+#include "ED_uvedit.hh"
+#include "ED_view3d.hh"
 
 #include "mesh_intern.h" /* own include */
 
@@ -481,8 +481,8 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, const bool use_select)
     if ((use_select == false) || BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
       int i;
       BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
-        buf->loop_of_poly_index = i;
-        buf->poly_index = a;
+        buf->loop_of_face_index = i;
+        buf->face_index = a;
         buf->separate = false;
 
         buf->next = vmap->vert[BM_elem_index_get(l->v)];
@@ -504,10 +504,10 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, const bool use_select)
       v->next = newvlist;
       newvlist = v;
 
-      efa = BM_face_at_index(bm, v->poly_index);
+      efa = BM_face_at_index(bm, v->face_index);
 
       l = static_cast<BMLoop *>(
-          BM_iter_at_index(bm, BM_LOOPS_OF_FACE, efa, v->loop_of_poly_index));
+          BM_iter_at_index(bm, BM_LOOPS_OF_FACE, efa, v->loop_of_face_index));
       uv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
 
       lastv = nullptr;
@@ -515,9 +515,9 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, const bool use_select)
 
       while (iterv) {
         next = iterv->next;
-        efa = BM_face_at_index(bm, iterv->poly_index);
+        efa = BM_face_at_index(bm, iterv->face_index);
         l = static_cast<BMLoop *>(
-            BM_iter_at_index(bm, BM_LOOPS_OF_FACE, efa, iterv->loop_of_poly_index));
+            BM_iter_at_index(bm, BM_LOOPS_OF_FACE, efa, iterv->loop_of_face_index));
         uv2 = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
 
         if (compare_v2v2(uv2, uv, STD_UV_CONNECT_LIMIT)) {
@@ -630,7 +630,7 @@ static void bm_uv_assign_island(UvElementMap *element_map,
   /* Copy *element to islandbuf[islandbufsize]. */
   islandbuf[islandbufsize].l = element->l;
   islandbuf[islandbufsize].separate = element->separate;
-  islandbuf[islandbufsize].loop_of_poly_index = element->loop_of_poly_index;
+  islandbuf[islandbufsize].loop_of_face_index = element->loop_of_face_index;
   islandbuf[islandbufsize].island = element->island;
   islandbuf[islandbufsize].flag = element->flag;
 }
@@ -1048,7 +1048,7 @@ UvElementMap *BM_uv_element_map_create(BMesh *bm,
 
       buf->l = l;
       buf->island = INVALID_ISLAND;
-      buf->loop_of_poly_index = i;
+      buf->loop_of_face_index = i;
 
       /* Insert to head of linked list associated with BMVert. */
       buf->next = element_map->vertex[BM_elem_index_get(l->v)];

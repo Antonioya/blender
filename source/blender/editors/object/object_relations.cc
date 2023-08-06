@@ -58,7 +58,7 @@
 #include "BKE_lattice.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
-#include "BKE_lib_override.h"
+#include "BKE_lib_override.hh"
 #include "BKE_lib_query.h"
 #include "BKE_lib_remap.h"
 #include "BKE_light.h"
@@ -66,7 +66,7 @@
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mball.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
 #include "BKE_object.h"
@@ -81,24 +81,24 @@
 #include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_query.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
-#include "ED_armature.h"
-#include "ED_curve.h"
-#include "ED_gpencil_legacy.h"
-#include "ED_keyframing.h"
-#include "ED_mesh.h"
-#include "ED_object.h"
-#include "ED_screen.h"
-#include "ED_view3d.h"
+#include "ED_armature.hh"
+#include "ED_curve.hh"
+#include "ED_gpencil_legacy.hh"
+#include "ED_keyframing.hh"
+#include "ED_mesh.hh"
+#include "ED_object.hh"
+#include "ED_screen.hh"
+#include "ED_view3d.hh"
 
 #include "MOD_nodes.hh"
 
@@ -928,7 +928,8 @@ static int parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
 #if 0
   uiItemEnumO_ptr(layout, ot, nullptr, 0, "type", PAR_OBJECT);
 #else
-  uiItemFullO_ptr(layout, ot, IFACE_("Object"), ICON_NONE, nullptr, WM_OP_EXEC_DEFAULT, 0, &opptr);
+  uiItemFullO_ptr(
+      layout, ot, IFACE_("Object"), ICON_NONE, nullptr, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE, &opptr);
   RNA_enum_set(&opptr, "type", PAR_OBJECT);
   RNA_boolean_set(&opptr, "keep_transform", false);
 
@@ -938,7 +939,7 @@ static int parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
                   ICON_NONE,
                   nullptr,
                   WM_OP_EXEC_DEFAULT,
-                  0,
+                  UI_ITEM_NONE,
                   &opptr);
   RNA_enum_set(&opptr, "type", PAR_OBJECT);
   RNA_boolean_set(&opptr, "keep_transform", true);
@@ -2160,9 +2161,7 @@ static bool make_local_all__instance_indirect_unused(Main *bmain,
 
 static void make_local_animdata_tag_strips(ListBase *strips)
 {
-  NlaStrip *strip;
-
-  for (strip = static_cast<NlaStrip *>(strips->first); strip; strip = strip->next) {
+  LISTBASE_FOREACH (NlaStrip *, strip, strips) {
     if (strip->act) {
       strip->act->id.tag &= ~LIB_TAG_PRE_EXISTING;
     }
@@ -2207,7 +2206,6 @@ static void make_local_material_tag(Material *ma)
 static int make_local_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  ParticleSystem *psys;
   Material *ma, ***matarar;
   const int mode = RNA_enum_get(op->ptr, "type");
   int a;
@@ -2240,8 +2238,7 @@ static int make_local_exec(bContext *C, wmOperator *op)
 
       ob->id.tag &= ~LIB_TAG_PRE_EXISTING;
       make_local_animdata_tag(BKE_animdata_from_id(&ob->id));
-      for (psys = static_cast<ParticleSystem *>(ob->particlesystem.first); psys; psys = psys->next)
-      {
+      LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
         psys->part->id.tag &= ~LIB_TAG_PRE_EXISTING;
       }
 

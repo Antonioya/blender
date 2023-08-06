@@ -31,16 +31,16 @@
 
 #include "BLT_translation.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_screen.h"
-#include "ED_space_api.h"
+#include "ED_screen.hh"
+#include "ED_space_api.hh"
 
 #include "PIL_time.h" /* Smooth-view. */
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "GPU_immediate.h"
 
@@ -78,7 +78,7 @@ enum {
 };
 
 /* relative view axis locking - xlock, zlock */
-typedef enum eFlyPanState {
+enum eFlyPanState {
   /* disabled */
   FLY_AXISLOCK_STATE_OFF = 0,
 
@@ -89,7 +89,7 @@ typedef enum eFlyPanState {
   /* mouse moved and checking needed,
    * if no view altering is done its changed back to #FLY_AXISLOCK_STATE_IDLE */
   FLY_AXISLOCK_STATE_ACTIVE = 2,
-} eFlyPanState;
+};
 
 void fly_modal_keymap(wmKeyConfig *keyconf)
 {

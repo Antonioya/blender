@@ -12,8 +12,8 @@
 #include "BKE_mesh.hh"
 #include "BKE_pointcloud.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
@@ -36,7 +36,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -53,7 +53,7 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
                                         const eAttrDomain domain,
                                         const AnonymousAttributePropagationInfo &propagation_info)
 {
-  const Mesh *mesh = geometry_set.get_mesh_for_read();
+  const Mesh *mesh = geometry_set.get_mesh();
   if (mesh == nullptr) {
     geometry_set.remove_geometry_during_modify();
     return;

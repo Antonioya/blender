@@ -46,7 +46,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_anim_data.h"
-#include "BKE_brush.h"
+#include "BKE_brush.hh"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -74,12 +74,12 @@
 
 #include "IMB_imbuf_types.h"
 
-#include "ED_fileselect.h"
-#include "ED_gpencil_legacy.h"
-#include "ED_numinput.h"
-#include "ED_screen.h"
-#include "ED_undo.h"
-#include "ED_view3d.h"
+#include "ED_fileselect.hh"
+#include "ED_gpencil_legacy.hh"
+#include "ED_numinput.hh"
+#include "ED_screen.hh"
+#include "ED_undo.hh"
+#include "ED_view3d.hh"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -87,19 +87,19 @@
 #include "RNA_path.h"
 #include "RNA_prototypes.h"
 
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
+#include "UI_resources.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "wm.h"
-#include "wm_draw.h"
+#include "wm.hh"
+#include "wm_draw.hh"
 #include "wm_event_system.h"
-#include "wm_event_types.h"
-#include "wm_files.h"
-#include "wm_window.h"
+#include "wm_event_types.hh"
+#include "wm_files.hh"
+#include "wm_window.hh"
 #ifdef WITH_XR_OPENXR
 #  include "wm_xr.h"
 #endif
@@ -1057,7 +1057,7 @@ int WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallContext opconte
                      RNA_property_identifier(prop),
                      static_cast<IDProperty *>(op->ptr->data),
                      opcontext,
-                     0);
+                     UI_ITEM_NONE);
     UI_popup_menu_end(C, pup);
     return OPERATOR_INTERFACE;
   }
@@ -1193,7 +1193,8 @@ int WM_operator_confirm_message_ex(bContext *C,
 
   uiPopupMenu *pup = UI_popup_menu_begin(C, title, icon);
   uiLayout *layout = UI_popup_menu_layout(pup);
-  uiItemFullO_ptr(layout, op->type, message, ICON_NONE, properties, opcontext, 0, nullptr);
+  uiItemFullO_ptr(
+      layout, op->type, message, ICON_NONE, properties, opcontext, UI_ITEM_NONE, nullptr);
   UI_popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
@@ -1457,9 +1458,9 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 }
 
 /* Dialogs are popups that require user verification (click OK) before exec */
-static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *userData)
+static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_data)
 {
-  wmOpPopUp *data = static_cast<wmOpPopUp *>(userData);
+  wmOpPopUp *data = static_cast<wmOpPopUp *>(user_data);
   wmOperator *op = data->op;
   const uiStyle *style = UI_style_get_dpi();
 
@@ -1498,9 +1499,9 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *userD
   return block;
 }
 
-static uiBlock *wm_operator_ui_create(bContext *C, ARegion *region, void *userData)
+static uiBlock *wm_operator_ui_create(bContext *C, ARegion *region, void *user_data)
 {
-  wmOpPopUp *data = static_cast<wmOpPopUp *>(userData);
+  wmOpPopUp *data = static_cast<wmOpPopUp *>(user_data);
   wmOperator *op = data->op;
   const uiStyle *style = UI_style_get_dpi();
 
@@ -1522,9 +1523,9 @@ static uiBlock *wm_operator_ui_create(bContext *C, ARegion *region, void *userDa
   return block;
 }
 
-static void wm_operator_ui_popup_cancel(bContext *C, void *userData)
+static void wm_operator_ui_popup_cancel(bContext *C, void *user_data)
 {
-  wmOpPopUp *data = static_cast<wmOpPopUp *>(userData);
+  wmOpPopUp *data = static_cast<wmOpPopUp *>(user_data);
   wmOperator *op = data->op;
 
   if (op) {
@@ -2681,7 +2682,7 @@ static int radial_control_get_properties(bContext *C, wmOperator *op)
                                &use_secondary_ptr,
                                &use_secondary_prop,
                                0,
-                               RCPropFlags((RC_PROP_ALLOW_MISSING | RC_PROP_REQUIRE_BOOL))))
+                               RCPropFlags(RC_PROP_ALLOW_MISSING | RC_PROP_REQUIRE_BOOL)))
   {
     return 0;
   }

@@ -27,9 +27,9 @@
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
 #include "BKE_main.h"
-#include "BKE_mesh.h"
-#include "BKE_mesh_legacy_convert.h"
-#include "BKE_mesh_runtime.h"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_legacy_convert.hh"
+#include "BKE_mesh_runtime.hh"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
@@ -44,14 +44,14 @@
 #include "RNA_define.h"
 #include "RNA_prototypes.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_object.h"
-#include "ED_particle.h"
-#include "ED_screen.h"
+#include "ED_object.hh"
+#include "ED_particle.hh"
+#include "ED_screen.hh"
 
-#include "UI_resources.h"
+#include "UI_resources.hh"
 
 #include "particle_edit_utildefines.h"
 
@@ -423,14 +423,13 @@ static int dupliob_move_up_exec(bContext *C, wmOperator * /*op*/)
   PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_system", &RNA_ParticleSystem);
   ParticleSystem *psys = static_cast<ParticleSystem *>(ptr.data);
   ParticleSettings *part;
-  ParticleDupliWeight *dw;
 
   if (!psys) {
     return OPERATOR_CANCELLED;
   }
 
   part = psys->part;
-  for (dw = static_cast<ParticleDupliWeight *>(part->instance_weights.first); dw; dw = dw->next) {
+  LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
     if (dw->flag & PART_DUPLIW_CURRENT && dw->prev) {
       BLI_remlink(&part->instance_weights, dw);
       BLI_insertlinkbefore(&part->instance_weights, dw->prev, dw);
@@ -463,13 +462,12 @@ static int copy_particle_dupliob_exec(bContext *C, wmOperator * /*op*/)
   PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_system", &RNA_ParticleSystem);
   ParticleSystem *psys = static_cast<ParticleSystem *>(ptr.data);
   ParticleSettings *part;
-  ParticleDupliWeight *dw;
 
   if (!psys) {
     return OPERATOR_CANCELLED;
   }
   part = psys->part;
-  for (dw = static_cast<ParticleDupliWeight *>(part->instance_weights.first); dw; dw = dw->next) {
+  LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
     if (dw->flag & PART_DUPLIW_CURRENT) {
       dw->flag &= ~PART_DUPLIW_CURRENT;
       dw = static_cast<ParticleDupliWeight *>(MEM_dupallocN(dw));
@@ -511,7 +509,7 @@ static int remove_particle_dupliob_exec(bContext *C, wmOperator * /*op*/)
   }
 
   part = psys->part;
-  for (dw = static_cast<ParticleDupliWeight *>(part->instance_weights.first); dw; dw = dw->next) {
+  LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
     if (dw->flag & PART_DUPLIW_CURRENT) {
       BLI_remlink(&part->instance_weights, dw);
       MEM_freeN(dw);
@@ -551,14 +549,13 @@ static int dupliob_move_down_exec(bContext *C, wmOperator * /*op*/)
   PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_system", &RNA_ParticleSystem);
   ParticleSystem *psys = static_cast<ParticleSystem *>(ptr.data);
   ParticleSettings *part;
-  ParticleDupliWeight *dw;
 
   if (!psys) {
     return OPERATOR_CANCELLED;
   }
 
   part = psys->part;
-  for (dw = static_cast<ParticleDupliWeight *>(part->instance_weights.first); dw; dw = dw->next) {
+  LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
     if (dw->flag & PART_DUPLIW_CURRENT && dw->next) {
       BLI_remlink(&part->instance_weights, dw);
       BLI_insertlinkafter(&part->instance_weights, dw->next, dw);
@@ -653,7 +650,7 @@ static int disconnect_hair_exec(bContext *C, wmOperator *op)
   }
 
   if (all) {
-    for (psys = static_cast<ParticleSystem *>(ob->particlesystem.first); psys; psys = psys->next) {
+    LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
       disconnect_hair(depsgraph, scene, ob, psys);
     }
   }
@@ -752,20 +749,20 @@ static bool remap_hair_emitter(Depsgraph *depsgraph,
   BKE_mesh_tessface_ensure(mesh);
 
   numverts = mesh->totvert;
-  float(*positions)[3] = BKE_mesh_vert_positions_for_write(mesh);
+  blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
 
   /* convert to global coordinates */
   for (int i = 0; i < numverts; i++) {
     mul_m4_v3(to_mat, positions[i]);
   }
 
-  if (mesh->totface != 0) {
-    mface = static_cast<const MFace *>(CustomData_get_layer(&mesh->fdata, CD_MFACE));
+  if (mesh->totface_legacy != 0) {
+    mface = static_cast<const MFace *>(CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE));
     BKE_bvhtree_from_mesh_get(&bvhtree, mesh, BVHTREE_FROM_FACES, 2);
   }
   else if (mesh->totedge != 0) {
     edges = static_cast<const vec2i *>(
-        CustomData_get_layer_named(&mesh->edata, CD_PROP_INT32_2D, ".edge_verts"));
+        CustomData_get_layer_named(&mesh->edge_data, CD_PROP_INT32_2D, ".edge_verts"));
     BKE_bvhtree_from_mesh_get(&bvhtree, mesh, BVHTREE_FROM_EDGES, 2);
   }
   else {
@@ -951,7 +948,7 @@ static int connect_hair_exec(bContext *C, wmOperator *op)
   }
 
   if (all) {
-    for (psys = static_cast<ParticleSystem *>(ob->particlesystem.first); psys; psys = psys->next) {
+    LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
       any_connected |= connect_hair(depsgraph, scene, ob, psys);
     }
   }
@@ -991,10 +988,10 @@ void PARTICLE_OT_connect_hair(wmOperatorType *ot)
 
 /************************ particle system copy operator *********************/
 
-typedef enum eCopyParticlesSpace {
+enum eCopyParticlesSpace {
   PAR_COPY_SPACE_OBJECT = 0,
   PAR_COPY_SPACE_WORLD = 1,
-} eCopyParticlesSpace;
+};
 
 static void copy_particle_edit(Depsgraph *depsgraph,
                                Scene *scene,

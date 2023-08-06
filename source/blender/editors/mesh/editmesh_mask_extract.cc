@@ -20,7 +20,7 @@
 #include "BKE_lib_id.h"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.h"
-#include "BKE_paint.h"
+#include "BKE_paint.hh"
 #include "BKE_report.h"
 #include "BKE_screen.h"
 #include "BKE_shrinkwrap.h"
@@ -31,15 +31,15 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_mesh.h"
-#include "ED_object.h"
-#include "ED_screen.h"
-#include "ED_sculpt.h"
-#include "ED_undo.h"
-#include "ED_view3d.h"
+#include "ED_mesh.hh"
+#include "ED_object.hh"
+#include "ED_screen.hh"
+#include "ED_sculpt.hh"
+#include "ED_undo.hh"
+#include "ED_view3d.hh"
 
 #include "bmesh_tools.h"
 
@@ -208,10 +208,10 @@ static int geometry_extract_apply(bContext *C,
   /* Remove the Face Sets as they need to be recreated when entering Sculpt Mode in the new object.
    * TODO(pablodobarro): In the future we can try to preserve them from the original mesh. */
   Mesh *new_ob_mesh = static_cast<Mesh *>(new_ob->data);
-  CustomData_free_layer_named(&new_ob_mesh->pdata, ".sculpt_face_set", new_ob_mesh->totpoly);
+  CustomData_free_layer_named(&new_ob_mesh->face_data, ".sculpt_face_set", new_ob_mesh->faces_num);
 
   /* Remove the mask from the new object so it can be sculpted directly after extracting. */
-  CustomData_free_layers(&new_ob_mesh->vdata, CD_PAINT_MASK, new_ob_mesh->totvert);
+  CustomData_free_layers(&new_ob_mesh->vert_data, CD_PAINT_MASK, new_ob_mesh->totvert);
 
   BKE_mesh_copy_parameters_for_eval(new_ob_mesh, mesh);
 
@@ -507,7 +507,7 @@ static int paint_mask_slice_exec(bContext *C, wmOperator *op)
     BM_mesh_free(bm);
 
     /* Remove the mask from the new object so it can be sculpted directly after slicing. */
-    CustomData_free_layers(&new_ob_mesh->vdata, CD_PAINT_MASK, new_ob_mesh->totvert);
+    CustomData_free_layers(&new_ob_mesh->vert_data, CD_PAINT_MASK, new_ob_mesh->totvert);
 
     Mesh *new_mesh = static_cast<Mesh *>(new_ob->data);
     BKE_mesh_nomain_to_mesh(new_ob_mesh, new_mesh, new_ob);
@@ -524,7 +524,7 @@ static int paint_mask_slice_exec(bContext *C, wmOperator *op)
   if (ob->mode == OB_MODE_SCULPT) {
     SculptSession *ss = ob->sculpt;
     ss->face_sets = static_cast<int *>(CustomData_get_layer_named_for_write(
-        &mesh->pdata, CD_PROP_INT32, ".sculpt_face_set", mesh->totpoly));
+        &mesh->face_data, CD_PROP_INT32, ".sculpt_face_set", mesh->faces_num));
     if (ss->face_sets) {
       /* Assign a new Face Set ID to the new faces created by the slice operation. */
       const int next_face_set_id = ED_sculpt_face_sets_find_next_available_id(mesh);

@@ -529,8 +529,8 @@ void BKE_lattice_modifiers_calc(Depsgraph *depsgraph, Scene *scene, Object *ob)
   }
 
   Lattice *lt = static_cast<Lattice *>(ob->data);
-  VirtualModifierData virtualModifierData;
-  ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtualModifierData);
+  VirtualModifierData virtual_modifier_data;
+  ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data);
   float(*vert_coords)[3] = nullptr;
   int numVerts;
   const bool is_editmode = (lt->editlatt != nullptr);
@@ -548,7 +548,7 @@ void BKE_lattice_modifiers_calc(Depsgraph *depsgraph, Scene *scene, Object *ob)
     if (is_editmode && !(md->mode & eModifierMode_Editmode)) {
       continue;
     }
-    if (mti->isDisabled && mti->isDisabled(scene, md, false)) {
+    if (mti->is_disabled && mti->is_disabled(scene, md, false)) {
       continue;
     }
     if (mti->type != eModifierTypeType_OnlyDeform) {
@@ -561,7 +561,7 @@ void BKE_lattice_modifiers_calc(Depsgraph *depsgraph, Scene *scene, Object *ob)
       vert_coords = BKE_lattice_vert_coords_alloc(effective_lattice, &numVerts);
     }
 
-    mti->deformVerts(md, &mectx, nullptr, vert_coords, numVerts);
+    mti->deform_verts(md, &mectx, nullptr, vert_coords, numVerts);
   }
 
   if (vert_coords == nullptr) {
@@ -705,9 +705,7 @@ void BKE_lattice_transform(Lattice *lt, const float mat[4][4], bool do_keys)
   }
 
   if (do_keys && lt->key) {
-    KeyBlock *kb;
-
-    for (kb = static_cast<KeyBlock *>(lt->key->block.first); kb; kb = kb->next) {
+    LISTBASE_FOREACH (KeyBlock *, kb, &lt->key->block) {
       float *fp = static_cast<float *>(kb->data);
       for (i = kb->totelem; i--; fp += 3) {
         mul_m4_v3(mat, fp);
@@ -735,9 +733,7 @@ void BKE_lattice_translate(Lattice *lt, const float offset[3], bool do_keys)
   }
 
   if (do_keys && lt->key) {
-    KeyBlock *kb;
-
-    for (kb = static_cast<KeyBlock *>(lt->key->block.first); kb; kb = kb->next) {
+    LISTBASE_FOREACH (KeyBlock *, kb, &lt->key->block) {
       float *fp = static_cast<float *>(kb->data);
       for (i = kb->totelem; i--; fp += 3) {
         add_v3_v3(fp, offset);

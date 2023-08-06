@@ -39,18 +39,18 @@
 #include "RNA_access.h"
 #include "RNA_prototypes.h"
 
-#include "ED_anim_api.h"
-#include "ED_armature.h"
-#include "ED_clip.h"
-#include "ED_gpencil_legacy.h"
+#include "ED_anim_api.hh"
+#include "ED_armature.hh"
+#include "ED_clip.hh"
+#include "ED_gpencil_legacy.hh"
 
 #include "SEQ_channels.h"
 #include "SEQ_select.h"
 #include "SEQ_sequencer.h"
 #include "SEQ_transform.h"
 
-#include "UI_interface.h"
-#include "WM_api.h"
+#include "UI_interface.hh"
+#include "WM_api.hh"
 
 #include "screen_intern.h"
 
@@ -1298,7 +1298,7 @@ static eContextResult screen_ctx_ui_list(const bContext *C, bContextDataResult *
 
 /* Registry of context callback functions. */
 
-typedef eContextResult (*context_callback)(const bContext *C, bContextDataResult *result);
+using context_callback = eContextResult (*)(const bContext *C, bContextDataResult *result);
 static GHash *ed_screen_context_functions = nullptr;
 
 static void free_context_function_ghash(void * /*user_data*/)

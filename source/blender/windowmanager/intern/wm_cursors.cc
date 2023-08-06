@@ -25,21 +25,21 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
-#include "wm_cursors.h"
-#include "wm_window.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
+#include "wm_cursors.hh"
+#include "wm_window.hh"
 
 /* Blender custom cursor. */
-typedef struct BCursor {
+struct BCursor {
   char *bitmap;
   char *mask;
   char hotx;
   char hoty;
   bool can_invert_color;
-} BCursor;
+};
 
-static BCursor *BlenderCursor[WM_CURSOR_NUM] = {0};
+static BCursor *BlenderCursor[WM_CURSOR_NUM] = {nullptr};
 
 /* Blender cursor to GHOST standard cursor conversion. */
 static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)

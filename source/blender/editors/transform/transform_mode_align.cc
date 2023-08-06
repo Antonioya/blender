@@ -12,7 +12,7 @@
 
 #include "BKE_context.h"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
 #include "BLT_translation.h"
 
@@ -25,7 +25,7 @@
 /** \name Transform (Align)
  * \{ */
 
-static void applyAlign(TransInfo *t, const int[2] /*mval*/)
+static void applyAlign(TransInfo *t)
 {
   float center[3];
   int i;
@@ -61,7 +61,7 @@ static void applyAlign(TransInfo *t, const int[2] /*mval*/)
     copy_v3_v3(tc->center_local, center);
   }
 
-  recalcData(t);
+  recalc_data(t);
 
   ED_area_status_text(t->area, TIP_("Align"));
 }

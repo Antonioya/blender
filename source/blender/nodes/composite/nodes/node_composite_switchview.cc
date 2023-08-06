@@ -9,8 +9,8 @@
 #include "BKE_context.h"
 #include "BKE_lib_id.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "COM_node_operation.hh"
 
@@ -139,7 +139,7 @@ static void node_composit_buts_switch_view_ex(uiLayout *layout,
               ICON_FILE_REFRESH,
               nullptr,
               WM_OP_INVOKE_DEFAULT,
-              0,
+              UI_ITEM_NONE,
               nullptr);
 }
 

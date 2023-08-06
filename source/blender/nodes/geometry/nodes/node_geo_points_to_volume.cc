@@ -17,8 +17,8 @@
 #include "BKE_lib_id.h"
 #include "BKE_volume.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #ifdef WITH_OPENVDB
 namespace blender::nodes {
@@ -93,7 +93,7 @@ void initialize_volume_component_from_points(GeoNodeExecParams &params,
   {
     if (r_geometry_set.has(type)) {
       gather_point_data_from_component(
-          radius_field, *r_geometry_set.get_component_for_read(type), positions, radii);
+          radius_field, *r_geometry_set.get_component(type), positions, radii);
     }
   }
 
@@ -171,7 +171,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "resolution_mode", 0, IFACE_("Resolution"), ICON_NONE);
+  uiItemR(layout, ptr, "resolution_mode", UI_ITEM_NONE, IFACE_("Resolution"), ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

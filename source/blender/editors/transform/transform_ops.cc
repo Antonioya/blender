@@ -26,20 +26,22 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
-#include "WM_api.h"
-#include "WM_message.h"
+#include "WM_api.hh"
+#include "WM_message.hh"
 #include "WM_toolsystem.h"
-#include "WM_types.h"
+#include "WM_types.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 /* for USE_LOOPSLIDE_HACK only */
-#include "ED_mesh.h"
+#include "ED_mesh.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
+
+using namespace blender;
 
 struct TransformModeItem {
   const char *idname;
@@ -424,7 +426,7 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
   if (t->vod && (exit_code & OPERATOR_PASS_THROUGH)) {
     RegionView3D *rv3d = static_cast<RegionView3D *>(t->region->regiondata);
     const bool is_navigating = (rv3d->rflag & RV3D_NAVIGATING) != 0;
-    if (ED_view3d_navigation_do(C, t->vod, event)) {
+    if (ED_view3d_navigation_do(C, t->vod, event, t->center_global)) {
       if (!is_navigating) {
         /* Navigation has started. */
 
@@ -446,13 +448,11 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
       {
         /* Navigation has ended. */
 
-        /* Make sure `t->mval` is up to date before calling #transformViewUpdate. */
-        copy_v2_v2_int(t->mval, event->mval);
-
         /* Call before #applyMouseInput. */
         tranformViewUpdate(t);
 
         /* Mouse input is outdated. */
+        t->mval = float2(event->mval);
         applyMouseInput(t, &t->mouse, t->mval, t->values);
         t->redraw |= TREDRAW_HARD;
       }
@@ -801,12 +801,9 @@ void Transform_Properties(wmOperatorType *ot, int flags)
     RNA_def_property_flag(prop, PROP_HIDDEN);
   }
 
-  if (flags & P_VIEW3D_NAVIGATION) {
-    prop = RNA_def_boolean(ot->srna,
-                           "allow_navigation",
-                           false,
-                           "Allow Navigation",
-                           "Allow navigation while transforming");
+  if (flags & P_VIEW3D_ALT_NAVIGATION) {
+    prop = RNA_def_boolean(
+        ot->srna, "alt_navigation", false, "Transform Navigation with Alt", nullptr);
     RNA_def_property_flag(prop, PROP_HIDDEN);
   }
 
@@ -844,7 +841,7 @@ static void TRANSFORM_OT_translate(wmOperatorType *ot)
   Transform_Properties(ot,
                        P_ORIENT_MATRIX | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP |
                            P_OPTIONS | P_GPENCIL_EDIT | P_CURSOR_EDIT | P_VIEW2D_EDGE_PAN |
-                           P_VIEW3D_NAVIGATION | P_POST_TRANSFORM);
+                           P_VIEW3D_ALT_NAVIGATION | P_POST_TRANSFORM);
 }
 
 static void TRANSFORM_OT_resize(wmOperatorType *ot)
@@ -883,7 +880,7 @@ static void TRANSFORM_OT_resize(wmOperatorType *ot)
 
   Transform_Properties(ot,
                        P_ORIENT_MATRIX | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_GEO_SNAP |
-                           P_OPTIONS | P_GPENCIL_EDIT | P_CENTER | P_VIEW3D_NAVIGATION);
+                           P_OPTIONS | P_GPENCIL_EDIT | P_CENTER | P_VIEW3D_ALT_NAVIGATION);
 }
 
 static void TRANSFORM_OT_skin_resize(wmOperatorType *ot)
@@ -960,7 +957,7 @@ static void TRANSFORM_OT_rotate(wmOperatorType *ot)
 
   Transform_Properties(ot,
                        P_ORIENT_AXIS | P_ORIENT_MATRIX | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR |
-                           P_GEO_SNAP | P_GPENCIL_EDIT | P_CENTER | P_VIEW3D_NAVIGATION);
+                           P_GEO_SNAP | P_GPENCIL_EDIT | P_CENTER | P_VIEW3D_ALT_NAVIGATION);
 }
 
 static void TRANSFORM_OT_tilt(wmOperatorType *ot)
@@ -1029,7 +1026,7 @@ static void TRANSFORM_OT_shear(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Shear";
-  ot->description = "Shear selected items along the horizontal screen axis";
+  ot->description = "Shear selected items along the given axis";
   ot->idname = OP_SHEAR;
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
@@ -1099,7 +1096,7 @@ static void TRANSFORM_OT_shrink_fatten(wmOperatorType *ot)
 
   WM_operatortype_props_advanced_begin(ot);
 
-  Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP | P_VIEW3D_NAVIGATION);
+  Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP | P_VIEW3D_ALT_NAVIGATION);
 }
 
 static void TRANSFORM_OT_tosphere(wmOperatorType *ot)
@@ -1205,7 +1202,7 @@ static void TRANSFORM_OT_edge_slide(wmOperatorType *ot)
                   "When Even mode is active, flips between the two adjacent edge loops");
   RNA_def_boolean(ot->srna, "use_clamp", true, "Clamp", "Clamp within the edge extents");
 
-  Transform_Properties(ot, P_MIRROR | P_GEO_SNAP | P_CORRECT_UV | P_VIEW3D_NAVIGATION);
+  Transform_Properties(ot, P_MIRROR | P_GEO_SNAP | P_CORRECT_UV | P_VIEW3D_ALT_NAVIGATION);
 }
 
 static void TRANSFORM_OT_vert_slide(wmOperatorType *ot)
@@ -1240,7 +1237,7 @@ static void TRANSFORM_OT_vert_slide(wmOperatorType *ot)
                   "When Even mode is active, flips between the two adjacent edge loops");
   RNA_def_boolean(ot->srna, "use_clamp", true, "Clamp", "Clamp within the edge extents");
 
-  Transform_Properties(ot, P_MIRROR | P_GEO_SNAP | P_CORRECT_UV | P_VIEW3D_NAVIGATION);
+  Transform_Properties(ot, P_MIRROR | P_GEO_SNAP | P_CORRECT_UV | P_VIEW3D_ALT_NAVIGATION);
 }
 
 static void TRANSFORM_OT_edge_crease(wmOperatorType *ot)
@@ -1388,7 +1385,7 @@ static void TRANSFORM_OT_transform(wmOperatorType *ot)
 
   Transform_Properties(ot,
                        P_ORIENT_AXIS | P_ORIENT_MATRIX | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR |
-                           P_ALIGN_SNAP | P_GPENCIL_EDIT | P_CENTER | P_VIEW3D_NAVIGATION |
+                           P_ALIGN_SNAP | P_GPENCIL_EDIT | P_CENTER | P_VIEW3D_ALT_NAVIGATION |
                            P_POST_TRANSFORM);
 }
 

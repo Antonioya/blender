@@ -156,6 +156,7 @@ typedef struct GreasePencilFrame {
   static GreasePencilFrame null();
   bool is_null() const;
   bool is_implicit_hold() const;
+  bool is_selected() const;
 #endif
 } GreasePencilFrame;
 
@@ -427,22 +428,15 @@ typedef struct GreasePencil {
    */
   GreasePencilRuntimeHandle *runtime;
 #ifdef __cplusplus
-  /* GreasePencilDrawingBase array functions. */
-  void read_drawing_array(BlendDataReader *reader);
-  void write_drawing_array(BlendWriter *writer);
-  void free_drawing_array();
-
-  /* Layer tree read/write functions. */
-  void read_layer_tree(BlendDataReader *reader);
-  void write_layer_tree(BlendWriter *writer);
-
   /* Root group. */
   const blender::bke::greasepencil::LayerGroup &root_group() const;
   blender::bke::greasepencil::LayerGroup &root_group();
 
   /* Drawings read/write access. */
   blender::Span<GreasePencilDrawingBase *> drawings() const;
-  blender::MutableSpan<GreasePencilDrawingBase *> drawings_for_write();
+  blender::MutableSpan<GreasePencilDrawingBase *> drawings();
+  GreasePencilDrawingBase *drawings(int64_t index) const;
+  GreasePencilDrawingBase *drawings(int64_t index);
 
   blender::Span<const blender::bke::greasepencil::TreeNode *> nodes() const;
 
@@ -487,10 +481,18 @@ typedef struct GreasePencil {
   void remove_layer(blender::bke::greasepencil::Layer &layer);
 
   void add_empty_drawings(int add_num);
+  void add_duplicate_drawings(int duplicate_num,
+                              const blender::bke::greasepencil::Drawing &drawing);
   bool insert_blank_frame(blender::bke::greasepencil::Layer &layer,
                           int frame_number,
                           int duration,
                           eBezTriple_KeyframeType keytype);
+  bool insert_duplicate_frame(blender::bke::greasepencil::Layer &layer,
+                              const int src_frame_number,
+                              const int dst_frame_number,
+                              const bool do_instance);
+
+  bool remove_frame_at(blender::bke::greasepencil::Layer &layer, int frame_number);
 
   void remove_drawing(int index);
 

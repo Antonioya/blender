@@ -53,6 +53,7 @@ typedef struct bNodeSocketRuntimeHandle bNodeSocketRuntimeHandle;
 
 struct AnimData;
 struct Collection;
+struct GeometryNodeAssetTraits;
 struct ID;
 struct Image;
 struct ImBuf;
@@ -663,6 +664,8 @@ typedef struct bNodeTree {
   int nested_node_refs_num;
   bNestedNodeRef *nested_node_refs;
 
+  struct GeometryNodeAssetTraits *geometry_node_asset_traits;
+
   /** Image representing what the node group does. */
   struct PreviewImage *preview;
 
@@ -865,6 +868,20 @@ typedef struct bNodeSocketValueTexture {
 typedef struct bNodeSocketValueMaterial {
   struct Material *value;
 } bNodeSocketValueMaterial;
+
+typedef struct GeometryNodeAssetTraits {
+  int flag;
+} GeometryNodeAssetTraits;
+
+typedef enum GeometryNodeAssetTraitFlag {
+  GEO_NODE_ASSET_TOOL = (1 << 0),
+  GEO_NODE_ASSET_EDIT = (1 << 1),
+  GEO_NODE_ASSET_SCULPT = (1 << 2),
+  GEO_NODE_ASSET_MESH = (1 << 3),
+  GEO_NODE_ASSET_CURVE = (1 << 4),
+  GEO_NODE_ASSET_POINT_CLOUD = (1 << 5),
+} GeometryNodeAssetTraitFlag;
+ENUM_OPERATORS(GeometryNodeAssetTraitFlag, GEO_NODE_ASSET_POINT_CLOUD);
 
 /* Data structs, for `node->storage`. */
 
@@ -1872,6 +1889,10 @@ enum {
   SHD_GLOSSY_ASHIKHMIN_SHIRLEY = 3,
   SHD_GLOSSY_MULTI_GGX = 4,
 };
+
+/* sheen distributions */
+#define SHD_SHEEN_ASHIKHMIN 0
+#define SHD_SHEEN_MICROFIBER 1
 
 /* vector transform */
 enum {

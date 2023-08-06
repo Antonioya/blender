@@ -468,6 +468,13 @@ void RE_GetCameraModelMatrix(const struct Render *re,
                              const struct Object *camera,
                              float r_modelmat[4][4]);
 
+void RE_GetWindowMatrixWithOverscan(bool is_ortho,
+                                    float clip_start,
+                                    float clip_end,
+                                    rctf viewplane,
+                                    float overscan,
+                                    float r_winmat[4][4]);
+
 struct Scene *RE_GetScene(struct Render *re);
 void RE_SetScene(struct Render *re, struct Scene *sce);
 
@@ -478,7 +485,7 @@ bool RE_is_rendering_allowed(struct Scene *scene,
 
 bool RE_allow_render_generic_object(struct Object *ob);
 
-/******* defined in render_result.c *********/
+/******* defined in `render_result.cc` *********/
 
 bool RE_HasCombinedLayer(const RenderResult *result);
 bool RE_HasFloatPixels(const RenderResult *result);

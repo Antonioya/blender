@@ -37,11 +37,16 @@ struct IrradianceGrid : public LightProbe, IrradianceGridData {
    * already have been freed (along with its cache). It is only safe to dereference after the
    * pruning have been done.
    */
-  const struct LightProbeObjectCache *cache = nullptr;
+  const LightProbeObjectCache *cache = nullptr;
   /** List of associated atlas bricks that are used by this grid. */
   Vector<IrradianceBrickPacked> bricks;
   /** Index of the grid inside the grid UBO. */
   int grid_index;
+  /** Copy of surfel density for debugging purpose. */
+  float surfel_density;
+  /** Copy of DNA members. */
+  float dilation_threshold;
+  float dilation_radius;
 };
 
 struct ReflectionCube : public LightProbe {

@@ -23,12 +23,12 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
-#include "ED_mesh.h"
-#include "ED_screen.h"
-#include "ED_transform.h"
-#include "ED_view3d.h"
+#include "ED_mesh.hh"
+#include "ED_screen.hh"
+#include "ED_transform.hh"
+#include "ED_view3d.hh"
 
 #include "bmesh.h"
 #include "bmesh_tools.h"
@@ -215,10 +215,10 @@ static BMEdge *edbm_ripsel_edge_mark_step(BMVert *v, const int uid)
   return nullptr;
 }
 
-typedef struct EdgeLoopPair {
+struct EdgeLoopPair {
   BMLoop *l_a;
   BMLoop *l_b;
-} EdgeLoopPair;
+};
 
 static EdgeLoopPair *edbm_ripsel_looptag_helper(BMesh *bm)
 {
@@ -396,10 +396,10 @@ static void edbm_ripsel_deselect_helper(BMesh *bm,
  *       So for now this is a known limitation of current rip-fill option.
  */
 
-typedef struct UnorderedLoopPair {
+struct UnorderedLoopPair {
   BMLoop *l_pair[2];
   char flag;
-} UnorderedLoopPair;
+};
 enum {
   ULP_FLIP_0 = (1 << 0),
   ULP_FLIP_1 = (1 << 1),

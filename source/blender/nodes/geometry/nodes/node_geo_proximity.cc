@@ -11,8 +11,8 @@
 #include "BKE_bvhutils.h"
 #include "BKE_geometry_set.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
@@ -31,7 +31,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "target_element", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "target_element", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void geo_proximity_init(bNodeTree * /*tree*/, bNode *node)
@@ -162,12 +162,12 @@ class ProximityFunction : public mf::MultiFunction {
     bool success = false;
     if (target_.has_mesh()) {
       success |= calculate_mesh_proximity(
-          src_positions, mask, *target_.get_mesh_for_read(), type_, distances, positions);
+          src_positions, mask, *target_.get_mesh(), type_, distances, positions);
     }
 
     if (target_.has_pointcloud() && type_ == GEO_NODE_PROX_TARGET_POINTS) {
       success |= calculate_pointcloud_proximity(
-          src_positions, mask, *target_.get_pointcloud_for_read(), distances, positions);
+          src_positions, mask, *target_.get_pointcloud(), distances, positions);
     }
 
     if (!success) {

@@ -15,8 +15,8 @@
 
 #include "node_geometry_util.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #ifdef WITH_OPENVDB
 #  include <openvdb/openvdb.h>
@@ -113,8 +113,8 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "grid_type", 0, "", ICON_NONE);
-  uiItemR(layout, ptr, "interpolation_mode", 0, "", ICON_NONE);
+  uiItemR(layout, ptr, "grid_type", UI_ITEM_NONE, "", ICON_NONE);
+  uiItemR(layout, ptr, "interpolation_mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -335,8 +335,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const VolumeComponent *component = geometry_set.get_component_for_read<VolumeComponent>();
-  const Volume *volume = component->get_for_read();
+  const VolumeComponent *component = geometry_set.get_component<VolumeComponent>();
+  const Volume *volume = component->get();
   BKE_volume_load(volume, DEG_get_bmain(params.depsgraph()));
   const VolumeGrid *volume_grid = BKE_volume_grid_find_for_read(volume, grid_name.c_str());
   if (volume_grid == nullptr) {

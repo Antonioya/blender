@@ -19,11 +19,11 @@
 #include "BKE_nla.h"
 #include "BKE_report.h"
 
-#include "ED_anim_api.h"
-#include "ED_keyframes_edit.h"
-#include "ED_markers.h"
+#include "ED_anim_api.hh"
+#include "ED_keyframes_edit.hh"
+#include "ED_markers.hh"
 
-#include "UI_view2d.h"
+#include "UI_view2d.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -223,7 +223,6 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};
-  bAnimListElem *ale;
   int filter;
 
   BezTriple *bezt;
@@ -260,7 +259,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 
   /* Loop 1: count how many BezTriples (specifically their verts)
    * are selected (or should be edited). */
-  for (ale = static_cast<bAnimListElem *>(anim_data.first); ale; ale = ale->next) {
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
     FCurve *fcu = (FCurve *)ale->key_data;
     float cfra;
@@ -368,7 +367,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
   }
 
   /* loop 2: build transdata arrays */
-  for (ale = static_cast<bAnimListElem *>(anim_data.first); ale; ale = ale->next) {
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
     FCurve *fcu = (FCurve *)ale->key_data;
     bool intvals = (fcu->flag & FCURVE_INT_VALUES) != 0;
@@ -561,7 +560,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
     /* loop 2: build transdata arrays */
     td = tc->data;
 
-    for (ale = static_cast<bAnimListElem *>(anim_data.first); ale; ale = ale->next) {
+    LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
       AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
       FCurve *fcu = (FCurve *)ale->key_data;
       TransData *td_start = td;
@@ -644,7 +643,7 @@ static bool fcu_test_selected(FCurve *fcu)
   return false;
 }
 
-/* This function is called on recalcData to apply the transforms applied
+/* This function is called on recalc_data to apply the transforms applied
  * to the transdata on to the actual keyframe data
  */
 static void flushTransGraphData(TransInfo *t)
@@ -869,7 +868,7 @@ static void beztmap_to_data(TransInfo *t, FCurve *fcu, BeztMap *bezms, int totve
   MEM_freeN(adjusted);
 }
 
-/* This function is called by recalcData during the Transform loop to recalculate
+/* This function is called by recalc_data during the Transform loop to recalculate
  * the handles of curves and sort the keyframes so that the curves draw correctly.
  * It is only called if some keyframes have moved out of order.
  *
@@ -879,11 +878,10 @@ static void beztmap_to_data(TransInfo *t, FCurve *fcu, BeztMap *bezms, int totve
 static void remake_graph_transdata(TransInfo *t, ListBase *anim_data)
 {
   SpaceGraph *sipo = (SpaceGraph *)t->area->spacedata.first;
-  bAnimListElem *ale;
   const bool use_handle = (sipo->flag & SIPO_NOHANDLES) == 0;
 
   /* sort and reassign verts */
-  for (ale = static_cast<bAnimListElem *>(anim_data->first); ale; ale = ale->next) {
+  LISTBASE_FOREACH (bAnimListElem *, ale, anim_data) {
     FCurve *fcu = (FCurve *)ale->key_data;
 
     if (fcu->bezt) {
@@ -916,7 +914,6 @@ static void recalcData_graphedit(TransInfo *t)
   bAnimContext ac = {nullptr};
   int filter;
 
-  bAnimListElem *ale;
   int dosort = 0;
 
   BKE_view_layer_synced_ensure(t->scene, t->view_layer);
@@ -945,7 +942,7 @@ static void recalcData_graphedit(TransInfo *t)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   /* now test if there is a need to re-sort */
-  for (ale = static_cast<bAnimListElem *>(anim_data.first); ale; ale = ale->next) {
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     FCurve *fcu = (FCurve *)ale->key_data;
 
     /* ignore FC-Curves without any selected verts */
@@ -1000,7 +997,6 @@ static void special_aftertrans_update__graph(bContext *C, TransInfo *t)
 
   if (ac.datatype) {
     ListBase anim_data = {nullptr, nullptr};
-    bAnimListElem *ale;
     short filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_CURVE_VISIBLE |
                     ANIMFILTER_FCURVESONLY);
 
@@ -1008,7 +1004,7 @@ static void special_aftertrans_update__graph(bContext *C, TransInfo *t)
     ANIM_animdata_filter(
         &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
-    for (ale = static_cast<bAnimListElem *>(anim_data.first); ale; ale = ale->next) {
+    LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
       AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
       FCurve *fcu = (FCurve *)ale->key_data;
 
@@ -1049,7 +1045,7 @@ static void special_aftertrans_update__graph(bContext *C, TransInfo *t)
 
 TransConvertTypeInfo TransConvertType_Graph = {
     /*flags*/ (T_POINTS | T_2D_EDIT),
-    /*createTransData*/ createTransGraphEditData,
-    /*recalcData*/ recalcData_graphedit,
+    /*create_trans_data*/ createTransGraphEditData,
+    /*recalc_data*/ recalcData_graphedit,
     /*special_aftertrans_update*/ special_aftertrans_update__graph,
 };

@@ -24,14 +24,15 @@
 #include "BKE_modifier.h"
 #include "BKE_outliner_treehash.hh"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "outliner_intern.hh"
 #include "tree/common.hh"
 #include "tree/tree_display.hh"
 #include "tree/tree_element.hh"
+#include "tree/tree_element_overrides.hh"
 
 #ifdef WIN32
 #  include "BLI_math_base.h" /* M_PI */
@@ -110,7 +111,7 @@ static void check_persistent(
     SpaceOutliner *space_outliner, TreeElement *te, ID *id, short type, short nr)
 {
   if (space_outliner->treestore == nullptr) {
-    /* if treestore was not created in readfile.c, create it here */
+    /* If treestore was not created in `readfile.cc`, create it here. */
     space_outliner->treestore = BLI_mempool_create(
         sizeof(TreeStoreElem), 1, 512, BLI_MEMPOOL_ALLOW_ITER);
   }
@@ -239,11 +240,23 @@ TreeElement *outliner_add_element(SpaceOutliner *space_outliner,
   else if (ELEM(type, TSE_GENERIC_LABEL)) {
     id = nullptr;
   }
+  else if (ELEM(type, TSE_LIBRARY_OVERRIDE, TSE_LIBRARY_OVERRIDE_OPERATION)) {
+    id = &static_cast<TreeElementOverridesData *>(idv)->id;
+  }
   else if (type == TSE_BONE) {
     id = static_cast<BoneElementCreateData *>(idv)->armature_id;
   }
   else if (type == TSE_EBONE) {
     id = static_cast<EditBoneElementCreateData *>(idv)->armature_id;
+  }
+  else if (type == TSE_GPENCIL_EFFECT) {
+    id = &static_cast<GPencilEffectElementCreateData *>(idv)->object->id;
+  }
+  else if (type == TSE_DEFGROUP) {
+    id = &static_cast<DeformGroupElementCreateData *>(idv)->object->id;
+  }
+  else if (type == TSE_LINKED_PSYS) {
+    id = &static_cast<ParticleSystemElementCreateData *>(idv)->object->id;
   }
 
   /* exceptions */
@@ -254,8 +267,8 @@ TreeElement *outliner_add_element(SpaceOutliner *space_outliner,
     return nullptr;
   }
 
-  if (type == 0) {
-    /* Zero type means real ID, ensure we do not get non-outliner ID types here... */
+  if (type == TSE_SOME_ID) {
+    /* Real ID, ensure we do not get non-outliner ID types here... */
     BLI_assert(TREESTORE_ID_TYPE(id));
   }
 
@@ -303,6 +316,15 @@ TreeElement *outliner_add_element(SpaceOutliner *space_outliner,
   else if (ELEM(type, TSE_BONE, TSE_EBONE)) {
     /* pass */
   }
+  else if (ELEM(type, TSE_GPENCIL_EFFECT_BASE, TSE_GPENCIL_EFFECT)) {
+    /* pass */
+  }
+  else if (ELEM(type, TSE_DEFGROUP, TSE_DEFGROUP_BASE)) {
+    /* pass */
+  }
+  else if (type == TSE_LINKED_PSYS) {
+    /* pass */
+  }
   else if (type == TSE_SOME_ID) {
     if (!te->abstract_element) {
       BLI_assert_msg(0, "Expected this ID type to be ported to new Outliner tree-element design");
@@ -341,6 +363,7 @@ TreeElement *outliner_add_element(SpaceOutliner *space_outliner,
                 TSE_BONE,
                 TSE_DRIVER_BASE,
                 TSE_EBONE,
+                TSE_LINKED_PSYS,
                 TSE_NLA,
                 TSE_NLA_ACTION,
                 TSE_NLA_TRACK,
@@ -351,7 +374,9 @@ TreeElement *outliner_add_element(SpaceOutliner *space_outliner,
                 TSE_SEQUENCE,
                 TSE_SEQ_STRIP,
                 TSE_SEQUENCE_DUP,
-                TSE_GENERIC_LABEL))
+                TSE_GENERIC_LABEL) ||
+           ELEM(
+               type, TSE_DEFGROUP, TSE_DEFGROUP_BASE, TSE_GPENCIL_EFFECT, TSE_GPENCIL_EFFECT_BASE))
   {
     BLI_assert_msg(false, "Element type should already use new AbstractTreeElement design");
   }

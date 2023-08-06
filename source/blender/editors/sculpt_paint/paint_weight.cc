@@ -8,7 +8,7 @@
  * Used for vertex color & weight paint and mode switching.
  *
  * \note This file is already big,
- * use `paint_vertex_color_ops.c` & `paint_vertex_weight_ops.c` for general purpose operators.
+ * use `paint_vertex_color_ops.cc` & `paint_vertex_weight_ops.cc` for general purpose operators.
  */
 
 #include "MEM_guardedalloc.h"
@@ -34,31 +34,31 @@
 
 #include "BKE_attribute.h"
 #include "BKE_attribute.hh"
-#include "BKE_brush.h"
+#include "BKE_brush.hh"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_deform.h"
 #include "BKE_editmesh.h"
 #include "BKE_lib_id.h"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.h"
+#include "BKE_mesh_mapping.hh"
 #include "BKE_object.h"
 #include "BKE_object_deform.h"
-#include "BKE_paint.h"
+#include "BKE_paint.hh"
 #include "BKE_report.h"
 
 #include "DEG_depsgraph.h"
 
-#include "WM_api.h"
-#include "WM_message.h"
+#include "WM_api.hh"
+#include "WM_message.hh"
 #include "WM_toolsystem.h"
-#include "WM_types.h"
+#include "WM_types.hh"
 
-#include "ED_image.h"
-#include "ED_mesh.h"
-#include "ED_object.h"
-#include "ED_screen.h"
-#include "ED_view3d.h"
+#include "ED_image.hh"
+#include "ED_mesh.hh"
+#include "ED_object.hh"
+#include "ED_screen.hh"
+#include "ED_view3d.hh"
 
 /* For IMB_BlendMode only. */
 #include "IMB_imbuf.h"
@@ -1127,14 +1127,14 @@ static void do_wpaint_brush_blur_task_cb_ex(void *__restrict userdata,
     if ((use_face_sel || use_vert_sel) && !select_vert[v_index]) {
       continue;
     }
-    /* Get the average poly weight */
+    /* Get the average face weight */
     int total_hit_loops = 0;
     float weight_final = 0.0f;
-    for (const int p_index : gmap->vert_to_poly[v_index]) {
-      const blender::IndexRange poly = ss->polys[p_index];
+    for (const int p_index : gmap->vert_to_face[v_index]) {
+      const blender::IndexRange face = ss->faces[p_index];
 
-      total_hit_loops += poly.size();
-      for (const int vert : ss->corner_verts.slice(poly)) {
+      total_hit_loops += face.size();
+      for (const int vert : ss->corner_verts.slice(face)) {
         weight_final += data->wpd->precomputed_weight[vert];
       }
     }
@@ -1250,8 +1250,8 @@ static void do_wpaint_brush_smear_task_cb_ex(void *__restrict userdata,
     /* Get the color of the loop in the opposite direction of the brush movement
      * (this callback is specifically for smear.) */
     float weight_final = 0.0;
-    for (const int p_index : gmap->vert_to_poly[v_index]) {
-      for (const int v_other_index : ss->corner_verts.slice(ss->polys[p_index])) {
+    for (const int p_index : gmap->vert_to_face[v_index]) {
+      for (const int v_other_index : ss->corner_verts.slice(ss->faces[p_index])) {
         if (v_other_index == v_index) {
           continue;
         }
@@ -1537,7 +1537,12 @@ bool weight_paint_mode_poll(bContext *C)
 {
   const Object *ob = CTX_data_active_object(C);
 
-  return ob && ob->mode == OB_MODE_WEIGHT_PAINT && ((const Mesh *)ob->data)->totpoly;
+  return ob && ob->mode == OB_MODE_WEIGHT_PAINT && ((const Mesh *)ob->data)->faces_num;
+}
+
+bool weight_paint_mode_region_view3d_poll(bContext *C)
+{
+  return weight_paint_mode_poll(C) && ED_operator_region_view3d_active(C);
 }
 
 static bool weight_paint_poll_ex(bContext *C, bool check_tool)
@@ -1870,11 +1875,8 @@ static void wpaint_stroke_done(const bContext *C, PaintStroke *stroke)
 
   /* and particles too */
   if (ob->particlesystem.first) {
-    ParticleSystem *psys;
-    int i;
-
-    for (psys = (ParticleSystem *)ob->particlesystem.first; psys; psys = psys->next) {
-      for (i = 0; i < PSYS_TOT_VG; i++) {
+    LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
+      for (int i = 0; i < PSYS_TOT_VG; i++) {
         if (psys->vgroup[i] == BKE_object_defgroup_active_index_get(ob)) {
           psys->recalc |= ID_RECALC_PSYS_RESET;
           break;

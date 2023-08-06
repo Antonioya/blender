@@ -33,9 +33,9 @@
 #include "BKE_global.h"
 #include "BKE_layer.h"
 #include "BKE_main.h"
-#include "BKE_mesh.h"
-#include "BKE_mesh_legacy_convert.h"
-#include "BKE_mesh_runtime.h"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_legacy_convert.hh"
+#include "BKE_mesh_runtime.hh"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
@@ -45,24 +45,24 @@
 
 #include "DEG_depsgraph.h"
 
-#include "ED_mesh.h"
-#include "ED_object.h"
-#include "ED_particle.h"
-#include "ED_physics.h"
-#include "ED_screen.h"
-#include "ED_select_utils.h"
-#include "ED_view3d.h"
+#include "ED_mesh.hh"
+#include "ED_object.hh"
+#include "ED_particle.hh"
+#include "ED_physics.hh"
+#include "ED_screen.hh"
+#include "ED_select_utils.hh"
+#include "ED_view3d.hh"
 
 #include "GPU_immediate.h"
 #include "GPU_immediate_util.h"
 #include "GPU_state.h"
 
-#include "UI_resources.h"
+#include "UI_resources.hh"
 
-#include "WM_api.h"
-#include "WM_message.h"
+#include "WM_api.hh"
+#include "WM_message.hh"
 #include "WM_toolsystem.h"
-#include "WM_types.h"
+#include "WM_types.hh"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -134,7 +134,7 @@ void PE_free_ptcache_edit(PTCacheEdit *edit)
 {
   POINT_P;
 
-  if (edit == 0) {
+  if (edit == nullptr) {
     return;
   }
 
@@ -154,12 +154,12 @@ void PE_free_ptcache_edit(PTCacheEdit *edit)
 
   if (edit->emitter_cosnos) {
     MEM_freeN(edit->emitter_cosnos);
-    edit->emitter_cosnos = 0;
+    edit->emitter_cosnos = nullptr;
   }
 
   if (edit->emitter_field) {
     BLI_kdtree_3d_free(edit->emitter_field);
-    edit->emitter_field = 0;
+    edit->emitter_field = nullptr;
   }
 
   psys_free_path_cache(edit->psys, edit);
@@ -696,24 +696,24 @@ static bool point_is_selected(PTCacheEditPoint *point)
 /** \name Iterators
  * \{ */
 
-typedef void (*ForPointFunc)(PEData *data, int point_index);
-typedef void (*ForHitPointFunc)(PEData *data, int point_index, float mouse_distance);
+using ForPointFunc = void (*)(PEData *data, int point_index);
+using ForHitPointFunc = void (*)(PEData *data, int point_index, float mouse_distance);
 
-typedef void (*ForKeyFunc)(PEData *data, int point_index, int key_index, bool is_inside);
+using ForKeyFunc = void (*)(PEData *data, int point_index, int key_index, bool is_inside);
 
-typedef void (*ForKeyMatFunc)(PEData *data,
-                              const float mat[4][4],
-                              const float imat[4][4],
-                              int point_index,
-                              int key_index,
-                              PTCacheEditKey *key);
-typedef void (*ForHitKeyMatFunc)(PEData *data,
-                                 float mat[4][4],
-                                 float imat[4][4],
-                                 int point_index,
-                                 int key_index,
-                                 PTCacheEditKey *key,
-                                 float mouse_distance);
+using ForKeyMatFunc = void (*)(PEData *data,
+                               const float mat[4][4],
+                               const float imat[4][4],
+                               int point_index,
+                               int key_index,
+                               PTCacheEditKey *key);
+using ForHitKeyMatFunc = void (*)(PEData *data,
+                                  float mat[4][4],
+                                  float imat[4][4],
+                                  int point_index,
+                                  int key_index,
+                                  PTCacheEditKey *key,
+                                  float mouse_distance);
 
 enum eParticleSelectFlag {
   PSEL_NEAREST = (1 << 0),
@@ -1324,7 +1324,7 @@ static void PE_apply_lengths(Scene *scene, PTCacheEdit *edit)
 {
   ParticleEditSettings *pset = PE_settings(scene);
 
-  if (edit == 0 || (pset->flag & PE_KEEP_LENGTHS) == 0) {
+  if (edit == nullptr || (pset->flag & PE_KEEP_LENGTHS) == 0) {
     return;
   }
 
@@ -1398,7 +1398,7 @@ static void iterate_lengths_iter(void *__restrict iter_data_v,
 static void pe_iterate_lengths(Scene *scene, PTCacheEdit *edit)
 {
   ParticleEditSettings *pset = PE_settings(scene);
-  if (edit == 0 || (pset->flag & PE_KEEP_LENGTHS) == 0) {
+  if (edit == nullptr || (pset->flag & PE_KEEP_LENGTHS) == 0) {
     return;
   }
   if (edit->psys && edit->psys->flag & PSYS_GLOBAL_HAIR) {
@@ -1419,7 +1419,7 @@ void recalc_lengths(PTCacheEdit *edit)
   POINT_P;
   KEY_K;
 
-  if (edit == 0) {
+  if (edit == nullptr) {
     return;
   }
 
@@ -1448,7 +1448,7 @@ void recalc_emitter_field(Depsgraph * /*depsgraph*/, Object * /*ob*/, ParticleSy
 
   BLI_kdtree_3d_free(edit->emitter_field);
 
-  totface = mesh->totface;
+  totface = mesh->totface_legacy;
   // int totvert = dm->getNumVerts(dm); /* UNUSED */
 
   edit->emitter_cosnos = static_cast<float *>(
@@ -1459,9 +1459,9 @@ void recalc_emitter_field(Depsgraph * /*depsgraph*/, Object * /*ob*/, ParticleSy
   vec = edit->emitter_cosnos;
   nor = vec + 3;
 
-  const float(*positions)[3] = BKE_mesh_vert_positions(mesh);
-  const float(*vert_normals)[3] = BKE_mesh_vert_normals_ensure(mesh);
-  const MFace *mfaces = (const MFace *)CustomData_get_layer(&mesh->fdata, CD_MFACE);
+  const blender::Span<blender::float3> positions = mesh->vert_positions();
+  const blender::Span<blender::float3> vert_normals = mesh->vert_normals();
+  const MFace *mfaces = (const MFace *)CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE);
   for (i = 0; i < totface; i++, vec += 6, nor += 6) {
     const MFace *mface = &mfaces[i];
 
@@ -1536,7 +1536,9 @@ void update_world_cos(Object *ob, PTCacheEdit *edit)
   KEY_K;
   float hairmat[4][4];
 
-  if (psys == 0 || psys->edit == 0 || psmd_eval == nullptr || psmd_eval->mesh_final == nullptr) {
+  if (psys == nullptr || psys->edit == nullptr || psmd_eval == nullptr ||
+      psmd_eval->mesh_final == nullptr)
+  {
     return;
   }
 
@@ -2747,7 +2749,7 @@ static void rekey_particle(PEData *data, int pa_index)
 {
   PTCacheEdit *edit = data->edit;
   ParticleSystem *psys = edit->psys;
-  ParticleSimulationData sim = {0};
+  ParticleSimulationData sim = {nullptr};
   ParticleData *pa = psys->particles + pa_index;
   PTCacheEditPoint *point = edit->points + pa_index;
   ParticleKey state;
@@ -2853,7 +2855,7 @@ static void rekey_particle_to_time(
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   PTCacheEdit *edit = PE_get_current(depsgraph, scene, ob);
   ParticleSystem *psys;
-  ParticleSimulationData sim = {0};
+  ParticleSimulationData sim = {nullptr};
   ParticleData *pa;
   ParticleKey state;
   HairKey *new_keys, *key;
@@ -2909,9 +2911,9 @@ static void rekey_particle_to_time(
 static int remove_tagged_particles(Object *ob, ParticleSystem *psys, int mirror)
 {
   PTCacheEdit *edit = psys->edit;
-  ParticleData *pa, *npa = 0, *new_pars = 0;
+  ParticleData *pa, *npa = nullptr, *new_pars = nullptr;
   POINT_P;
-  PTCacheEditPoint *npoint = 0, *new_points = 0;
+  PTCacheEditPoint *npoint = nullptr, *new_points = nullptr;
   ParticleSystemModifierData *psmd_eval;
   int i, new_totpart = psys->totpart, removed = 0;
 
@@ -2995,7 +2997,7 @@ static void remove_tagged_keys(Depsgraph *depsgraph, Object *ob, ParticleSystem 
 {
   PTCacheEdit *edit = psys->edit;
   ParticleData *pa;
-  HairKey *hkey, *nhkey, *new_hkeys = 0;
+  HairKey *hkey, *nhkey, *new_hkeys = nullptr;
   POINT_P;
   KEY_K;
   PTCacheEditKey *nkey, *new_keys;
@@ -3097,7 +3099,7 @@ static void subdivide_particle(PEData *data, int pa_index)
 {
   PTCacheEdit *edit = data->edit;
   ParticleSystem *psys = edit->psys;
-  ParticleSimulationData sim = {0};
+  ParticleSimulationData sim = {nullptr};
   ParticleData *pa = psys->particles + pa_index;
   PTCacheEditPoint *point = edit->points + pa_index;
   ParticleKey state;
@@ -3575,9 +3577,9 @@ static void PE_mirror_x(Depsgraph *depsgraph, Scene *scene, Object *ob, int tagg
 
   if (newtotpart != psys->totpart) {
     const MFace *mtessface = use_dm_final_indices ?
-                                 (const MFace *)CustomData_get_layer(&psmd_eval->mesh_final->fdata,
-                                                                     CD_MFACE) :
-                                 (const MFace *)CustomData_get_layer(&me->fdata, CD_MFACE);
+                                 (const MFace *)CustomData_get_layer(
+                                     &psmd_eval->mesh_final->fdata_legacy, CD_MFACE) :
+                                 (const MFace *)CustomData_get_layer(&me->fdata_legacy, CD_MFACE);
 
     /* allocate new arrays and copy existing */
     new_pars = static_cast<ParticleData *>(
@@ -4205,7 +4207,7 @@ static int particle_intersect_mesh(Depsgraph *depsgraph,
   /* BMESH_ONLY, deform dm may not have tessface */
   BKE_mesh_tessface_ensure(mesh);
 
-  if (pa_minmax == 0) {
+  if (pa_minmax == nullptr) {
     INIT_MINMAX(p_min, p_max);
     minmax_v3v3_v3(p_min, p_max, co1);
     minmax_v3v3_v3(p_min, p_max, co2);
@@ -4215,9 +4217,9 @@ static int particle_intersect_mesh(Depsgraph *depsgraph,
     copy_v3_v3(p_max, pa_minmax + 3);
   }
 
-  totface = mesh->totface;
-  mface = (const MFace *)CustomData_get_layer(&mesh->fdata, CD_MFACE);
-  float(*positions)[3] = BKE_mesh_vert_positions_for_write(mesh);
+  totface = mesh->totface_legacy;
+  mface = (const MFace *)CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE);
+  blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
 
   /* lets intersect the faces */
   for (i = 0; i < totface; i++, mface++) {
@@ -4238,7 +4240,7 @@ static int particle_intersect_mesh(Depsgraph *depsgraph,
       }
     }
 
-    if (face_minmax == 0) {
+    if (face_minmax == nullptr) {
       INIT_MINMAX(min, max);
       DO_MINMAX(v1, min, max);
       DO_MINMAX(v2, min, max);
@@ -4380,16 +4382,16 @@ static void brush_add_count_iter(void *__restrict iter_data_v,
                               iter_data->scene,
                               iter_data->object,
                               iter_data->mesh,
-                              0,
+                              nullptr,
                               co1,
                               co2,
                               &min_d,
                               &add_pars[iter].num_dmcache,
                               add_pars[iter].fuv,
+                              nullptr,
+                              nullptr,
                               0,
-                              0,
-                              0,
-                              0))
+                              nullptr))
   {
     if (psys->part->use_modifier_stack && !BKE_mesh_is_deformed_only(psmd_eval->mesh_final)) {
       add_pars[iter].num = add_pars[iter].num_dmcache;
@@ -4442,7 +4444,7 @@ static int brush_add(const bContext *C, PEData *data, short number)
   ParticleSystem *psys = edit->psys;
   ParticleData *add_pars;
   ParticleSystemModifierData *psmd_eval = edit->psmd_eval;
-  ParticleSimulationData sim = {0};
+  ParticleSimulationData sim = {nullptr};
   ParticleEditSettings *pset = PE_settings(scene);
   int i, k, n = 0, totpart = psys->totpart;
   float co1[3], imat[4][4];
@@ -4523,7 +4525,7 @@ static int brush_add(const bContext *C, PEData *data, short number)
   if (n) {
     int newtotpart = totpart + n;
     float hairmat[4][4], cur_co[3];
-    KDTree_3d *tree = 0;
+    KDTree_3d *tree = nullptr;
     ParticleData *pa, *new_pars = static_cast<ParticleData *>(
                           MEM_callocN(newtotpart * sizeof(ParticleData), "ParticleData new"));
     PTCacheEditPoint *point,
@@ -4561,10 +4563,10 @@ static int brush_add(const bContext *C, PEData *data, short number)
                             pa->fuv,
                             pa->foffset,
                             cur_co,
-                            0,
-                            0,
-                            0,
-                            0);
+                            nullptr,
+                            nullptr,
+                            nullptr,
+                            nullptr);
         BLI_kdtree_3d_insert(tree, i, cur_co);
       }
 
@@ -4619,10 +4621,10 @@ static int brush_add(const bContext *C, PEData *data, short number)
                             pa->fuv,
                             pa->foffset,
                             co1,
-                            0,
-                            0,
-                            0,
-                            0);
+                            nullptr,
+                            nullptr,
+                            nullptr,
+                            nullptr);
         maxw = BLI_kdtree_3d_find_nearest_n(tree, co1, ptn, 3);
 
         maxd = ptn[maxw - 1].dist;
@@ -5403,18 +5405,17 @@ void PE_create_particle_edit(
       update_world_cos(ob, edit);
     }
     else {
-      PTCacheMem *pm;
       int totframe = 0;
 
       cache->edit = edit;
       cache->free_edit = PE_free_ptcache_edit;
       edit->psys = nullptr;
 
-      for (pm = static_cast<PTCacheMem *>(cache->mem_cache.first); pm; pm = pm->next) {
+      LISTBASE_FOREACH (PTCacheMem *, pm, &cache->mem_cache) {
         totframe++;
       }
 
-      for (pm = static_cast<PTCacheMem *>(cache->mem_cache.first); pm; pm = pm->next) {
+      LISTBASE_FOREACH (PTCacheMem *, pm, &cache->mem_cache) {
         LOOP_POINTS {
           void *cur[BPHYS_TOT_DATA];
           if (BKE_ptcache_mem_pointers_seek(p, pm, cur) == 0) {

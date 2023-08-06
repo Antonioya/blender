@@ -1012,43 +1012,6 @@ bool BKE_fcurve_is_keyframable(const FCurve *fcu)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Keyframe Column Tools
- * \{ */
-
-static void UNUSED_FUNCTION(bezt_add_to_cfra_elem)(ListBase *lb, BezTriple *bezt)
-{
-  CfraElem *ce, *cen;
-
-  for (ce = static_cast<CfraElem *>(lb->first); ce; ce = ce->next) {
-    /* Double key? */
-    if (IS_EQT(ce->cfra, bezt->vec[1][0], BEZT_BINARYSEARCH_THRESH)) {
-      if (bezt->f2 & SELECT) {
-        ce->sel = bezt->f2;
-      }
-      return;
-    }
-    /* Should key be inserted before this column? */
-    if (ce->cfra > bezt->vec[1][0]) {
-      break;
-    }
-  }
-
-  /* Create a new column */
-  cen = static_cast<CfraElem *>(MEM_callocN(sizeof(CfraElem), "add_to_cfra_elem"));
-  if (ce) {
-    BLI_insertlinkbefore(lb, ce, cen);
-  }
-  else {
-    BLI_addtail(lb, cen);
-  }
-
-  cen->cfra = bezt->vec[1][0];
-  cen->sel = bezt->f2;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Samples Utilities
  * \{ */
 
@@ -1803,9 +1766,7 @@ void BKE_fcurve_merge_duplicate_keys(FCurve *fcu, const int sel_flag, const bool
       bool found = false;
 
       /* If there's another selected frame here, merge it */
-      for (tRetainedKeyframe *rk = static_cast<tRetainedKeyframe *>(retained_keys.last); rk;
-           rk = rk->prev)
-      {
+      LISTBASE_FOREACH_BACKWARD (tRetainedKeyframe *, rk, &retained_keys) {
         if (IS_EQT(rk->frame, bezt->vec[1][0], BEZT_BINARYSEARCH_THRESH)) {
           rk->val += bezt->vec[1][1];
           rk->tot_count++;
@@ -1856,9 +1817,7 @@ void BKE_fcurve_merge_duplicate_keys(FCurve *fcu, const int sel_flag, const bool
 
     /* Is this keyframe a candidate for deletion? */
     /* TODO: Replace loop with an O(1) lookup instead */
-    for (tRetainedKeyframe *rk = static_cast<tRetainedKeyframe *>(retained_keys.last); rk;
-         rk = rk->prev)
-    {
+    LISTBASE_FOREACH_BACKWARD (tRetainedKeyframe *, rk, &retained_keys) {
       if (IS_EQT(bezt->vec[1][0], rk->frame, BEZT_BINARYSEARCH_THRESH)) {
         /* Selected keys are treated with greater care than unselected ones... */
         if (BEZT_ISSEL_ANY(bezt)) {
@@ -2471,7 +2430,7 @@ void BKE_fmodifiers_blend_write(BlendWriter *writer, ListBase *fmodifiers)
     /* Write the specific data */
     if (fmi && fcm->data) {
       /* firstly, just write the plain fmi->data struct */
-      BLO_write_struct_by_name(writer, fmi->structName, fcm->data);
+      BLO_write_struct_by_name(writer, fmi->struct_name, fcm->data);
 
       /* do any modifier specific stuff */
       switch (fcm->type) {

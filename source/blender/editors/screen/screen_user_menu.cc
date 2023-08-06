@@ -26,13 +26,13 @@
 #include "BKE_idprop.h"
 #include "BKE_screen.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "RNA_access.h"
 #include "RNA_path.h"
@@ -232,7 +232,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
                             ICON_NONE,
                             prop,
                             wmOperatorCallContext(umi_op->opcontext),
-                            0,
+                            UI_ITEM_NONE,
                             nullptr);
           }
           else {
@@ -299,8 +299,14 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
             prop = RNA_struct_find_property(&prop_ptr, umi_pr->prop_id);
             if (prop) {
               ok = true;
-              uiItemFullR(
-                  menu->layout, &prop_ptr, prop, umi_pr->prop_index, 0, 0, ui_name, ICON_NONE);
+              uiItemFullR(menu->layout,
+                          &prop_ptr,
+                          prop,
+                          umi_pr->prop_index,
+                          0,
+                          UI_ITEM_NONE,
+                          ui_name,
+                          ICON_NONE);
               is_empty = false;
             }
           }

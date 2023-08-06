@@ -38,7 +38,7 @@ struct Global {
 Global G;
 #endif
 
-/* We cannot use NULL char until ultimate step, would give nightmare to our C string
+/* We cannot use null char until ultimate step, would give nightmare to our C string
  * processing... Using one of the UTF-8 invalid bytes (as per our BLI string_utf8.c) */
 #define NULLSEP_STR "\xff"
 #define NULLSEP_CHR '\xff'
@@ -163,9 +163,9 @@ BLI_INLINE size_t msg_to_bytes(char *msg, char *bytes, uint32_t size)
   return i;
 }
 
-typedef struct Offset {
+struct Offset {
   uint32_t key_offset, key_len, val_offset, val_len;
-} Offset;
+};
 
 /* Return the generated binary output. */
 static char *generate(GHash *messages, size_t *r_output_size)

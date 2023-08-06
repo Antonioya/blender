@@ -30,17 +30,17 @@
 #include "BKE_mask.h"
 #include "BKE_nla.h"
 
-#include "ED_anim_api.h"
-#include "ED_keyframes_draw.h"
-#include "ED_keyframes_edit.h"
-#include "ED_keyframes_keylist.h"
+#include "ED_anim_api.hh"
+#include "ED_keyframes_draw.hh"
+#include "ED_keyframes_edit.hh"
+#include "ED_keyframes_keylist.hh"
 
 #include "RNA_access.h"
 #include "RNA_path.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+#include "UI_view2d.hh"
 
 #include "GPU_immediate.h"
 #include "GPU_matrix.h"
@@ -75,7 +75,7 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag)
 
 /* *************************************************** */
 /* PREVIEW RANGE 'CURTAINS' */
-/* NOTE: 'Preview Range' tools are defined in `anim_ops.c`. */
+/* NOTE: 'Preview Range' tools are defined in `anim_ops.cc`. */
 
 void ANIM_draw_previewrange(const bContext *C, View2D *v2d, int end_frame_width)
 {
@@ -293,6 +293,9 @@ static short bezt_nlamapping_apply(KeyframeEditData *ked, BezTriple *bezt)
 
 void ANIM_nla_mapping_apply_fcurve(AnimData *adt, FCurve *fcu, bool restore, bool only_keys)
 {
+  if (adt == nullptr || BLI_listbase_is_empty(&adt->nla_tracks)) {
+    return;
+  }
   KeyframeEditData ked = {{nullptr}};
   KeyframeEditFunc map_cb;
 

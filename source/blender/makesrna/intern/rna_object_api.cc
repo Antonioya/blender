@@ -26,7 +26,7 @@
 
 #include "DEG_depsgraph.h"
 
-#include "ED_outliner.h"
+#include "ED_outliner.hh"
 
 #include "rna_internal.h" /* own include */
 
@@ -61,15 +61,15 @@ static const EnumPropertyItem space_items[] = {
 #  include "BKE_layer.h"
 #  include "BKE_main.h"
 #  include "BKE_mball.h"
-#  include "BKE_mesh.h"
-#  include "BKE_mesh_runtime.h"
+#  include "BKE_mesh.hh"
+#  include "BKE_mesh_runtime.hh"
 #  include "BKE_modifier.h"
 #  include "BKE_object.h"
 #  include "BKE_report.h"
 #  include "BKE_vfont.h"
 
-#  include "ED_object.h"
-#  include "ED_screen.h"
+#  include "ED_object.hh"
+#  include "ED_screen.hh"
 
 #  include "DNA_curve_types.h"
 #  include "DNA_mesh_types.h"
@@ -289,7 +289,7 @@ static bool rna_Object_visible_in_viewport_get(Object *ob, View3D *v3d)
 static void rna_Object_mat_convert_space(Object *ob,
                                          ReportList *reports,
                                          bPoseChannel *pchan,
-                                         float mat[16],
+                                         const float mat[16],
                                          float mat_ret[16],
                                          int from,
                                          int to)
@@ -365,11 +365,15 @@ static void rna_Object_calc_matrix_camera(Object *ob,
   copy_m4_m4((float(*)[4])mat_ret, params.winmat);
 }
 
-static void rna_Object_camera_fit_coords(
-    Object *ob, Depsgraph *depsgraph, int num_cos, float *cos, float co_ret[3], float *scale_ret)
+static void rna_Object_camera_fit_coords(Object *ob,
+                                         Depsgraph *depsgraph,
+                                         const float *cos,
+                                         int cos_num,
+                                         float co_ret[3],
+                                         float *scale_ret)
 {
   BKE_camera_view_frame_fit_to_coords(
-      depsgraph, (const float(*)[3])cos, num_cos / 3, ob, co_ret, scale_ret);
+      depsgraph, (const float(*)[3])cos, cos_num / 3, ob, co_ret, scale_ret);
 }
 
 static void rna_Object_crazyspace_eval(Object *object,
@@ -383,7 +387,7 @@ static void rna_Object_crazyspace_eval(Object *object,
 static void rna_Object_crazyspace_displacement_to_deformed(Object *object,
                                                            ReportList *reports,
                                                            const int vertex_index,
-                                                           float displacement[3],
+                                                           const float displacement[3],
                                                            float r_displacement_deformed[3])
 {
   BKE_crazyspace_api_displacement_to_deformed(
@@ -393,7 +397,7 @@ static void rna_Object_crazyspace_displacement_to_deformed(Object *object,
 static void rna_Object_crazyspace_displacement_to_original(Object *object,
                                                            ReportList *reports,
                                                            const int vertex_index,
-                                                           float displacement_deformed[3],
+                                                           const float displacement_deformed[3],
                                                            float r_displacement[3])
 {
   BKE_crazyspace_api_displacement_to_original(
@@ -550,13 +554,13 @@ static void rna_Mesh_assign_verts_to_group(
 #  endif
 
 /* don't call inside a loop */
-static int mesh_looptri_to_poly_index(Mesh *me_eval, const int tri_index)
+static int mesh_looptri_to_face_index(Mesh *me_eval, const int tri_index)
 {
-  const int *looptri_polys = BKE_mesh_runtime_looptri_polys_ensure(me_eval);
-  const int poly_i = looptri_polys[tri_index];
+  const int *looptri_faces = BKE_mesh_runtime_looptri_faces_ensure(me_eval);
+  const int face_i = looptri_faces[tri_index];
   const int *index_mp_to_orig = static_cast<const int *>(
-      CustomData_get_layer(&me_eval->pdata, CD_ORIGINDEX));
-  return index_mp_to_orig ? index_mp_to_orig[poly_i] : poly_i;
+      CustomData_get_layer(&me_eval->face_data, CD_ORIGINDEX));
+  return index_mp_to_orig ? index_mp_to_orig[face_i] : face_i;
 }
 
 /* TODO(sergey): Make the Python API more clear that evaluation might happen, or require
@@ -589,8 +593,8 @@ static Object *eval_object_ensure(Object *ob,
 static void rna_Object_ray_cast(Object *ob,
                                 bContext *C,
                                 ReportList *reports,
-                                float origin[3],
-                                float direction[3],
+                                const float origin[3],
+                                const float direction[3],
                                 float distance,
                                 PointerRNA *rnaptr_depsgraph,
                                 bool *r_success,
@@ -611,11 +615,12 @@ static void rna_Object_ray_cast(Object *ob,
   float distmin;
 
   /* Needed for valid distance check from #isect_ray_aabb_v3_simple() call. */
-  normalize_v3(direction);
+  float direction_unit[3];
+  normalize_v3_v3(direction_unit, direction);
 
-  if (!bb ||
-      (isect_ray_aabb_v3_simple(origin, direction, bb->vec[0], bb->vec[6], &distmin, nullptr) &&
-       distmin <= distance))
+  if (!bb || (isect_ray_aabb_v3_simple(
+                  origin, direction_unit, bb->vec[0], bb->vec[6], &distmin, nullptr) &&
+              distmin <= distance))
   {
     BVHTreeFromMesh treeData = {nullptr};
 
@@ -633,7 +638,7 @@ static void rna_Object_ray_cast(Object *ob,
 
       if (BLI_bvhtree_ray_cast(treeData.tree,
                                origin,
-                               direction,
+                               direction_unit,
                                0.0f,
                                &hit,
                                treeData.raycast_callback,
@@ -644,7 +649,7 @@ static void rna_Object_ray_cast(Object *ob,
 
           copy_v3_v3(r_location, hit.co);
           copy_v3_v3(r_normal, hit.no);
-          *r_index = mesh_looptri_to_poly_index(mesh_eval, hit.index);
+          *r_index = mesh_looptri_to_face_index(mesh_eval, hit.index);
         }
       }
 
@@ -663,7 +668,7 @@ static void rna_Object_ray_cast(Object *ob,
 static void rna_Object_closest_point_on_mesh(Object *ob,
                                              bContext *C,
                                              ReportList *reports,
-                                             float origin[3],
+                                             const float origin[3],
                                              float distance,
                                              PointerRNA *rnaptr_depsgraph,
                                              bool *r_success,
@@ -702,7 +707,7 @@ static void rna_Object_closest_point_on_mesh(Object *ob,
 
       copy_v3_v3(r_location, nearest.co);
       copy_v3_v3(r_normal, nearest.no);
-      *r_index = mesh_looptri_to_poly_index(mesh_eval, nearest.index);
+      *r_index = mesh_looptri_to_face_index(mesh_eval, nearest.index);
 
       goto finally;
     }
@@ -730,7 +735,7 @@ static bool rna_Object_is_deform_modified(Object *ob, Scene *scene, int settings
 
 #  ifndef NDEBUG
 
-#    include "BKE_mesh_runtime.h"
+#    include "BKE_mesh_runtime.hh"
 
 void rna_Object_me_eval_info(
     Object *ob, bContext *C, int type, PointerRNA *rnaptr_depsgraph, char *result)

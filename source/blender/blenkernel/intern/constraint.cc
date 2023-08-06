@@ -57,8 +57,8 @@
 #include "BKE_global.h"
 #include "BKE_idprop.h"
 #include "BKE_lib_id.h"
-#include "BKE_mesh.h"
-#include "BKE_mesh_runtime.h"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_runtime.hh"
 #include "BKE_movieclip.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
@@ -547,17 +547,16 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
     }
   }
   else if (me_eval) {
-    const float(*vert_normals)[3] = BKE_mesh_vert_normals_ensure(me_eval);
+    const blender::Span<blender::float3> positions = me_eval->vert_positions();
+    const blender::Span<blender::float3> vert_normals = me_eval->vert_normals();
     const MDeformVert *dvert = static_cast<const MDeformVert *>(
-        CustomData_get_layer(&me_eval->vdata, CD_MDEFORMVERT));
-    const float(*positions)[3] = BKE_mesh_vert_positions(me_eval);
-    int numVerts = me_eval->totvert;
+        CustomData_get_layer(&me_eval->vert_data, CD_MDEFORMVERT));
 
     /* check that dvert is a valid pointers (just in case) */
     if (dvert) {
 
       /* get the average of all verts with that are in the vertex-group */
-      for (int i = 0; i < numVerts; i++) {
+      for (const int i : positions.index_range()) {
         const MDeformVert *dv = &dvert[i];
         const MDeformWeight *dw = BKE_defvert_find_index(dv, defgroup);
 
@@ -730,7 +729,7 @@ static void constraint_target_to_mat4(Object *ob,
         int index;
 
         /* figure out which segment(s) the headtail value falls in */
-        BKE_pchan_bbone_deform_segment_index(pchan, headtail, &index, &fac);
+        BKE_pchan_bbone_deform_clamp_segment_index(pchan, headtail, &index, &fac);
 
         /* apply full transformation of the segment if requested */
         if (full_bbone) {
@@ -792,7 +791,7 @@ static bConstraintTypeInfo CTI_CONSTRNAME = {
     /*type*/ CONSTRAINT_TYPE_CONSTRNAME,
     /*size*/ sizeof(bConstrNameConstraint),
     /*name*/ "ConstrName",
-    /*structName*/ "bConstrNameConstraint",
+    /*struct_name*/ "bConstrNameConstraint",
     /*free_data*/ constrname_free,
     /*id_looper*/ constrname_id_looper,
     /*copy_data*/ constrname_copy,
@@ -1111,12 +1110,13 @@ static void childof_evaluate(bConstraint *con, bConstraintOb *cob, ListBase *tar
   }
 }
 
-/* XXX NOTE: con->flag should be CONSTRAINT_SPACEONCE for bone-childof, patched in `readfile.c`. */
+/* XXX NOTE: con->flag should be CONSTRAINT_SPACEONCE for bone-childof, patched in `readfile.cc`.
+ */
 static bConstraintTypeInfo CTI_CHILDOF = {
     /*type*/ CONSTRAINT_TYPE_CHILDOF,
     /*size*/ sizeof(bChildOfConstraint),
     /*name*/ N_("Child Of"),
-    /*structName*/ "bChildOfConstraint",
+    /*struct_name*/ "bChildOfConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ childof_id_looper,
     /*copy_data*/ nullptr,
@@ -1300,7 +1300,7 @@ static bConstraintTypeInfo CTI_TRACKTO = {
     /*type*/ CONSTRAINT_TYPE_TRACKTO,
     /*size*/ sizeof(bTrackToConstraint),
     /*name*/ N_("Track To"),
-    /*structName*/ "bTrackToConstraint",
+    /*struct_name*/ "bTrackToConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ trackto_id_looper,
     /*copy_data*/ nullptr,
@@ -1406,7 +1406,7 @@ static bConstraintTypeInfo CTI_KINEMATIC = {
     /*type*/ CONSTRAINT_TYPE_KINEMATIC,
     /*size*/ sizeof(bKinematicConstraint),
     /*name*/ N_("IK"),
-    /*structName*/ "bKinematicConstraint",
+    /*struct_name*/ "bKinematicConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ kinematic_id_looper,
     /*copy_data*/ nullptr,
@@ -1585,7 +1585,7 @@ static bConstraintTypeInfo CTI_FOLLOWPATH = {
     /*type*/ CONSTRAINT_TYPE_FOLLOWPATH,
     /*size*/ sizeof(bFollowPathConstraint),
     /*name*/ N_("Follow Path"),
-    /*structName*/ "bFollowPathConstraint",
+    /*struct_name*/ "bFollowPathConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ followpath_id_looper,
     /*copy_data*/ nullptr,
@@ -1638,7 +1638,7 @@ static bConstraintTypeInfo CTI_LOCLIMIT = {
     /*type*/ CONSTRAINT_TYPE_LOCLIMIT,
     /*size*/ sizeof(bLocLimitConstraint),
     /*name*/ N_("Limit Location"),
-    /*structName*/ "bLocLimitConstraint",
+    /*struct_name*/ "bLocLimitConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ nullptr,
     /*copy_data*/ nullptr,
@@ -1719,7 +1719,7 @@ static bConstraintTypeInfo CTI_ROTLIMIT = {
     /*type*/ CONSTRAINT_TYPE_ROTLIMIT,
     /*size*/ sizeof(bRotLimitConstraint),
     /*name*/ N_("Limit Rotation"),
-    /*structName*/ "bRotLimitConstraint",
+    /*struct_name*/ "bRotLimitConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ nullptr,
     /*copy_data*/ nullptr,
@@ -1787,7 +1787,7 @@ static bConstraintTypeInfo CTI_SIZELIMIT = {
     /*type*/ CONSTRAINT_TYPE_SIZELIMIT,
     /*size*/ sizeof(bSizeLimitConstraint),
     /*name*/ N_("Limit Scale"),
-    /*structName*/ "bSizeLimitConstraint",
+    /*struct_name*/ "bSizeLimitConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ nullptr,
     /*copy_data*/ nullptr,
@@ -1884,7 +1884,7 @@ static bConstraintTypeInfo CTI_LOCLIKE = {
     /*type*/ CONSTRAINT_TYPE_LOCLIKE,
     /*size*/ sizeof(bLocateLikeConstraint),
     /*name*/ N_("Copy Location"),
-    /*structName*/ "bLocateLikeConstraint",
+    /*struct_name*/ "bLocateLikeConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ loclike_id_looper,
     /*copy_data*/ nullptr,
@@ -2061,7 +2061,7 @@ static bConstraintTypeInfo CTI_ROTLIKE = {
     /*type*/ CONSTRAINT_TYPE_ROTLIKE,
     /*size*/ sizeof(bRotateLikeConstraint),
     /*name*/ N_("Copy Rotation"),
-    /*structName*/ "bRotateLikeConstraint",
+    /*struct_name*/ "bRotateLikeConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ rotlike_id_looper,
     /*copy_data*/ nullptr,
@@ -2191,7 +2191,7 @@ static bConstraintTypeInfo CTI_SIZELIKE = {
     /*type*/ CONSTRAINT_TYPE_SIZELIKE,
     /*size*/ sizeof(bSizeLikeConstraint),
     /*name*/ N_("Copy Scale"),
-    /*structName*/ "bSizeLikeConstraint",
+    /*struct_name*/ "bSizeLikeConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ sizelike_id_looper,
     /*copy_data*/ nullptr,
@@ -2297,7 +2297,7 @@ static bConstraintTypeInfo CTI_TRANSLIKE = {
     /*type*/ CONSTRAINT_TYPE_TRANSLIKE,
     /*size*/ sizeof(bTransLikeConstraint),
     /*name*/ N_("Copy Transforms"),
-    /*structName*/ "bTransLikeConstraint",
+    /*struct_name*/ "bTransLikeConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ translike_id_looper,
     /*copy_data*/ nullptr,
@@ -2366,7 +2366,7 @@ static bConstraintTypeInfo CTI_SAMEVOL = {
     /*type*/ CONSTRAINT_TYPE_SAMEVOL,
     /*size*/ sizeof(bSameVolumeConstraint),
     /*name*/ N_("Maintain Volume"),
-    /*structName*/ "bSameVolumeConstraint",
+    /*struct_name*/ "bSameVolumeConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ nullptr,
     /*copy_data*/ nullptr,
@@ -2498,7 +2498,7 @@ static bConstraintTypeInfo CTI_PYTHON = {
     /*type*/ CONSTRAINT_TYPE_PYTHON,
     /*size*/ sizeof(bPythonConstraint),
     /*name*/ N_("Script"),
-    /*structName*/ "bPythonConstraint",
+    /*struct_name*/ "bPythonConstraint",
     /*free_data*/ pycon_free,
     /*id_looper*/ pycon_id_looper,
     /*copy_data*/ pycon_copy,
@@ -2631,18 +2631,12 @@ static void armdef_accumulate_bone(bConstraintTarget *ct,
   if (bone->segments > 1 && bone->segments == pchan->runtime.bbone_segments) {
     Mat4 *b_bone_mats = pchan->runtime.bbone_deform_mats;
     Mat4 *b_bone_rest_mats = pchan->runtime.bbone_rest_mats;
-    float(*iamat)[4] = b_bone_mats[0].mat;
     float basemat[4][4];
-
-    /* The target is a B-Bone:
-     * FIRST: find the segment (see b_bone_deform in armature.c)
-     * Need to transform co back to bone-space, only need y. */
-    float y = iamat[0][1] * co[0] + iamat[1][1] * co[1] + iamat[2][1] * co[2] + iamat[3][1];
 
     /* Blend the matrix. */
     int index;
     float blend;
-    BKE_pchan_bbone_deform_segment_index(pchan, y / bone->length, &index, &blend);
+    BKE_pchan_bbone_deform_segment_index(pchan, co, &index, &blend);
 
     if (r_sum_dq != nullptr) {
       /* Compute the object space rest matrix of the segment. */
@@ -2750,7 +2744,7 @@ static bConstraintTypeInfo CTI_ARMATURE = {
     /*type*/ CONSTRAINT_TYPE_ARMATURE,
     /*size*/ sizeof(bArmatureConstraint),
     /*name*/ N_("Armature"),
-    /*structName*/ "bArmatureConstraint",
+    /*struct_name*/ "bArmatureConstraint",
     /*free_data*/ armdef_free,
     /*id_looper*/ armdef_id_looper,
     /*copy_data*/ armdef_copy,
@@ -2894,7 +2888,7 @@ static void actcon_get_tarmat(Depsgraph *depsgraph,
     }
     else if (cob->type == CONSTRAINT_OBTYPE_BONE) {
       Object workob;
-      bPose pose = {{0}};
+      bPose pose = {{nullptr}};
       bPoseChannel *pchan, *tchan;
 
       /* make a copy of the bone of interest in the temp pose before evaluating action,
@@ -2966,7 +2960,7 @@ static bConstraintTypeInfo CTI_ACTION = {
     /*type*/ CONSTRAINT_TYPE_ACTION,
     /*size*/ sizeof(bActionConstraint),
     /*name*/ N_("Action"),
-    /*structName*/ "bActionConstraint",
+    /*struct_name*/ "bActionConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ actcon_id_looper,
     /*copy_data*/ nullptr,
@@ -3282,7 +3276,7 @@ static bConstraintTypeInfo CTI_LOCKTRACK = {
     /*type*/ CONSTRAINT_TYPE_LOCKTRACK,
     /*size*/ sizeof(bLockTrackConstraint),
     /*name*/ N_("Locked Track"),
-    /*structName*/ "bLockTrackConstraint",
+    /*struct_name*/ "bLockTrackConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ locktrack_id_looper,
     /*copy_data*/ nullptr,
@@ -3424,7 +3418,7 @@ static bConstraintTypeInfo CTI_DISTLIMIT = {
     /*type*/ CONSTRAINT_TYPE_DISTLIMIT,
     /*size*/ sizeof(bDistLimitConstraint),
     /*name*/ N_("Limit Distance"),
-    /*structName*/ "bDistLimitConstraint",
+    /*struct_name*/ "bDistLimitConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ distlimit_id_looper,
     /*copy_data*/ nullptr,
@@ -3632,7 +3626,7 @@ static bConstraintTypeInfo CTI_STRETCHTO = {
     /*type*/ CONSTRAINT_TYPE_STRETCHTO,
     /*size*/ sizeof(bStretchToConstraint),
     /*name*/ N_("Stretch To"),
-    /*structName*/ "bStretchToConstraint",
+    /*struct_name*/ "bStretchToConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ stretchto_id_looper,
     /*copy_data*/ nullptr,
@@ -3763,7 +3757,7 @@ static bConstraintTypeInfo CTI_MINMAX = {
     /*type*/ CONSTRAINT_TYPE_MINMAX,
     /*size*/ sizeof(bMinMaxConstraint),
     /*name*/ N_("Floor"),
-    /*structName*/ "bMinMaxConstraint",
+    /*struct_name*/ "bMinMaxConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ minmax_id_looper,
     /*copy_data*/ nullptr,
@@ -3949,7 +3943,7 @@ static bConstraintTypeInfo CTI_CLAMPTO = {
     /*type*/ CONSTRAINT_TYPE_CLAMPTO,
     /*size*/ sizeof(bClampToConstraint),
     /*name*/ N_("Clamp To"),
-    /*structName*/ "bClampToConstraint",
+    /*struct_name*/ "bClampToConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ clampto_id_looper,
     /*copy_data*/ nullptr,
@@ -4158,7 +4152,7 @@ static bConstraintTypeInfo CTI_TRANSFORM = {
     /*type*/ CONSTRAINT_TYPE_TRANSFORM,
     /*size*/ sizeof(bTransformConstraint),
     /*name*/ N_("Transformation"),
-    /*structName*/ "bTransformConstraint",
+    /*struct_name*/ "bTransformConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ transform_id_looper,
     /*copy_data*/ nullptr,
@@ -4390,7 +4384,7 @@ static bConstraintTypeInfo CTI_SHRINKWRAP = {
     /*type*/ CONSTRAINT_TYPE_SHRINKWRAP,
     /*size*/ sizeof(bShrinkwrapConstraint),
     /*name*/ N_("Shrinkwrap"),
-    /*structName*/ "bShrinkwrapConstraint",
+    /*struct_name*/ "bShrinkwrapConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ shrinkwrap_id_looper,
     /*copy_data*/ nullptr,
@@ -4555,7 +4549,7 @@ static bConstraintTypeInfo CTI_DAMPTRACK = {
     /*type*/ CONSTRAINT_TYPE_DAMPTRACK,
     /*size*/ sizeof(bDampTrackConstraint),
     /*name*/ N_("Damped Track"),
-    /*structName*/ "bDampTrackConstraint",
+    /*struct_name*/ "bDampTrackConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ damptrack_id_looper,
     /*copy_data*/ nullptr,
@@ -4650,7 +4644,7 @@ static bConstraintTypeInfo CTI_SPLINEIK = {
     /*type*/ CONSTRAINT_TYPE_SPLINEIK,
     /*size*/ sizeof(bSplineIKConstraint),
     /*name*/ N_("Spline IK"),
-    /*structName*/ "bSplineIKConstraint",
+    /*struct_name*/ "bSplineIKConstraint",
     /*free_data*/ splineik_free,
     /*id_looper*/ splineik_id_looper,
     /*copy_data*/ splineik_copy,
@@ -4774,7 +4768,7 @@ static bConstraintTypeInfo CTI_PIVOT = {
     /*type*/ CONSTRAINT_TYPE_PIVOT,
     /*size*/ sizeof(bPivotConstraint),
     /*name*/ N_("Pivot"),
-    /*structName*/ "bPivotConstraint",
+    /*struct_name*/ "bPivotConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ pivotcon_id_looper,
     /*copy_data*/ nullptr,
@@ -5194,7 +5188,7 @@ static bConstraintTypeInfo CTI_FOLLOWTRACK = {
     /*type*/ CONSTRAINT_TYPE_FOLLOWTRACK,
     /*size*/ sizeof(bFollowTrackConstraint),
     /*name*/ N_("Follow Track"),
-    /*structName*/ "bFollowTrackConstraint",
+    /*struct_name*/ "bFollowTrackConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ followtrack_id_looper,
     /*copy_data*/ nullptr,
@@ -5252,7 +5246,7 @@ static bConstraintTypeInfo CTI_CAMERASOLVER = {
     /*type*/ CONSTRAINT_TYPE_CAMERASOLVER,
     /*size*/ sizeof(bCameraSolverConstraint),
     /*name*/ N_("Camera Solver"),
-    /*structName*/ "bCameraSolverConstraint",
+    /*struct_name*/ "bCameraSolverConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ camerasolver_id_looper,
     /*copy_data*/ nullptr,
@@ -5338,7 +5332,7 @@ static bConstraintTypeInfo CTI_OBJECTSOLVER = {
     /*type*/ CONSTRAINT_TYPE_OBJECTSOLVER,
     /*size*/ sizeof(bObjectSolverConstraint),
     /*name*/ N_("Object Solver"),
-    /*structName*/ "bObjectSolverConstraint",
+    /*struct_name*/ "bObjectSolverConstraint",
     /*free_data*/ nullptr,
     /*id_looper*/ objectsolver_id_looper,
     /*copy_data*/ nullptr,
@@ -5435,7 +5429,7 @@ static bConstraintTypeInfo CTI_TRANSFORM_CACHE = {
     /*type*/ CONSTRAINT_TYPE_TRANSFORM_CACHE,
     /*size*/ sizeof(bTransformCacheConstraint),
     /*name*/ N_("Transform Cache"),
-    /*structName*/ "bTransformCacheConstraint",
+    /*struct_name*/ "bTransformCacheConstraint",
     /*free_data*/ transformcache_free,
     /*id_looper*/ transformcache_id_looper,
     /*copy_data*/ transformcache_copy,
@@ -5533,7 +5527,7 @@ const bConstraintTypeInfo *BKE_constraint_typeinfo_get(bConstraint *con)
 static void con_unlink_refs_cb(bConstraint * /*con*/,
                                ID **idpoin,
                                bool is_reference,
-                               void * /*userData*/)
+                               void * /*user_data*/)
 {
   if (*idpoin && is_reference) {
     id_us_min(*idpoin);
@@ -5767,7 +5761,7 @@ static bConstraint *add_new_constraint_internal(const char *name, short type)
   /* Determine a basic name, and info */
   if (cti) {
     /* initialize constraint data */
-    con->data = MEM_callocN(cti->size, cti->structName);
+    con->data = MEM_callocN(cti->size, cti->struct_name);
 
     /* only constraints that change any settings need this */
     if (cti->new_data) {
@@ -5898,7 +5892,7 @@ void BKE_constraints_id_loop(ListBase *conlist, ConstraintIDFunc func, void *use
 static void con_extern_cb(bConstraint * /*con*/,
                           ID **idpoin,
                           bool /*is_reference*/,
-                          void * /*userData*/)
+                          void * /*user_data*/)
 {
   if (*idpoin && ID_IS_LINKED(*idpoin)) {
     id_lib_extern(*idpoin);
@@ -5912,7 +5906,7 @@ static void con_extern_cb(bConstraint * /*con*/,
 static void con_fix_copied_refs_cb(bConstraint * /*con*/,
                                    ID **idpoin,
                                    bool is_reference,
-                                   void * /*userData*/)
+                                   void * /*user_data*/)
 {
   /* Increment user-count if this is a reference type. */
   if ((*idpoin) && (is_reference)) {
@@ -6306,8 +6300,6 @@ void BKE_constraint_targets_for_solving_get(
   const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 
   if (cti && cti->get_constraint_targets) {
-    bConstraintTarget *ct;
-
     /* get targets
      * - constraints should use ct->matrix, not directly accessing values
      * - ct->matrix members have not yet been calculated here!
@@ -6323,12 +6315,12 @@ void BKE_constraint_targets_for_solving_get(
      * - calculate if possible, otherwise just initialize as identity matrix
      */
     if (cti->get_target_matrix) {
-      for (ct = static_cast<bConstraintTarget *>(targets->first); ct; ct = ct->next) {
+      LISTBASE_FOREACH (bConstraintTarget *, ct, targets) {
         cti->get_target_matrix(depsgraph, con, cob, ct, ctime);
       }
     }
     else {
-      for (ct = static_cast<bConstraintTarget *>(targets->first); ct; ct = ct->next) {
+      LISTBASE_FOREACH (bConstraintTarget *, ct, targets) {
         unit_m4(ct->matrix);
       }
     }
@@ -6361,7 +6353,6 @@ void BKE_constraints_solve(Depsgraph *depsgraph,
                            bConstraintOb *cob,
                            float ctime)
 {
-  bConstraint *con;
   float oldmat[4][4];
   float enf;
 
@@ -6371,7 +6362,7 @@ void BKE_constraints_solve(Depsgraph *depsgraph,
   }
 
   /* loop over available constraints, solving and blending them */
-  for (con = static_cast<bConstraint *>(conlist->first); con; con = con->next) {
+  LISTBASE_FOREACH (bConstraint *, con, conlist) {
     const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
     ListBase targets = {nullptr, nullptr};
 
@@ -6449,7 +6440,7 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBase *conlist)
     /* Write the specific data */
     if (cti && con->data) {
       /* firstly, just write the plain con->data struct */
-      BLO_write_struct_by_name(writer, cti->structName, con->data);
+      BLO_write_struct_by_name(writer, cti->struct_name, con->data);
 
       /* do any constraint specific stuff */
       switch (con->type) {

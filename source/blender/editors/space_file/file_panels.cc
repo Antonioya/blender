@@ -24,17 +24,17 @@
 #include "RNA_define.h"
 #include "RNA_prototypes.h"
 
-#include "ED_fileselect.h"
+#include "ED_fileselect.hh"
 
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
+#include "UI_resources.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "file_intern.h"
-#include "filelist.h"
+#include "file_intern.hh"
+#include "filelist.hh"
 #include "fsmenu.h"
 
 #include <cstring>
@@ -234,7 +234,7 @@ static void file_panel_asset_catalog_buttons_draw(const bContext *C, Panel *pane
   PointerRNA params_ptr;
   RNA_pointer_create(&screen->id, &RNA_FileAssetSelectParams, params, &params_ptr);
 
-  uiItemR(row, &params_ptr, "asset_library_ref", 0, "", ICON_NONE);
+  uiItemR(row, &params_ptr, "asset_library_ref", UI_ITEM_NONE, "", ICON_NONE);
   if (params->asset_library_ref.type == ASSET_LIBRARY_LOCAL) {
     bContext *mutable_ctx = CTX_copy(C);
     if (WM_operator_name_poll(mutable_ctx, "asset.bundle_install")) {

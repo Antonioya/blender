@@ -37,9 +37,9 @@
 
 #include "BKE_context.h"
 #include "BKE_image.h"
-#include "BKE_paint.h"
+#include "BKE_paint.hh"
 
-#include "BIF_glutil.h"
+#include "BIF_glutil.hh"
 
 #include "GPU_framebuffer.h"
 #include "GPU_immediate.h"
@@ -49,16 +49,16 @@
 
 #include "BLF_api.h"
 
-#include "ED_gpencil_legacy.h"
-#include "ED_image.h"
-#include "ED_mask.h"
-#include "ED_render.h"
-#include "ED_screen.h"
-#include "ED_util.h"
+#include "ED_gpencil_legacy.hh"
+#include "ED_image.hh"
+#include "ED_mask.hh"
+#include "ED_render.hh"
+#include "ED_screen.hh"
+#include "ED_util.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+#include "UI_view2d.hh"
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
@@ -85,8 +85,7 @@ static void draw_render_info(
 
   if (re) {
     int total_tiles;
-    bool need_free_tiles;
-    rcti *tiles = RE_engine_get_current_tiles(re, &total_tiles, &need_free_tiles);
+    const rcti *tiles = RE_engine_get_current_tiles(re, &total_tiles);
 
     if (total_tiles) {
       /* find window pixel coordinates of origin */
@@ -104,16 +103,12 @@ static void draw_render_info(
 
       GPU_line_width(1.0f);
 
-      rcti *tile = tiles;
+      const rcti *tile = tiles;
       for (int i = 0; i < total_tiles; i++, tile++) {
         immDrawBorderCorners(pos, tile, zoomx, zoomy);
       }
 
       immUnbindProgram();
-
-      if (need_free_tiles) {
-        MEM_freeN(tiles);
-      }
 
       GPU_matrix_pop();
     }

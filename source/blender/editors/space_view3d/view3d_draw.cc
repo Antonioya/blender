@@ -28,7 +28,7 @@
 #include "BKE_layer.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
-#include "BKE_paint.h"
+#include "BKE_paint.hh"
 #include "BKE_scene.h"
 #include "BKE_studiolight.h"
 #include "BKE_unit.h"
@@ -49,14 +49,16 @@
 #include "DRW_engine.h"
 #include "DRW_select_buffer.h"
 
-#include "ED_gpencil_legacy.h"
-#include "ED_info.h"
-#include "ED_keyframing.h"
-#include "ED_screen.h"
-#include "ED_screen_types.h"
-#include "ED_transform.h"
-#include "ED_view3d_offscreen.h"
+#include "ED_gpencil_legacy.hh"
+#include "ED_info.hh"
+#include "ED_keyframing.hh"
+#include "ED_screen.hh"
+#include "ED_screen_types.hh"
+#include "ED_transform.hh"
+#include "ED_view3d_offscreen.hh"
 #include "ED_viewer_path.hh"
+
+#include "ANIM_bone_collections.h"
 
 #include "DEG_depsgraph_query.h"
 
@@ -72,13 +74,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
 #include "RE_engine.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "RNA_access.h"
 
@@ -1371,7 +1373,7 @@ static void draw_selected_name(
       else if (ob->mode & OB_MODE_POSE) {
         if (arm->act_bone) {
 
-          if (arm->act_bone->layer & arm->layer) {
+          if (ANIM_bonecoll_is_visible_actbone(arm)) {
             info_array[i++] = msg_sep;
             info_array[i++] = arm->act_bone->name;
           }
@@ -1386,7 +1388,7 @@ static void draw_selected_name(
         if (armobj && armobj->mode & OB_MODE_POSE) {
           bArmature *arm = static_cast<bArmature *>(armobj->data);
           if (arm->act_bone) {
-            if (arm->act_bone->layer & arm->layer) {
+            if (ANIM_bonecoll_is_visible_actbone(arm)) {
               info_array[i++] = msg_sep;
               info_array[i++] = arm->act_bone->name;
             }

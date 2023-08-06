@@ -55,6 +55,11 @@ enum eDebugMode : uint32_t {
    */
   DEBUG_IRRADIANCE_CACHE_SURFELS_NORMAL = 3u,
   DEBUG_IRRADIANCE_CACHE_SURFELS_IRRADIANCE = 4u,
+  DEBUG_IRRADIANCE_CACHE_SURFELS_CLUSTER = 5u,
+  /**
+   * Display IrradianceCache virtual offset.
+   */
+  DEBUG_IRRADIANCE_CACHE_VIRTUAL_OFFSET = 6u,
   /**
    * Show tiles depending on their status.
    */
@@ -102,13 +107,16 @@ enum eSamplingDimension : uint32_t {
   SAMPLING_AO_U = 19u,
   SAMPLING_AO_V = 20u,
   SAMPLING_CURVES_U = 21u,
+  SAMPLING_VOLUME_U = 22u,
+  SAMPLING_VOLUME_V = 23u,
+  SAMPLING_VOLUME_W = 24u
 };
 
 /**
  * IMPORTANT: Make sure the array can contain all sampling dimensions.
  * Also note that it needs to be multiple of 4.
  */
-#define SAMPLING_DIMENSION_COUNT 24
+#define SAMPLING_DIMENSION_COUNT 28
 
 /* NOTE(@fclem): Needs to be used in #StorageBuffer because of arrays of scalar. */
 struct SamplingData {
@@ -436,6 +444,81 @@ struct MotionBlurTileIndirection {
 };
 BLI_STATIC_ASSERT_ALIGN(MotionBlurTileIndirection, 16)
 #endif
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Volumes
+ * \{ */
+
+struct VolumesInfoData {
+  float2 coord_scale;
+  float2 viewport_size_inv;
+  packed_int3 tex_size;
+  float light_clamp;
+  packed_float3 inv_tex_size;
+  float shadow_steps;
+  bool1 use_lights;
+  bool1 use_soft_shadows;
+  float depth_near;
+  float depth_far;
+  float depth_distribution;
+  float _pad0;
+  float _pad1;
+  float _pad2;
+};
+BLI_STATIC_ASSERT_ALIGN(VolumesInfoData, 16)
+
+/* Volume slice to view space depth. */
+static inline float volume_z_to_view_z(
+    float near, float far, float distribution, bool is_persp, float z)
+{
+  if (is_persp) {
+    /* Exponential distribution. */
+    return (exp2(z / distribution) - near) / far;
+  }
+  else {
+    /* Linear distribution. */
+    return near + (far - near) * z;
+  }
+}
+
+static inline float view_z_to_volume_z(
+    float near, float far, float distribution, bool is_persp, float depth)
+{
+  if (is_persp) {
+    /* Exponential distribution. */
+    return distribution * log2(depth * far + near);
+  }
+  else {
+    /* Linear distribution. */
+    return (depth - near) * distribution;
+  }
+}
+
+static inline float3 ndc_to_volume(float4x4 projection_matrix,
+                                   float near,
+                                   float far,
+                                   float distribution,
+                                   float2 coord_scale,
+                                   float3 coord)
+{
+  bool is_persp = projection_matrix[3][3] == 0.0;
+
+  /* get_view_z_from_depth */
+  float d = 2.0 * coord.z - 1.0;
+  if (is_persp) {
+    coord.z = -projection_matrix[3][2] / (d + projection_matrix[2][2]);
+  }
+  else {
+    coord.z = (d - projection_matrix[3][2]) / projection_matrix[2][2];
+  }
+
+  coord.z = view_z_to_volume_z(near, far, distribution, is_persp, coord.z);
+  coord.x *= coord_scale.x;
+  coord.y *= coord_scale.y;
+  return coord;
+}
 
 /** \} */
 
@@ -866,7 +949,8 @@ struct Surfel {
   float ray_distance;
   /** Surface albedo to apply to incoming radiance. */
   packed_float3 albedo_back;
-  int _pad3;
+  /** Cluster this surfel is assigned to. */
+  int cluster_id;
   /** Surface radiance: Emission + Direct Lighting. */
   SurfelRadiance radiance_direct;
   /** Surface radiance: Indirect Lighting. Double buffered to avoid race conditions. */
@@ -889,6 +973,8 @@ struct CaptureInfoData {
   float sample_index;
   /** Transform of the light-probe object. */
   float4x4 irradiance_grid_local_to_world;
+  /** Transform of the light-probe object. */
+  float4x4 irradiance_grid_world_to_local;
   /** Transform vectors from world space to local space. Does not have location component. */
   /** TODO(fclem): This could be a float3x4 or a float3x3 if padded correctly. */
   float4x4 irradiance_grid_world_to_local_rotation;
@@ -899,9 +985,12 @@ struct CaptureInfoData {
   int scene_bound_x_max;
   int scene_bound_y_max;
   int scene_bound_z_max;
-  int _pad0;
-  int _pad1;
-  int _pad2;
+  /** Minimum distance between a grid sample and a surface. Used to compute virtual offset. */
+  float min_distance_to_surface;
+  /** Maximum world scale offset an irradiance grid sample can be baked with. */
+  float max_virtual_offset;
+  /** Radius of surfels. */
+  float surfel_radius;
 };
 BLI_STATIC_ASSERT_ALIGN(CaptureInfoData, 16)
 
@@ -985,6 +1074,31 @@ enum eClosureBits : uint32_t {
   CLOSURE_VOLUME = (1u << 11u),
   CLOSURE_AMBIENT_OCCLUSION = (1u << 12u),
 };
+
+struct RayTraceData {
+  /** ViewProjection matrix used to render the previous frame. */
+  float4x4 history_persmat;
+  /** Input resolution. */
+  int2 full_resolution;
+  /** Inverse of input resolution to get screen UVs. */
+  float2 full_resolution_inv;
+  /** Scale and bias to go from ray-trace resolution to input resolution. */
+  int2 resolution_bias;
+  int resolution_scale;
+  /** View space thickness the objects. */
+  float thickness;
+  /** Determine how fast the sample steps are getting bigger. */
+  float quality;
+  /** Maximum brightness during lighting evaluation. */
+  float brightness_clamp;
+  /** Maximum roughness for which we will trace a ray. */
+  float max_trace_roughness;
+  /** If set to true will bypass spatial denoising. */
+  bool1 skip_denoise;
+  /** Closure being ray-traced. */
+  eClosureBits closure_active;
+};
+BLI_STATIC_ASSERT_ALIGN(RayTraceData, 16)
 
 /** \} */
 
@@ -1120,6 +1234,7 @@ using CameraDataBuf = draw::UniformBuffer<CameraData>;
 using DepthOfFieldDataBuf = draw::UniformBuffer<DepthOfFieldData>;
 using DepthOfFieldScatterListBuf = draw::StorageArrayBuffer<ScatterRect, 16, true>;
 using DrawIndirectBuf = draw::StorageBuffer<DrawCommand, true>;
+using DispatchIndirectBuf = draw::StorageBuffer<DispatchCommand>;
 using FilmDataBuf = draw::UniformBuffer<FilmData>;
 using HiZDataBuf = draw::UniformBuffer<HiZData>;
 using IrradianceGridDataBuf = draw::UniformArrayBuffer<IrradianceGridData, IRRADIANCE_GRID_MAX>;
@@ -1132,6 +1247,8 @@ using LightCullingZdistBuf = draw::StorageArrayBuffer<float, LIGHT_CHUNK, true>;
 using LightDataBuf = draw::StorageArrayBuffer<LightData, LIGHT_CHUNK>;
 using MotionBlurDataBuf = draw::UniformBuffer<MotionBlurData>;
 using MotionBlurTileIndirectionBuf = draw::StorageBuffer<MotionBlurTileIndirection, true>;
+using RayTraceTileBuf = draw::StorageArrayBuffer<uint, 1024, true>;
+using RayTraceDataBuf = draw::UniformBuffer<RayTraceData>;
 using ReflectionProbeDataBuf =
     draw::UniformArrayBuffer<ReflectionProbeData, REFLECTION_PROBES_MAX>;
 using SamplingDataBuf = draw::StorageBuffer<SamplingData>;
@@ -1150,6 +1267,7 @@ using SurfelListInfoBuf = draw::StorageBuffer<SurfelListInfoData>;
 using VelocityGeometryBuf = draw::StorageArrayBuffer<float4, 16, true>;
 using VelocityIndexBuf = draw::StorageArrayBuffer<VelocityIndex, 16>;
 using VelocityObjectBuf = draw::StorageArrayBuffer<float4x4, 16>;
+using VolumesInfoDataBuf = draw::UniformBuffer<VolumesInfoData>;
 using CryptomatteObjectBuf = draw::StorageArrayBuffer<float2, 16>;
 using AODataBuf = draw::UniformBuffer<AOData>;
 

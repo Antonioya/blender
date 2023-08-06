@@ -44,7 +44,7 @@
 #include "BKE_animsys.h"
 #include "BKE_appdir.h"
 #include "BKE_armature.h"
-#include "BKE_brush.h"
+#include "BKE_brush.hh"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -72,7 +72,7 @@
 #include "IMB_imbuf_types.h"
 #include "IMB_thumbs.h"
 
-#include "BIF_glutil.h"
+#include "BIF_glutil.hh"
 
 #include "GPU_shader.h"
 
@@ -80,16 +80,16 @@
 #include "RE_pipeline.h"
 #include "RE_texture.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "ED_datafiles.h"
-#include "ED_render.h"
-#include "ED_screen.h"
-#include "ED_view3d.h"
-#include "ED_view3d_offscreen.h"
+#include "ED_render.hh"
+#include "ED_screen.hh"
+#include "ED_view3d.hh"
+#include "ED_view3d_offscreen.hh"
 
-#include "UI_interface_icons.h"
+#include "UI_interface_icons.hh"
 
 #ifndef NDEBUG
 /* Used for database init assert(). */
@@ -1071,7 +1071,6 @@ static void shader_preview_texture(ShaderPreview *sp, Tex *tex, Scene *sce, Rend
   /* Fill in image buffer. */
   float *rect_float = rv_ibuf->float_buffer.data;
   float tex_coord[3] = {0.0f, 0.0f, 0.0f};
-  bool color_manage = BKE_scene_check_color_management_enabled(sce);
 
   for (int y = 0; y < height; y++) {
     /* Tex coords between -1.0f and 1.0f. */
@@ -1082,7 +1081,7 @@ static void shader_preview_texture(ShaderPreview *sp, Tex *tex, Scene *sce, Rend
 
       /* Evaluate texture at tex_coord. */
       TexResult texres = {0};
-      BKE_texture_get_value_ex(tex, tex_coord, &texres, img_pool, color_manage);
+      BKE_texture_get_value_ex(tex, tex_coord, &texres, img_pool, true);
       copy_v4_fl4(rect_float,
                   texres.trgba[0],
                   texres.trgba[1],
@@ -1455,12 +1454,6 @@ static void icon_preview_startjob(void *customdata, bool *stop, bool *do_update)
 
     *do_update = true;
   }
-  else if (idtype == ID_SCR) {
-    bScreen *screen = (bScreen *)id;
-
-    ED_screen_preview_render(screen, sp->sizex, sp->sizey, sp->pr_rect);
-    *do_update = true;
-  }
   else {
     /* re-use shader job */
     shader_preview_startjob(customdata, stop, do_update);
@@ -1564,11 +1557,8 @@ static void icon_preview_startjob_all_sizes(void *customdata,
                                             float *progress)
 {
   IconPreview *ip = (IconPreview *)customdata;
-  IconPreviewSize *cur_size;
 
-  for (cur_size = static_cast<IconPreviewSize *>(ip->sizes.first); cur_size;
-       cur_size = cur_size->next)
-  {
+  LISTBASE_FOREACH (IconPreviewSize *, cur_size, &ip->sizes) {
     PreviewImage *prv = static_cast<PreviewImage *>(ip->owner);
     /* Is this a render job or a deferred loading job? */
     const ePreviewRenderMethod pr_method = (prv->tag & PRV_TAG_DEFFERED) ? PR_ICON_DEFERRED :

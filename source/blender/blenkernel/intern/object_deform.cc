@@ -35,7 +35,7 @@
 #include "BKE_deform.h"
 #include "BKE_editmesh.h"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_object_deform.h" /* own include */
@@ -53,10 +53,6 @@ static Lattice *object_defgroup_lattice_get(ID *id)
 
 void BKE_object_defgroup_remap_update_users(Object *ob, const int *map)
 {
-  ModifierData *md;
-  ParticleSystem *psys;
-  int a;
-
   /* these cases don't use names to refer to vertex groups, so when
    * they get removed the numbers get out of sync, this corrects that */
 
@@ -64,7 +60,7 @@ void BKE_object_defgroup_remap_update_users(Object *ob, const int *map)
     ob->soft->vertgroup = map[ob->soft->vertgroup];
   }
 
-  for (md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
+  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
     if (md->type == eModifierType_Explode) {
       ExplodeModifierData *emd = (ExplodeModifierData *)md;
       emd->vgroup = map[emd->vgroup];
@@ -81,8 +77,8 @@ void BKE_object_defgroup_remap_update_users(Object *ob, const int *map)
     }
   }
 
-  for (psys = static_cast<ParticleSystem *>(ob->particlesystem.first); psys; psys = psys->next) {
-    for (a = 0; a < PSYS_TOT_VG; a++) {
+  LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
+    for (int a = 0; a < PSYS_TOT_VG; a++) {
       psys->vgroup[a] = map[psys->vgroup[a]];
     }
   }
@@ -166,7 +162,7 @@ bool BKE_object_defgroup_clear(Object *ob, bDeformGroup *dg, const bool use_sele
     else {
       if (BKE_mesh_deform_verts(me)) {
         const bool *select_vert = (const bool *)CustomData_get_layer_named(
-            &me->vdata, CD_PROP_BOOL, ".select_vert");
+            &me->vert_data, CD_PROP_BOOL, ".select_vert");
         int i;
 
         dv = BKE_mesh_deform_verts_for_write(me);
@@ -207,12 +203,11 @@ bool BKE_object_defgroup_clear(Object *ob, bDeformGroup *dg, const bool use_sele
 
 bool BKE_object_defgroup_clear_all(Object *ob, const bool use_selection)
 {
-  bDeformGroup *dg;
   bool changed = false;
 
   const ListBase *defbase = BKE_object_defgroup_list(ob);
 
-  for (dg = static_cast<bDeformGroup *>(defbase->first); dg; dg = dg->next) {
+  LISTBASE_FOREACH (bDeformGroup *, dg, defbase) {
     if (BKE_object_defgroup_clear(ob, dg, use_selection)) {
       changed = true;
     }
@@ -263,7 +258,7 @@ static void object_defgroup_remove_common(Object *ob, bDeformGroup *dg, const in
   if (BLI_listbase_is_empty(defbase)) {
     if (ob->type == OB_MESH) {
       Mesh *me = static_cast<Mesh *>(ob->data);
-      CustomData_free_layer_active(&me->vdata, CD_MDEFORMVERT, me->totvert);
+      CustomData_free_layer_active(&me->vert_data, CD_MDEFORMVERT, me->totvert);
     }
     else if (ob->type == OB_LATTICE) {
       Lattice *lt = object_defgroup_lattice_get((ID *)(ob->data));
@@ -410,7 +405,7 @@ void BKE_object_defgroup_remove_all_ex(Object *ob, bool only_unlocked)
     /* Remove all deform-verts. */
     if (ob->type == OB_MESH) {
       Mesh *me = static_cast<Mesh *>(ob->data);
-      CustomData_free_layer_active(&me->vdata, CD_MDEFORMVERT, me->totvert);
+      CustomData_free_layer_active(&me->vert_data, CD_MDEFORMVERT, me->totvert);
     }
     else if (ob->type == OB_LATTICE) {
       Lattice *lt = object_defgroup_lattice_get((ID *)(ob->data));
@@ -555,7 +550,7 @@ bool *BKE_object_defgroup_validmap_get(Object *ob, const int defbase_tot)
   GHash *gh;
   int i, step1 = 1;
   const ListBase *defbase = BKE_object_defgroup_list(ob);
-  VirtualModifierData virtualModifierData;
+  VirtualModifierData virtual_modifier_data;
 
   if (BLI_listbase_is_empty(defbase)) {
     return nullptr;
@@ -564,7 +559,7 @@ bool *BKE_object_defgroup_validmap_get(Object *ob, const int defbase_tot)
   gh = BLI_ghash_str_new_ex(__func__, defbase_tot);
 
   /* add all names to a hash table */
-  for (dg = static_cast<bDeformGroup *>(defbase->first); dg; dg = dg->next) {
+  LISTBASE_FOREACH (bDeformGroup *, dg, defbase) {
     BLI_ghash_insert(gh, dg->name, nullptr);
   }
 
@@ -573,7 +568,7 @@ bool *BKE_object_defgroup_validmap_get(Object *ob, const int defbase_tot)
   /* now loop through the armature modifiers and identify deform bones */
   for (md = static_cast<ModifierData *>(ob->modifiers.first); md;
        md = !md->next && step1 ? (step1 = 0),
-      BKE_modifiers_get_virtual_modifierlist(ob, &virtualModifierData) :
+      BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data) :
        md->next)
   {
     if (!(md->mode & (eModifierMode_Realtime | eModifierMode_Virtual))) {
@@ -585,9 +580,8 @@ bool *BKE_object_defgroup_validmap_get(Object *ob, const int defbase_tot)
 
       if (amd->object && amd->object->pose) {
         bPose *pose = amd->object->pose;
-        bPoseChannel *chan;
 
-        for (chan = static_cast<bPoseChannel *>(pose->chanbase.first); chan; chan = chan->next) {
+        LISTBASE_FOREACH (bPoseChannel *, chan, &pose->chanbase) {
           void **val_p;
           if (chan->bone->flag & BONE_NO_DEFORM) {
             continue;
@@ -677,6 +671,14 @@ bool BKE_object_defgroup_check_lock_relative_multi(int defbase_tot,
   }
 
   return true;
+}
+
+bool BKE_object_defgroup_active_is_locked(const Object *ob)
+{
+  Mesh *me = static_cast<Mesh *>(ob->data);
+  bDeformGroup *dg = static_cast<bDeformGroup *>(
+      BLI_findlink(&me->vertex_group_names, me->vertex_group_active_index - 1));
+  return dg->flag & DG_LOCK_WEIGHT;
 }
 
 void BKE_object_defgroup_split_locked_validmap(

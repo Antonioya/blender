@@ -57,7 +57,7 @@ static Mesh *hull_from_bullet(const Mesh *mesh, Span<float3> coords)
 #  if 0 /* Disabled because it only works for meshes, not predictable enough. */
       /* Copy custom data on vertices, like vertex groups etc. */
       if (mesh && original_index < mesh->totvert) {
-        CustomData_copy_data(&mesh->vdata, &result->vdata, int(original_index), int(i), 1);
+        CustomData_copy_data(&mesh->vert_data, &result->vert_data, int(original_index), int(i), 1);
       }
 #  endif
     }
@@ -103,7 +103,7 @@ static Mesh *hull_from_bullet(const Mesh *mesh, Span<float3> coords)
   /* Copy faces. */
   Array<int> loops;
   int j = 0;
-  MutableSpan<int> poly_offsets = result->poly_offsets_for_write();
+  MutableSpan<int> face_offsets = result->face_offsets_for_write();
   MutableSpan<int> mesh_corner_verts = result->corner_verts_for_write();
   MutableSpan<int> mesh_corner_edges = result->corner_edges_for_write();
   int dst_corner = 0;
@@ -117,7 +117,7 @@ static Mesh *hull_from_bullet(const Mesh *mesh, Span<float3> coords)
     loops.reinitialize(len);
     plConvexHullGetFaceLoops(hull, i, loops.data());
 
-    poly_offsets[i] = j;
+    face_offsets[i] = j;
     for (const int k : IndexRange(len)) {
       mesh_corner_verts[dst_corner] = corner_verts[loops[k]];
       mesh_corner_edges[dst_corner] = corner_edges[loops[k]];
@@ -138,7 +138,7 @@ static Mesh *compute_hull(const GeometrySet &geometry_set)
 
   Span<float3> positions_span;
 
-  if (const Mesh *mesh = geometry_set.get_mesh_for_read()) {
+  if (const Mesh *mesh = geometry_set.get_mesh()) {
     count++;
     if (const VArray positions = *mesh->attributes().lookup<float3>("position")) {
       if (positions.is_span()) {
@@ -149,7 +149,7 @@ static Mesh *compute_hull(const GeometrySet &geometry_set)
     }
   }
 
-  if (const PointCloud *points = geometry_set.get_pointcloud_for_read()) {
+  if (const PointCloud *points = geometry_set.get_pointcloud()) {
     count++;
     if (const VArray positions = *points->attributes().lookup<float3>("position")) {
       if (positions.is_span()) {
@@ -160,7 +160,7 @@ static Mesh *compute_hull(const GeometrySet &geometry_set)
     }
   }
 
-  if (const Curves *curves_id = geometry_set.get_curves_for_read()) {
+  if (const Curves *curves_id = geometry_set.get_curves()) {
     count++;
     span_count++;
     const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
@@ -175,34 +175,34 @@ static Mesh *compute_hull(const GeometrySet &geometry_set)
   /* If there is only one positions virtual array and it is already contiguous, avoid copying
    * all of the positions and instead pass the span directly to the convex hull function. */
   if (span_count == 1 && count == 1) {
-    return hull_from_bullet(geometry_set.get_mesh_for_read(), positions_span);
+    return hull_from_bullet(geometry_set.get_mesh(), positions_span);
   }
 
   Array<float3> positions(total_num);
   int offset = 0;
 
-  if (const Mesh *mesh = geometry_set.get_mesh_for_read()) {
+  if (const Mesh *mesh = geometry_set.get_mesh()) {
     if (const VArray varray = *mesh->attributes().lookup<float3>("position")) {
       varray.materialize(positions.as_mutable_span().slice(offset, varray.size()));
       offset += varray.size();
     }
   }
 
-  if (const PointCloud *points = geometry_set.get_pointcloud_for_read()) {
+  if (const PointCloud *points = geometry_set.get_pointcloud()) {
     if (const VArray varray = *points->attributes().lookup<float3>("position")) {
       varray.materialize(positions.as_mutable_span().slice(offset, varray.size()));
       offset += varray.size();
     }
   }
 
-  if (const Curves *curves_id = geometry_set.get_curves_for_read()) {
+  if (const Curves *curves_id = geometry_set.get_curves()) {
     const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     Span<float3> array = curves.evaluated_positions();
     positions.as_mutable_span().slice(offset, array.size()).copy_from(array);
     offset += array.size();
   }
 
-  return hull_from_bullet(geometry_set.get_mesh_for_read(), positions);
+  return hull_from_bullet(geometry_set.get_mesh(), positions);
 }
 
 #endif /* WITH_BULLET */

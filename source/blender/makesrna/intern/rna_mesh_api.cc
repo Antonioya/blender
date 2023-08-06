@@ -23,17 +23,17 @@
 #  include "DNA_mesh_types.h"
 
 #  include "BKE_anim_data.h"
-#  include "BKE_mesh.h"
-#  include "BKE_mesh_mapping.h"
-#  include "BKE_mesh_runtime.h"
-#  include "BKE_mesh_tangent.h"
+#  include "BKE_mesh.hh"
+#  include "BKE_mesh_mapping.hh"
+#  include "BKE_mesh_runtime.hh"
+#  include "BKE_mesh_tangent.hh"
 #  include "BKE_report.h"
 
-#  include "ED_mesh.h"
+#  include "ED_mesh.hh"
 
 #  include "DEG_depsgraph.h"
 
-#  include "WM_api.h"
+#  include "WM_api.hh"
 
 static const char *rna_Mesh_unit_test_compare(Mesh *mesh, Mesh *mesh2, float threshold)
 {
@@ -48,34 +48,34 @@ static const char *rna_Mesh_unit_test_compare(Mesh *mesh, Mesh *mesh2, float thr
 
 static void rna_Mesh_create_normals_split(Mesh *mesh)
 {
-  if (!CustomData_has_layer(&mesh->ldata, CD_NORMAL)) {
-    CustomData_add_layer(&mesh->ldata, CD_NORMAL, CD_SET_DEFAULT, mesh->totloop);
-    CustomData_set_layer_flag(&mesh->ldata, CD_NORMAL, CD_FLAG_TEMPORARY);
+  if (!CustomData_has_layer(&mesh->loop_data, CD_NORMAL)) {
+    CustomData_add_layer(&mesh->loop_data, CD_NORMAL, CD_SET_DEFAULT, mesh->totloop);
+    CustomData_set_layer_flag(&mesh->loop_data, CD_NORMAL, CD_FLAG_TEMPORARY);
   }
 }
 
 static void rna_Mesh_free_normals_split(Mesh *mesh)
 {
-  CustomData_free_layers(&mesh->ldata, CD_NORMAL, mesh->totloop);
+  CustomData_free_layers(&mesh->loop_data, CD_NORMAL, mesh->totloop);
 }
 
 static void rna_Mesh_calc_tangents(Mesh *mesh, ReportList *reports, const char *uvmap)
 {
   float(*r_looptangents)[4];
 
-  if (CustomData_has_layer(&mesh->ldata, CD_MLOOPTANGENT)) {
+  if (CustomData_has_layer(&mesh->loop_data, CD_MLOOPTANGENT)) {
     r_looptangents = static_cast<float(*)[4]>(
-        CustomData_get_layer_for_write(&mesh->ldata, CD_MLOOPTANGENT, mesh->totloop));
+        CustomData_get_layer_for_write(&mesh->loop_data, CD_MLOOPTANGENT, mesh->totloop));
     memset(r_looptangents, 0, sizeof(float[4]) * mesh->totloop);
   }
   else {
     r_looptangents = static_cast<float(*)[4]>(
-        CustomData_add_layer(&mesh->ldata, CD_MLOOPTANGENT, CD_SET_DEFAULT, mesh->totloop));
-    CustomData_set_layer_flag(&mesh->ldata, CD_MLOOPTANGENT, CD_FLAG_TEMPORARY);
+        CustomData_add_layer(&mesh->loop_data, CD_MLOOPTANGENT, CD_SET_DEFAULT, mesh->totloop));
+    CustomData_set_layer_flag(&mesh->loop_data, CD_MLOOPTANGENT, CD_FLAG_TEMPORARY);
   }
 
   /* Compute loop normals if needed. */
-  if (!CustomData_has_layer(&mesh->ldata, CD_NORMAL)) {
+  if (!CustomData_has_layer(&mesh->loop_data, CD_NORMAL)) {
     BKE_mesh_calc_normals_split(mesh);
   }
 
@@ -84,7 +84,7 @@ static void rna_Mesh_calc_tangents(Mesh *mesh, ReportList *reports, const char *
 
 static void rna_Mesh_free_tangents(Mesh *mesh)
 {
-  CustomData_free_layers(&mesh->ldata, CD_MLOOPTANGENT, mesh->totloop);
+  CustomData_free_layers(&mesh->loop_data, CD_MLOOPTANGENT, mesh->totloop);
 }
 
 static void rna_Mesh_calc_looptri(Mesh *mesh)
@@ -93,18 +93,16 @@ static void rna_Mesh_calc_looptri(Mesh *mesh)
 }
 
 static void rna_Mesh_calc_smooth_groups(
-    Mesh *mesh, bool use_bitflags, int *r_poly_group_len, int **r_poly_group, int *r_group_total)
+    Mesh *mesh, bool use_bitflags, int **r_poly_group, int *r_poly_group_num, int *r_group_total)
 {
-  *r_poly_group_len = mesh->totpoly;
+  *r_poly_group_num = mesh->faces_num;
   const bool *sharp_edges = (const bool *)CustomData_get_layer_named(
-      &mesh->edata, CD_PROP_BOOL, "sharp_edge");
+      &mesh->edge_data, CD_PROP_BOOL, "sharp_edge");
   const bool *sharp_faces = (const bool *)CustomData_get_layer_named(
-      &mesh->pdata, CD_PROP_BOOL, "sharp_face");
+      &mesh->face_data, CD_PROP_BOOL, "sharp_face");
   *r_poly_group = BKE_mesh_calc_smoothgroups(mesh->totedge,
-                                             BKE_mesh_poly_offsets(mesh),
-                                             mesh->totpoly,
-                                             mesh->corner_edges().data(),
-                                             mesh->totloop,
+                                             mesh->faces(),
+                                             mesh->corner_edges(),
                                              sharp_edges,
                                              sharp_faces,
                                              r_group_total,
@@ -113,16 +111,16 @@ static void rna_Mesh_calc_smooth_groups(
 
 static void rna_Mesh_normals_split_custom_set(Mesh *mesh,
                                               ReportList *reports,
-                                              int normals_len,
-                                              float *normals)
+                                              const float *normals,
+                                              int normals_num)
 {
   float(*loop_normals)[3] = (float(*)[3])normals;
   const int numloops = mesh->totloop;
-  if (normals_len != numloops * 3) {
+  if (normals_num != numloops * 3) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Number of custom normals is not number of loops (%f / %d)",
-                float(normals_len) / 3.0f,
+                float(normals_num) / 3.0f,
                 numloops);
     return;
   }
@@ -134,16 +132,16 @@ static void rna_Mesh_normals_split_custom_set(Mesh *mesh,
 
 static void rna_Mesh_normals_split_custom_set_from_vertices(Mesh *mesh,
                                                             ReportList *reports,
-                                                            int normals_len,
-                                                            float *normals)
+                                                            const float *normals,
+                                                            int normals_num)
 {
   float(*vert_normals)[3] = (float(*)[3])normals;
   const int numverts = mesh->totvert;
-  if (normals_len != numverts * 3) {
+  if (normals_num != numverts * 3) {
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Number of custom normals is not number of vertices (%f / %d)",
-                float(normals_len) / 3.0f,
+                float(normals_num) / 3.0f,
                 numverts);
     return;
   }
@@ -153,23 +151,19 @@ static void rna_Mesh_normals_split_custom_set_from_vertices(Mesh *mesh,
   DEG_id_tag_update(&mesh->id, 0);
 }
 
-static void rna_Mesh_transform(Mesh *mesh, float mat[16], bool shape_keys)
+static void rna_Mesh_transform(Mesh *mesh, const float mat[16], bool shape_keys)
 {
-  BKE_mesh_transform(mesh, (float(*)[4])mat, shape_keys);
+  BKE_mesh_transform(mesh, (const float(*)[4])mat, shape_keys);
 
   DEG_id_tag_update(&mesh->id, 0);
 }
 
 static void rna_Mesh_flip_normals(Mesh *mesh)
 {
-  BKE_mesh_polys_flip(BKE_mesh_poly_offsets(mesh),
-                      mesh->corner_verts_for_write().data(),
-                      mesh->corner_edges_for_write().data(),
-                      &mesh->ldata,
-                      mesh->totpoly);
+  using namespace blender;
+  bke::mesh_flip_faces(*mesh, IndexMask(mesh->faces_num));
   BKE_mesh_tessface_clear(mesh);
   BKE_mesh_runtime_clear_geometry(mesh);
-
   DEG_id_tag_update(&mesh->id, 0);
 }
 
@@ -178,7 +172,7 @@ static void rna_Mesh_update(Mesh *mesh,
                             const bool calc_edges,
                             const bool calc_edges_loose)
 {
-  if (calc_edges || ((mesh->totpoly || mesh->totface) && mesh->totedge == 0)) {
+  if (calc_edges || ((mesh->faces_num || mesh->totface_legacy) && mesh->totedge == 0)) {
     BKE_mesh_calc_edges(mesh, calc_edges, true);
   }
 
@@ -190,7 +184,7 @@ static void rna_Mesh_update(Mesh *mesh,
   BKE_mesh_tessface_clear(mesh);
 
   mesh->runtime->vert_normals_dirty = true;
-  mesh->runtime->poly_normals_dirty = true;
+  mesh->runtime->face_normals_dirty = true;
 
   DEG_id_tag_update(&mesh->id, 0);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);

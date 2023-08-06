@@ -7,12 +7,17 @@ set(INC
   ..
   ../intern
   ../../editors/include
+  ../../blenkernel
+  ../../blentranslation
+  ../../bmesh
+  ../../depsgraph
   ../../functions
   ../../geometry
   ../../gpu
   ../../imbuf
   ../../makesrna
   ../../render
+  ../../windowmanager
   ../../../../extern/fmtlib/include
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -177,6 +182,11 @@ set(SRC
   nodes/node_geo_string_to_curves.cc
   nodes/node_geo_subdivision_surface.cc
   nodes/node_geo_switch.cc
+  nodes/node_geo_tool_3d_cursor.cc
+  nodes/node_geo_tool_face_set.cc
+  nodes/node_geo_tool_selection.cc
+  nodes/node_geo_tool_set_face_set.cc
+  nodes/node_geo_tool_set_selection.cc
   nodes/node_geo_transform_geometry.cc
   nodes/node_geo_translate_instances.cc
   nodes/node_geo_triangulate.cc
@@ -195,17 +205,13 @@ set(SRC
 )
 
 set(LIB
-  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  PRIVATE bf::blentranslation
-  PRIVATE bf::bmesh
-  PRIVATE bf::depsgraph
+  bf_bmesh
   PRIVATE bf::dna
   bf_functions
   bf_geometry
   PRIVATE bf::intern::guardedalloc
   bf_nodes
-  PRIVATE bf::windowmanager
   extern_fmtlib
 )
 

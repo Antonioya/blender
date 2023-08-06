@@ -104,7 +104,7 @@
 #include "BKE_idtype.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
-#include "BKE_lib_override.h"
+#include "BKE_lib_override.hh"
 #include "BKE_lib_query.h"
 #include "BKE_main.h"
 #include "BKE_node.hh"
@@ -1020,7 +1020,7 @@ static void write_libraries(WriteData *wd, Main *main)
 }
 
 #ifdef WITH_BUILDINFO
-extern "C" unsigned long build_commit_timestamp;
+extern "C" ulong build_commit_timestamp;
 extern "C" char build_hash[];
 #endif
 
@@ -1160,7 +1160,7 @@ static void id_buffer_init_from_id(BLO_Write_IDBuffer *id_buffer, ID *id, const 
   temp_id->newid = nullptr;
   /* Even though in theory we could be able to preserve this python instance across undo even
    * when we need to re-read the ID into its original address, this is currently cleared in
-   * #direct_link_id_common in `readfile.c` anyway. */
+   * #direct_link_id_common in `readfile.cc` anyway. */
   temp_id->py_instance = nullptr;
 }
 

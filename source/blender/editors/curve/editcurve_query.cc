@@ -21,8 +21,8 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 
-#include "ED_curve.h"
-#include "ED_view3d.h"
+#include "ED_curve.hh"
+#include "ED_view3d.hh"
 
 #include "curve_intern.h"
 
@@ -41,7 +41,7 @@ struct PickUserData {
   bool is_changed;
 };
 
-static void ED_curve_pick_vert__do_closest(void *userData,
+static void ED_curve_pick_vert__do_closest(void *user_data,
                                            Nurb *nu,
                                            BPoint *bp,
                                            BezTriple *bezt,
@@ -49,7 +49,7 @@ static void ED_curve_pick_vert__do_closest(void *userData,
                                            bool handles_visible,
                                            const float screen_co[2])
 {
-  PickUserData *data = static_cast<PickUserData *>(userData);
+  PickUserData *data = static_cast<PickUserData *>(user_data);
 
   uint8_t flag;
   float dist_test;

@@ -24,16 +24,16 @@
 #  include "RNA_access.h"
 #  include "RNA_define.h"
 
-#  include "UI_interface.h"
-#  include "UI_resources.h"
+#  include "UI_interface.hh"
+#  include "UI_resources.hh"
 
-#  include "WM_api.h"
-#  include "WM_types.h"
+#  include "WM_api.hh"
+#  include "WM_types.hh"
 
 #  include "DEG_depsgraph.h"
 #  include "DEG_depsgraph_query.h"
 
-#  include "ED_gpencil_legacy.h"
+#  include "ED_gpencil_legacy.hh"
 
 #  include "io_gpencil.hh"
 
@@ -137,8 +137,8 @@ static void ui_gpencil_import_svg_settings(uiLayout *layout, PointerRNA *imfptr)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
   uiLayout *col = uiLayoutColumn(layout, false);
-  uiItemR(col, imfptr, "resolution", 0, nullptr, ICON_NONE);
-  uiItemR(col, imfptr, "scale", 0, nullptr, ICON_NONE);
+  uiItemR(col, imfptr, "resolution", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(col, imfptr, "scale", UI_ITEM_NONE, nullptr, ICON_NONE);
 }
 
 static void wm_gpencil_import_svg_draw(bContext * /*C*/, wmOperator *op)

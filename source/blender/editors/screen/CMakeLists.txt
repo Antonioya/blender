@@ -3,12 +3,20 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
+  ../asset
   ../include
+  ../../asset_system
+  ../../blenfont
+  ../../blenkernel
   ../../blenloader
+  ../../blentranslation
+  ../../bmesh
+  ../../depsgraph
   ../../gpu
   ../../imbuf
   ../../makesrna
   ../../sequencer
+  ../../windowmanager
   # RNA_prototypes.h
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -36,17 +44,11 @@ set(SRC
 )
 
 set(LIB
-  PRIVATE bf::blenfont
-  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  PRIVATE bf::blentranslation
-  PRIVATE bf::bmesh
-  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_datafiles
   bf_editor_space_sequencer
   PRIVATE bf::intern::guardedalloc
-  PRIVATE bf::windowmanager
 )
 
 

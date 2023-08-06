@@ -33,7 +33,7 @@
 #include "BKE_data_transfer.h"
 #include "BKE_deform.h" /* own include */
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.h"
+#include "BKE_mesh_mapping.hh"
 #include "BKE_object.h"
 #include "BKE_object_deform.h"
 
@@ -684,9 +684,8 @@ int BKE_object_defgroup_flip_index(const Object *ob, int index, const bool use_d
 static bool defgroup_find_name_dupe(const char *name, bDeformGroup *dg, Object *ob)
 {
   const ListBase *defbase = BKE_object_defgroup_list(ob);
-  bDeformGroup *curdef;
 
-  for (curdef = static_cast<bDeformGroup *>(defbase->first); curdef; curdef = curdef->next) {
+  LISTBASE_FOREACH (bDeformGroup *, curdef, defbase) {
     if (dg != curdef) {
       if (STREQ(curdef->name, name)) {
         return true;
@@ -1099,17 +1098,17 @@ void BKE_defvert_extract_vgroup_to_loopweights(const MDeformVert *dvert,
   }
 }
 
-void BKE_defvert_extract_vgroup_to_polyweights(const MDeformVert *dvert,
+void BKE_defvert_extract_vgroup_to_faceweights(const MDeformVert *dvert,
                                                const int defgroup,
                                                const int verts_num,
                                                const int *corner_verts,
                                                const int /*loops_num*/,
-                                               const blender::OffsetIndices<int> polys,
+                                               const blender::OffsetIndices<int> faces,
                                                const bool invert_vgroup,
                                                float *r_weights)
 {
   if (dvert && defgroup != -1) {
-    int i = polys.size();
+    int i = faces.size();
     float *tmp_weights = static_cast<float *>(
         MEM_mallocN(sizeof(*tmp_weights) * size_t(verts_num), __func__));
 
@@ -1117,21 +1116,21 @@ void BKE_defvert_extract_vgroup_to_polyweights(const MDeformVert *dvert,
         dvert, defgroup, verts_num, invert_vgroup, tmp_weights);
 
     while (i--) {
-      const blender::IndexRange poly = polys[i];
-      const int *corner_vert = &corner_verts[poly.start()];
-      int j = poly.size();
+      const blender::IndexRange face = faces[i];
+      const int *corner_vert = &corner_verts[face.start()];
+      int j = face.size();
       float w = 0.0f;
 
       for (; j--; corner_vert++) {
         w += tmp_weights[*corner_vert];
       }
-      r_weights[i] = w / float(poly.size());
+      r_weights[i] = w / float(face.size());
     }
 
     MEM_freeN(tmp_weights);
   }
   else {
-    copy_vn_fl(r_weights, polys.size(), 0.0f);
+    copy_vn_fl(r_weights, faces.size(), 0.0f);
   }
 }
 
@@ -1225,7 +1224,7 @@ static bool data_transfer_layersmapping_vgroups_multisrc_to_dst(ListBase *r_map,
 
   const int tot_dst = BLI_listbase_count(dst_defbase);
 
-  const size_t elem_size = sizeof(*((MDeformVert *)nullptr));
+  const size_t elem_size = sizeof(MDeformVert);
 
   switch (tolayers) {
     case DT_LAYERS_INDEX_DST:
@@ -1369,7 +1368,7 @@ bool data_transfer_layersmapping_vgroups(ListBase *r_map,
 {
   int idx_src, idx_dst;
 
-  const size_t elem_size = sizeof(*((MDeformVert *)nullptr));
+  const size_t elem_size = sizeof(MDeformVert);
 
   /* NOTE:
    * VGroups are a bit hairy, since their layout is defined on object level (ob->defbase),

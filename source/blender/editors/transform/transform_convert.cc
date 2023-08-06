@@ -30,15 +30,15 @@
 #include "BKE_nla.h"
 #include "BKE_scene.h"
 
-#include "ED_keyframes_edit.h"
-#include "ED_keyframing.h"
-#include "ED_particle.h"
-#include "ED_screen.h"
-#include "ED_screen_types.h"
+#include "ED_keyframes_edit.hh"
+#include "ED_keyframing.hh"
+#include "ED_particle.hh"
+#include "ED_screen.hh"
+#include "ED_screen_types.hh"
 
-#include "UI_view2d.h"
+#include "UI_view2d.hh"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
 #include "DEG_depsgraph_build.h"
 
@@ -320,7 +320,6 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 /* adjust pose-channel's auto-ik chainlen */
 static bool pchan_autoik_adjust(bPoseChannel *pchan, short chainlen)
 {
-  bConstraint *con;
   bool changed = false;
 
   /* don't bother to search if no valid constraints */
@@ -329,7 +328,7 @@ static bool pchan_autoik_adjust(bPoseChannel *pchan, short chainlen)
   }
 
   /* check if pchan has ik-constraint */
-  for (con = static_cast<bConstraint *>(pchan->constraints.first); con; con = con->next) {
+  LISTBASE_FOREACH (bConstraint *, con, &pchan->constraints) {
     if (con->flag & (CONSTRAINT_DISABLE | CONSTRAINT_OFF)) {
       continue;
     }
@@ -359,7 +358,6 @@ void transform_autoik_update(TransInfo *t, short mode)
   Main *bmain = CTX_data_main(t->context);
 
   short *chainlen = &t->settings->autoik_chainlen;
-  bPoseChannel *pchan;
 
   /* mode determines what change to apply to chainlen */
   if (mode == 1) {
@@ -387,9 +385,7 @@ void transform_autoik_update(TransInfo *t, short mode)
       continue;
     }
 
-    for (pchan = static_cast<bPoseChannel *>(tc->poseobj->pose->chanbase.first); pchan;
-         pchan = pchan->next)
-    {
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &tc->poseobj->pose->chanbase) {
       changed |= pchan_autoik_adjust(pchan, *chainlen);
     }
   }
@@ -434,7 +430,7 @@ void calc_distanceCurveVerts(TransData *head, TransData *tail, bool cyclic)
       next_td = head;
     }
 
-    if (next_td != nullptr && !(next_td->flag & TD_NOTCONNECTED)) {
+    if (next_td != nullptr) {
       sub_v3_v3v3(vec, next_td->center, td->center);
       mul_m3_v3(head->mtx, vec);
       dist = len_v3(vec) + td->dist;
@@ -454,7 +450,7 @@ void calc_distanceCurveVerts(TransData *head, TransData *tail, bool cyclic)
       next_td = tail;
     }
 
-    if (next_td != nullptr && !(next_td->flag & TD_NOTCONNECTED)) {
+    if (next_td != nullptr) {
       sub_v3_v3v3(vec, next_td->center, td->center);
       mul_m3_v3(head->mtx, vec);
       dist = len_v3(vec) + td->dist;
@@ -552,13 +548,11 @@ bool FrameOnMouseSide(char side, float frame, float cframe)
 
 bool constraints_list_needinv(TransInfo *t, ListBase *list)
 {
-  bConstraint *con;
-
   /* loop through constraints, checking if there's one of the mentioned
    * constraints needing special crazy-space corrections
    */
   if (list) {
-    for (con = static_cast<bConstraint *>(list->first); con; con = con->next) {
+    LISTBASE_FOREACH (bConstraint *, con, list) {
       /* only consider constraint if it is enabled, and has influence on result */
       if ((con->flag & (CONSTRAINT_DISABLE | CONSTRAINT_OFF)) == 0 && (con->enforce != 0.0f)) {
         /* (affirmative) returns for specific constraints here... */
@@ -890,7 +884,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
   BKE_view_layer_synced_ensure(t->scene, t->view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
-  /* if tests must match recalcData for correct updates */
+  /* if tests must match recalc_data for correct updates */
   if (t->options & CTX_CURSOR) {
     if (t->spacetype == SPACE_IMAGE) {
       return &TransConvertType_CursorImage;
@@ -1016,7 +1010,7 @@ static TransConvertTypeInfo *convert_type_get(const TransInfo *t, Object **r_obj
   return &TransConvertType_Object;
 }
 
-void createTransData(bContext *C, TransInfo *t)
+void create_trans_data(bContext *C, TransInfo *t)
 {
   t->data_len_all = -1;
 
@@ -1052,7 +1046,7 @@ void createTransData(bContext *C, TransInfo *t)
     if ((t->settings->transform_flag & SCE_XFORM_SKIP_CHILDREN) != 0) {
       t->options |= CTX_OBMODE_XFORM_SKIP_CHILDREN;
     }
-    TransConvertType_Object.createTransData(C, t);
+    TransConvertType_Object.create_trans_data(C, t);
     /* Check if we're transforming the camera from the camera */
     if ((t->spacetype == SPACE_VIEW3D) && (t->region->regiontype == RGN_TYPE_WINDOW)) {
       View3D *v3d = static_cast<View3D *>(t->view);
@@ -1079,7 +1073,7 @@ void createTransData(bContext *C, TransInfo *t)
     else if (t->data_type == &TransConvertType_SequencerImage) {
       t->obedit_type = -1;
     }
-    t->data_type->createTransData(C, t);
+    t->data_type->create_trans_data(C, t);
   }
 
   countAndCleanTransDataContainer(t);
@@ -1271,12 +1265,12 @@ void transform_convert_flush_handle2D(TransData *td, TransData2D *td2d, const fl
   }
 }
 
-void recalcData(TransInfo *t)
+void recalc_data(TransInfo *t)
 {
-  if (!t->data_type || !t->data_type->recalcData) {
+  if (!t->data_type || !t->data_type->recalc_data) {
     return;
   }
-  t->data_type->recalcData(t);
+  t->data_type->recalc_data(t);
 }
 
 /** \} */

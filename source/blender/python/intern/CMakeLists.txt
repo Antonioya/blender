@@ -4,12 +4,17 @@
 
 set(INC
   ..
+  ../../blenkernel
   ../../blenloader
+  ../../blentranslation
+  ../../depsgraph
   ../../editors/include
   ../../gpu
   ../../imbuf
   ../../imbuf/intern/oiio
   ../../makesrna
+  ../../windowmanager
+  ../../../../intern/clog
   ../../../../intern/mantaflow/extern
   ../../../../intern/opencolorio
   # RNA_prototypes.h
@@ -115,21 +120,16 @@ set(SRC
 )
 
 set(LIB
-  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
-  PRIVATE bf::blentranslation
-  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_animation
   bf_editor_interface
   bf_editor_space_api
-  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_python_gpu
 
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
-  PRIVATE bf::windowmanager
 )
 
 # only to check if buildinfo is available
@@ -362,6 +362,13 @@ endif()
 
 if(WITH_HARU)
   add_definitions(-DWITH_HARU)
+endif()
+
+if(WITH_HYDRA)
+  list(APPEND LIB
+    bf_render_hydra
+  )
+  add_definitions(-DWITH_HYDRA)
 endif()
 
 blender_add_lib(bf_python "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

@@ -28,13 +28,13 @@
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
-#include "BKE_paint.h"
+#include "BKE_paint.hh"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -42,16 +42,16 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
-#include "ED_armature.h"
-#include "ED_gpencil_legacy.h"
-#include "ED_screen.h"
-#include "ED_transform_snap_object_context.h"
-#include "ED_undo.h"
-#include "ED_view3d.h"
+#include "ED_armature.hh"
+#include "ED_gpencil_legacy.hh"
+#include "ED_screen.hh"
+#include "ED_transform_snap_object_context.hh"
+#include "ED_undo.hh"
+#include "ED_view3d.hh"
 
 #include "WM_toolsystem.h"
 
-#include "ED_object.h" /* own include */
+#include "ED_object.hh" /* own include */
 #include "object_intern.h"
 
 /* -------------------------------------------------------------------- */
@@ -368,9 +368,9 @@ void ED_object_posemode_set_for_weight_paint(bContext *C,
                                              const bool is_mode_set)
 {
   if (ob->type == OB_GPENCIL_LEGACY) {
-    GpencilVirtualModifierData virtualModifierData;
-    GpencilModifierData *md = BKE_gpencil_modifiers_get_virtual_modifierlist(ob,
-                                                                             &virtualModifierData);
+    GpencilVirtualModifierData virtual_modifier_data;
+    GpencilModifierData *md = BKE_gpencil_modifiers_get_virtual_modifierlist(
+        ob, &virtual_modifier_data);
     for (; md; md = md->next) {
       if (md->type == eGpencilModifierType_Armature) {
         ArmatureGpencilModifierData *amd = (ArmatureGpencilModifierData *)md;
@@ -380,8 +380,8 @@ void ED_object_posemode_set_for_weight_paint(bContext *C,
     }
   }
   else {
-    VirtualModifierData virtualModifierData;
-    ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtualModifierData);
+    VirtualModifierData virtual_modifier_data;
+    ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data);
     for (; md; md = md->next) {
       if (md->type == eModifierType_Armature) {
         ArmatureModifierData *amd = (ArmatureModifierData *)md;

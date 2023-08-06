@@ -14,13 +14,13 @@
 #include "BKE_context.h"
 #include "BKE_screen.h"
 
-#include "ED_anim_api.h"
-#include "ED_screen.h"
+#include "ED_anim_api.hh"
+#include "ED_screen.hh"
 
 #include "RNA_access.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "nla_intern.hh" /* own include */
 
@@ -146,18 +146,21 @@ void ED_operatormacros_nla()
   wmOperatorType *ot;
   wmOperatorTypeMacro *otmacro;
 
-  ot = WM_operatortype_append_macro("NLA_OT_duplicate_move",
-                                    "Duplicate",
-                                    "Duplicate selected strips and their Actions and move them",
-                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  ot = WM_operatortype_append_macro(
+      "NLA_OT_duplicate_move",
+      "Duplicate",
+      "Duplicate selected NLA-Strips, adding the new strips to new track(s)",
+      OPTYPE_UNDO | OPTYPE_REGISTER);
   otmacro = WM_operatortype_macro_define(ot, "NLA_OT_duplicate");
   RNA_boolean_set(otmacro->ptr, "linked", false);
   WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 
-  ot = WM_operatortype_append_macro("NLA_OT_duplicate_linked_move",
-                                    "Duplicate Linked",
-                                    "Duplicate selected strips and move them",
-                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  ot = WM_operatortype_append_macro(
+      "NLA_OT_duplicate_linked_move",
+      "Duplicate Linked",
+      "Duplicate Linked selected NLA-Strips, adding the new strips to new track(s)",
+      OPTYPE_UNDO | OPTYPE_REGISTER);
+
   otmacro = WM_operatortype_macro_define(ot, "NLA_OT_duplicate");
   RNA_boolean_set(otmacro->ptr, "linked", true);
   WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");

@@ -74,7 +74,7 @@
 
 #include "MEM_guardedalloc.h"
 
-/* Make preferences read-only, use versioning_userdef.c. */
+/* Make preferences read-only, use `versioning_userdef.cc`. */
 #define U (*((const UserDef *)&U))
 
 /* ************************************************** */
@@ -1480,7 +1480,7 @@ void blo_do_versions_270(FileData *fd, Library * /*lib*/, Main *bmain)
 
     /* Fix related to VGroup modifiers creating named defgroup CD layers! See #51520. */
     LISTBASE_FOREACH (Mesh *, me, &bmain->meshes) {
-      CustomData_set_layer_name(&me->vdata, CD_MDEFORMVERT, 0, "");
+      CustomData_set_layer_name(&me->vert_data, CD_MDEFORMVERT, 0, "");
     }
   }
 

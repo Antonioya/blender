@@ -37,18 +37,18 @@
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_fair.h"
-#include "BKE_mesh_mapping.h"
+#include "BKE_mesh_fair.hh"
+#include "BKE_mesh_mapping.hh"
 #include "BKE_object.h"
-#include "BKE_paint.h"
+#include "BKE_paint.hh"
 #include "BKE_pbvh_api.hh"
 
 #include "DEG_depsgraph.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
-#include "ED_sculpt.h"
+#include "ED_sculpt.hh"
 
 #include "sculpt_intern.hh"
 
@@ -66,13 +66,13 @@ using blender::Vector;
 int ED_sculpt_face_sets_find_next_available_id(Mesh *mesh)
 {
   const int *face_sets = static_cast<const int *>(
-      CustomData_get_layer_named(&mesh->pdata, CD_PROP_INT32, ".sculpt_face_set"));
+      CustomData_get_layer_named(&mesh->face_data, CD_PROP_INT32, ".sculpt_face_set"));
   if (!face_sets) {
     return SCULPT_FACE_SET_NONE;
   }
 
   int next_face_set_id = 0;
-  for (int i = 0; i < mesh->totpoly; i++) {
+  for (int i = 0; i < mesh->faces_num; i++) {
     next_face_set_id = max_ii(next_face_set_id, face_sets[i]);
   }
   next_face_set_id++;
@@ -83,12 +83,12 @@ int ED_sculpt_face_sets_find_next_available_id(Mesh *mesh)
 void ED_sculpt_face_sets_initialize_none_to_id(Mesh *mesh, const int new_id)
 {
   int *face_sets = static_cast<int *>(CustomData_get_layer_named_for_write(
-      &mesh->pdata, CD_PROP_INT32, ".sculpt_face_set", mesh->totpoly));
+      &mesh->face_data, CD_PROP_INT32, ".sculpt_face_set", mesh->faces_num));
   if (!face_sets) {
     return;
   }
 
-  for (int i = 0; i < mesh->totpoly; i++) {
+  for (int i = 0; i < mesh->faces_num; i++) {
     if (face_sets[i] == SCULPT_FACE_SET_NONE) {
       face_sets[i] = new_id;
     }
@@ -141,16 +141,16 @@ static void do_draw_face_sets_brush_task_cb_ex(void *__restrict userdata,
     SCULPT_automasking_node_update(ss, &automask_data, &vd);
 
     if (BKE_pbvh_type(ss->pbvh) == PBVH_FACES) {
-      for (const int poly_i : ss->pmap[vd.index]) {
-        const blender::IndexRange poly = ss->polys[poly_i];
+      for (const int face_i : ss->pmap[vd.index]) {
+        const blender::IndexRange face = ss->faces[face_i];
 
-        const float3 poly_center = bke::mesh::poly_center_calc(positions,
-                                                               ss->corner_verts.slice(poly));
+        const float3 poly_center = bke::mesh::face_center_calc(positions,
+                                                               ss->corner_verts.slice(face));
 
         if (!sculpt_brush_test_sq_fn(&test, poly_center)) {
           continue;
         }
-        const bool face_hidden = ss->hide_poly && ss->hide_poly[poly_i];
+        const bool face_hidden = ss->hide_poly && ss->hide_poly[face_i];
         if (face_hidden) {
           continue;
         }
@@ -166,7 +166,7 @@ static void do_draw_face_sets_brush_task_cb_ex(void *__restrict userdata,
                                                                     &automask_data);
 
         if (fade > 0.05f) {
-          ss->face_sets[poly_i] = ss->cache->paint_face_set;
+          ss->face_sets[face_i] = ss->cache->paint_face_set;
           changed = true;
         }
       }
@@ -537,22 +537,22 @@ static void sculpt_face_sets_init_flood_fill(Object *ob, const FaceSetsFloodFill
   SculptSession *ss = ob->sculpt;
   Mesh *mesh = static_cast<Mesh *>(ob->data);
 
-  BitVector<> visited_faces(mesh->totpoly, false);
+  BitVector<> visited_faces(mesh->faces_num, false);
 
   int *face_sets = ss->face_sets;
 
   const Span<int2> edges = mesh->edges();
-  const OffsetIndices polys = mesh->polys();
+  const OffsetIndices faces = mesh->faces();
   const Span<int> corner_edges = mesh->corner_edges();
 
   if (ss->epmap.is_empty()) {
-    ss->epmap = bke::mesh::build_edge_to_poly_map(
-        polys, corner_edges, edges.size(), ss->edge_to_poly_offsets, ss->edge_to_poly_indices);
+    ss->epmap = bke::mesh::build_edge_to_face_map(
+        faces, corner_edges, edges.size(), ss->edge_to_face_offsets, ss->edge_to_face_indices);
   }
 
   int next_face_set = 1;
 
-  for (const int i : polys.index_range()) {
+  for (const int i : faces.index_range()) {
     if (visited_faces[i]) {
       continue;
     }
@@ -563,18 +563,18 @@ static void sculpt_face_sets_init_flood_fill(Object *ob, const FaceSetsFloodFill
     queue.push(i);
 
     while (!queue.empty()) {
-      const int poly_i = queue.front();
+      const int face_i = queue.front();
       queue.pop();
 
-      for (const int edge_i : corner_edges.slice(polys[poly_i])) {
+      for (const int edge_i : corner_edges.slice(faces[face_i])) {
         for (const int neighbor_i : ss->epmap[edge_i]) {
-          if (neighbor_i == poly_i) {
+          if (neighbor_i == face_i) {
             continue;
           }
           if (visited_faces[neighbor_i]) {
             continue;
           }
-          if (!test_fn(poly_i, edge_i, neighbor_i)) {
+          if (!test_fn(face_i, edge_i, neighbor_i)) {
             continue;
           }
 
@@ -599,7 +599,7 @@ static void sculpt_face_sets_init_loop(Object *ob, const int mode)
     const bke::AttributeAccessor attributes = mesh->attributes();
     const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
         "material_index", ATTR_DOMAIN_FACE, 0);
-    for (const int i : IndexRange(mesh->totpoly)) {
+    for (const int i : IndexRange(mesh->faces_num)) {
       ss->face_sets[i] = material_indices[i] + 1;
     }
   }
@@ -654,10 +654,10 @@ static int sculpt_face_set_init_exec(bContext *C, wmOperator *op)
       break;
     }
     case SCULPT_FACE_SETS_FROM_NORMALS: {
-      const Span<float3> poly_normals = mesh->poly_normals();
+      const Span<float3> face_normals = mesh->face_normals();
       sculpt_face_sets_init_flood_fill(
           ob, [&](const int from_face, const int /*edge*/, const int to_face) -> bool {
-            return std::abs(math::dot(poly_normals[from_face], poly_normals[to_face])) > threshold;
+            return std::abs(math::dot(face_normals[from_face], face_normals[to_face])) > threshold;
           });
       break;
     }
@@ -672,7 +672,7 @@ static int sculpt_face_set_init_exec(bContext *C, wmOperator *op)
     }
     case SCULPT_FACE_SETS_FROM_CREASES: {
       const float *creases = static_cast<const float *>(
-          CustomData_get_layer_named(&mesh->edata, CD_PROP_FLOAT, "crease_edge"));
+          CustomData_get_layer_named(&mesh->edge_data, CD_PROP_FLOAT, "crease_edge"));
       sculpt_face_sets_init_flood_fill(
           ob, [&](const int /*from_face*/, const int edge, const int /*to_face*/) -> bool {
             return creases ? creases[edge] < threshold : true;
@@ -690,7 +690,7 @@ static int sculpt_face_set_init_exec(bContext *C, wmOperator *op)
     }
     case SCULPT_FACE_SETS_FROM_BEVEL_WEIGHT: {
       const float *bevel_weights = static_cast<const float *>(
-          CustomData_get_layer_named(&mesh->edata, CD_PROP_FLOAT, "bevel_weight_edge"));
+          CustomData_get_layer_named(&mesh->edge_data, CD_PROP_FLOAT, "bevel_weight_edge"));
       sculpt_face_sets_init_flood_fill(
           ob, [&](const int /*from_face*/, const int edge, const int /*to_face*/) -> bool {
             return bevel_weights ? bevel_weights[edge] < threshold : true;
@@ -698,7 +698,7 @@ static int sculpt_face_set_init_exec(bContext *C, wmOperator *op)
       break;
     }
     case SCULPT_FACE_SETS_FROM_FACE_SET_BOUNDARIES: {
-      Array<int> face_sets_copy(Span<int>(ss->face_sets, mesh->totpoly));
+      Array<int> face_sets_copy(Span<int>(ss->face_sets, mesh->faces_num));
       sculpt_face_sets_init_flood_fill(
           ob, [&](const int from_face, const int /*edge*/, const int to_face) -> bool {
             return face_sets_copy[from_face] == face_sets_copy[to_face];
@@ -717,10 +717,6 @@ static int sculpt_face_set_init_exec(bContext *C, wmOperator *op)
   }
 
   BKE_pbvh_update_vertex_data(ss->pbvh, PBVH_UpdateVisibility);
-
-  if (BKE_pbvh_type(pbvh) == PBVH_FACES) {
-    BKE_mesh_flush_hidden_from_verts(mesh);
-  }
 
   SCULPT_tag_update_overlays(C);
 
@@ -785,7 +781,7 @@ static EnumPropertyItem prop_sculpt_face_sets_change_visibility_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int sculpt_face_sets_change_visibility_exec(bContext *C, wmOperator *op)
+static int sculpt_face_set_change_visibility_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   SculptSession *ss = ob->sculpt;
@@ -910,9 +906,9 @@ static int sculpt_face_sets_change_visibility_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int sculpt_face_sets_change_visibility_invoke(bContext *C,
-                                                     wmOperator *op,
-                                                     const wmEvent *event)
+static int sculpt_face_set_change_visibility_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent *event)
 {
   Object *ob = CTX_data_active_object(C);
   SculptSession *ss = ob->sculpt;
@@ -924,10 +920,10 @@ static int sculpt_face_sets_change_visibility_invoke(bContext *C,
   SCULPT_vertex_random_access_ensure(ss);
   SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
 
-  return sculpt_face_sets_change_visibility_exec(C, op);
+  return sculpt_face_set_change_visibility_exec(C, op);
 }
 
-void SCULPT_OT_face_sets_change_visibility(wmOperatorType *ot)
+void SCULPT_OT_face_set_change_visibility(wmOperatorType *ot)
 {
   /* Identifiers. */
   ot->name = "Face Sets Visibility";
@@ -935,8 +931,8 @@ void SCULPT_OT_face_sets_change_visibility(wmOperatorType *ot)
   ot->description = "Change the visibility of the Face Sets of the sculpt";
 
   /* Api callbacks. */
-  ot->exec = sculpt_face_sets_change_visibility_exec;
-  ot->invoke = sculpt_face_sets_change_visibility_invoke;
+  ot->exec = sculpt_face_set_change_visibility_exec;
+  ot->invoke = sculpt_face_set_change_visibility_invoke;
   ot->poll = SCULPT_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
@@ -1057,14 +1053,14 @@ static void sculpt_face_set_grow(Object *ob,
 {
   using namespace blender;
   Mesh *mesh = BKE_mesh_from_object(ob);
-  const OffsetIndices polys = mesh->polys();
+  const OffsetIndices faces = mesh->faces();
   const Span<int> corner_verts = mesh->corner_verts();
 
-  for (const int p : polys.index_range()) {
+  for (const int p : faces.index_range()) {
     if (!modify_hidden && prev_face_sets[p] <= 0) {
       continue;
     }
-    for (const int vert : corner_verts.slice(polys[p])) {
+    for (const int vert : corner_verts.slice(faces[p])) {
       for (const int neighbor_face_index : ss->pmap[vert]) {
         if (neighbor_face_index == p) {
           continue;
@@ -1085,14 +1081,14 @@ static void sculpt_face_set_shrink(Object *ob,
 {
   using namespace blender;
   Mesh *mesh = BKE_mesh_from_object(ob);
-  const OffsetIndices polys = mesh->polys();
+  const OffsetIndices faces = mesh->faces();
   const Span<int> corner_verts = mesh->corner_verts();
-  for (const int p : polys.index_range()) {
+  for (const int p : faces.index_range()) {
     if (!modify_hidden && prev_face_sets[p] <= 0) {
       continue;
     }
     if (prev_face_sets[p] == active_face_set_id) {
-      for (const int vert_i : corner_verts.slice(polys[p])) {
+      for (const int vert_i : corner_verts.slice(faces[p])) {
         for (const int neighbor_face_index : ss->pmap[vert_i]) {
           if (neighbor_face_index == p) {
             continue;
@@ -1307,8 +1303,6 @@ static void sculpt_face_set_edit_modify_geometry(bContext *C,
 static void face_set_edit_do_post_visibility_updates(Object *ob, Span<PBVHNode *> nodes)
 {
   SculptSession *ss = ob->sculpt;
-  PBVH *pbvh = ss->pbvh;
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
 
   /* Sync face sets visibility and vertex visibility as now all Face Sets are visible. */
   SCULPT_visibility_sync_all_from_faces(ob);
@@ -1318,10 +1312,6 @@ static void face_set_edit_do_post_visibility_updates(Object *ob, Span<PBVHNode *
   }
 
   BKE_pbvh_update_vertex_data(ss->pbvh, PBVH_UpdateVisibility);
-
-  if (BKE_pbvh_type(pbvh) == PBVH_FACES) {
-    BKE_mesh_flush_hidden_from_verts(mesh);
-  }
 }
 
 static void sculpt_face_set_edit_modify_face_sets(Object *ob,

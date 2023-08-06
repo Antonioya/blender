@@ -15,9 +15,9 @@
 #include "BKE_report.h"
 #include "BKE_unit.h"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
-#include "UI_interface.h"
+#include "UI_interface.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -332,7 +332,7 @@ static bool clip_uv_transform_rotate(const TransInfo *t, float *vec, float *vec_
   return true;
 }
 
-static void applyRotation(TransInfo *t, const int[2] /*mval*/)
+static void applyRotation(TransInfo *t)
 {
   float axis_final[3];
   float final = t->values[0] + t->values_modal_offset[0];
@@ -375,7 +375,7 @@ static void applyRotation(TransInfo *t, const int[2] /*mval*/)
     }
   }
 
-  recalcData(t);
+  recalc_data(t);
 
   char str[UI_MAX_DRAW_STR];
   headerRotation(t, str, sizeof(str), t->values_final[0]);

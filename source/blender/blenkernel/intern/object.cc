@@ -110,12 +110,12 @@
 #include "BKE_material.h"
 #include "BKE_mball.h"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.h"
+#include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.h"
-#include "BKE_multires.h"
+#include "BKE_multires.hh"
 #include "BKE_node.hh"
 #include "BKE_object.h"
-#include "BKE_paint.h"
+#include "BKE_paint.hh"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_pointcloud.h"
@@ -125,8 +125,8 @@
 #include "BKE_shader_fx.h"
 #include "BKE_softbody.h"
 #include "BKE_speaker.h"
-#include "BKE_subdiv_ccg.h"
-#include "BKE_subsurf.h"
+#include "BKE_subdiv_ccg.hh"
+#include "BKE_subsurf.hh"
 #include "BKE_vfont.h"
 #include "BKE_volume.h"
 
@@ -1059,12 +1059,12 @@ static void expand_constraint_channels(BlendExpander *expander, ListBase *chanba
   }
 }
 
-static void expand_object_expandModifiers(void *userData,
+static void expand_object_expandModifiers(void *user_data,
                                           Object * /*ob*/,
                                           ID **idpoin,
                                           int /*cb_flag*/)
 {
-  BlendExpander *expander = (BlendExpander *)userData;
+  BlendExpander *expander = (BlendExpander *)user_data;
   BLO_expand(expander, *idpoin);
 }
 
@@ -1314,9 +1314,7 @@ void BKE_object_workob_clear(Object *workob)
 
 void BKE_object_free_particlesystems(Object *ob)
 {
-  ParticleSystem *psys;
-
-  while ((psys = (ParticleSystem *)BLI_pophead(&ob->particlesystem))) {
+  while (ParticleSystem *psys = (ParticleSystem *)BLI_pophead(&ob->particlesystem)) {
     psys_free(ob, psys);
   }
 }
@@ -1342,14 +1340,13 @@ void BKE_object_free_curve_cache(Object *ob)
 
 void BKE_object_free_modifiers(Object *ob, const int flag)
 {
-  ModifierData *md;
-  GpencilModifierData *gp_md;
-
-  while ((md = (ModifierData *)BLI_pophead(&ob->modifiers))) {
+  while (ModifierData *md = (ModifierData *)BLI_pophead(&ob->modifiers)) {
     BKE_modifier_free_ex(md, flag);
   }
 
-  while ((gp_md = (GpencilModifierData *)BLI_pophead(&ob->greasepencil_modifiers))) {
+  while (
+      GpencilModifierData *gp_md = (GpencilModifierData *)BLI_pophead(&ob->greasepencil_modifiers))
+  {
     BKE_gpencil_modifier_free_ex(gp_md, flag);
   }
   /* Particle modifiers were freed, so free the particle-systems as well. */
@@ -1364,9 +1361,7 @@ void BKE_object_free_modifiers(Object *ob, const int flag)
 
 void BKE_object_free_shaderfx(Object *ob, const int flag)
 {
-  ShaderFxData *fx;
-
-  while ((fx = (ShaderFxData *)BLI_pophead(&ob->shader_fx))) {
+  while (ShaderFxData *fx = (ShaderFxData *)BLI_pophead(&ob->shader_fx)) {
     BKE_shaderfx_free_ex(fx, flag);
   }
 }
@@ -1471,7 +1466,7 @@ bool BKE_object_support_modifier_type_check(const Object *ob, int modifier_type)
   const ModifierTypeInfo *mti = BKE_modifier_get_info((ModifierType)modifier_type);
 
   /* Surface and lattice objects don't output geometry sets. */
-  if (mti->modifyGeometrySet != nullptr && ELEM(ob->type, OB_SURF, OB_LATTICE)) {
+  if (mti->modify_geometry_set != nullptr && ELEM(ob->type, OB_SURF, OB_LATTICE)) {
     return false;
   }
 
@@ -1479,7 +1474,7 @@ bool BKE_object_support_modifier_type_check(const Object *ob, int modifier_type)
     return modifier_type == eModifierType_Nodes;
   }
   if (ob->type == OB_VOLUME) {
-    return mti->modifyGeometrySet != nullptr;
+    return mti->modify_geometry_set != nullptr;
   }
   if (ELEM(ob->type, OB_MESH, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_LATTICE)) {
     if (ob->type == OB_LATTICE && (mti->flags & eModifierTypeFlag_AcceptsVertexCosOnly) == 0) {
@@ -1492,6 +1487,9 @@ bool BKE_object_support_modifier_type_check(const Object *ob, int modifier_type)
       return false;
     }
 
+    return true;
+  }
+  if (ob->type == OB_GREASE_PENCIL && (mti->flags & eModifierTypeFlag_AcceptsGreasePencil)) {
     return true;
   }
 
@@ -1645,7 +1643,7 @@ bool BKE_object_copy_gpencil_modifier(Object *ob_dst, GpencilModifierData *gmd_s
 
   const GpencilModifierTypeInfo *mti = BKE_gpencil_modifier_get_info(
       (GpencilModifierType)gmd_src->type);
-  mti->copyData(gmd_src, gmd_dst);
+  mti->copy_data(gmd_src, gmd_dst);
 
   BLI_addtail(&ob_dst->greasepencil_modifiers, gmd_dst);
   BKE_gpencil_modifier_unique_name(&ob_dst->greasepencil_modifiers, gmd_dst);
@@ -1717,8 +1715,8 @@ static void copy_ccg_data(Mesh *mesh_destination,
                           const eCustomDataType layer_type)
 {
   BLI_assert(mesh_destination->totloop == mesh_source->totloop);
-  CustomData *data_destination = &mesh_destination->ldata;
-  CustomData *data_source = &mesh_source->ldata;
+  CustomData *data_destination = &mesh_destination->loop_data;
+  CustomData *data_source = &mesh_source->loop_data;
   const int num_elements = mesh_source->totloop;
   if (!CustomData_has_layer(data_source, layer_type)) {
     return;
@@ -3342,8 +3340,8 @@ static void give_parvert(Object *par, int nr, float vec[3])
           count++;
         }
       }
-      else if (CustomData_has_layer(&me_eval->vdata, CD_ORIGINDEX)) {
-        const int *index = (const int *)CustomData_get_layer(&me_eval->vdata, CD_ORIGINDEX);
+      else if (CustomData_has_layer(&me_eval->vert_data, CD_ORIGINDEX)) {
+        const int *index = (const int *)CustomData_get_layer(&me_eval->vert_data, CD_ORIGINDEX);
         /* Get the average of all verts with (original index == nr). */
         for (int i = 0; i < numVerts; i++) {
           if (index[i] == nr) {
@@ -4493,7 +4491,7 @@ Mesh *BKE_object_get_evaluated_mesh_no_subsurf(const Object *object)
      * this should be avoided, or at least protected with a lock, so a const mesh could be returned
      * from this function. We use a const_cast instead of #get_mesh_for_write, because that might
      * result in a copy of the mesh when it is shared. */
-    Mesh *mesh = const_cast<Mesh *>(geometry_set_eval->get_mesh_for_read());
+    Mesh *mesh = const_cast<Mesh *>(geometry_set_eval->get_mesh());
     if (mesh) {
       return mesh;
     }
@@ -4979,9 +4977,9 @@ int BKE_object_is_modified(Scene *scene, Object *ob)
   }
   else {
     ModifierData *md;
-    VirtualModifierData virtualModifierData;
+    VirtualModifierData virtual_modifier_data;
     /* cloth */
-    for (md = BKE_modifiers_get_virtual_modifierlist(ob, &virtualModifierData);
+    for (md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data);
          md && (flag != (eModifierMode_Render | eModifierMode_Realtime));
          md = md->next)
     {
@@ -5103,7 +5101,7 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
   ob = DEG_get_original_object(ob);
 
   ModifierData *md;
-  VirtualModifierData virtualModifierData;
+  VirtualModifierData virtual_modifier_data;
   int flag = 0;
   const bool is_modifier_animated = modifiers_has_animation_check(ob);
 
@@ -5119,7 +5117,7 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
   }
 
   /* cloth */
-  for (md = BKE_modifiers_get_virtual_modifierlist(ob, &virtualModifierData);
+  for (md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data);
        md && (flag != (eModifierMode_Render | eModifierMode_Realtime));
        md = md->next)
   {
@@ -5252,8 +5250,7 @@ static Object *obrel_armature_find(Object *ob)
     ob_arm = ob->parent;
   }
   else {
-    ModifierData *mod;
-    for (mod = (ModifierData *)ob->modifiers.first; mod; mod = mod->next) {
+    LISTBASE_FOREACH (ModifierData *, mod, &ob->modifiers) {
       if (mod->type == eModifierType_Armature) {
         ob_arm = ((ArmatureModifierData *)mod)->object;
       }
@@ -5395,7 +5392,8 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
                                                      BKE_object_get_evaluated_mesh(ob);
       const int *index;
 
-      if (me_eval && (index = (const int *)CustomData_get_layer(&me_eval->vdata, CD_ORIGINDEX))) {
+      if (me_eval &&
+          (index = (const int *)CustomData_get_layer(&me_eval->vert_data, CD_ORIGINDEX))) {
         const Span<float3> positions = me->vert_positions();
 
         /* Tree over-allocates in case where some verts have #ORIGINDEX_NONE. */
@@ -5680,9 +5678,9 @@ void BKE_object_check_uuids_unique_and_report(const Object *object)
   BKE_modifier_check_uuids_unique_and_report(object);
 }
 
-void BKE_object_modifiers_lib_link_common(void *userData, Object *ob, ID **idpoin, int cb_flag)
+void BKE_object_modifiers_lib_link_common(void *user_data, Object *ob, ID **idpoin, int cb_flag)
 {
-  BlendLibReader *reader = (BlendLibReader *)userData;
+  BlendLibReader *reader = (BlendLibReader *)user_data;
 
   BLO_read_id_address(reader, &ob->id, idpoin);
   if (*idpoin != nullptr && (cb_flag & IDWALK_CB_USER) != 0) {

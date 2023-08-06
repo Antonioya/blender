@@ -24,15 +24,15 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
-#include "BKE_brush.h"
+#include "BKE_brush.hh"
 #include "BKE_layer.h"
 #include "BKE_material.h"
-#include "BKE_paint.h"
+#include "BKE_paint.hh"
 
-#include "ED_image.h"
+#include "ED_image.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 const EnumPropertyItem rna_enum_particle_edit_hair_brush_items[] = {
     {PE_BRUSH_COMB, "COMB", 0, "Comb", "Comb hairs"},
@@ -117,9 +117,9 @@ const EnumPropertyItem rna_enum_symmetrize_direction_items[] = {
 
 #  include "DEG_depsgraph.h"
 
-#  include "ED_gpencil_legacy.h"
-#  include "ED_paint.h"
-#  include "ED_particle.h"
+#  include "ED_gpencil_legacy.hh"
+#  include "ED_paint.hh"
+#  include "ED_particle.hh"
 
 static void rna_GPencil_update(Main * /*bmain*/, Scene *scene, PointerRNA * /*ptr*/)
 {
@@ -389,11 +389,6 @@ static void rna_Sculpt_update(bContext *C, PointerRNA * /*ptr*/)
   if (ob) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
-
-    if (ob->sculpt) {
-      BKE_object_sculpt_dyntopo_smooth_shading_set(
-          ob, ((scene->toolsettings->sculpt->flags & SCULPT_DYNTOPO_SMOOTH_SHADING) != 0));
-    }
   }
 }
 
@@ -863,15 +858,6 @@ static void rna_def_sculpt(BlenderRNA *brna)
                            "Maximum edge length for dynamic topology sculpting (as divisor "
                            "of Blender unit - higher value means smaller edge length)");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "use_smooth_shading", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flags", SCULPT_DYNTOPO_SMOOTH_SHADING);
-  RNA_def_property_ui_text(prop,
-                           "Smooth Shading",
-                           "Show faces in dynamic-topology mode with smooth "
-                           "shading rather than flat shaded");
-  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Sculpt_update");
 
   const EnumPropertyItem *entry = rna_enum_brush_automasking_flag_items;
   do {

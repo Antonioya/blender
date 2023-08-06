@@ -425,7 +425,7 @@ struct MTLSamplerArray {
   }
 };
 
-typedef enum MTLPipelineStateDirtyFlag {
+enum MTLPipelineStateDirtyFlag {
   MTL_PIPELINE_STATE_NULL_FLAG = 0,
   /* Whether we need to call setViewport. */
   MTL_PIPELINE_STATE_VIEWPORT_FLAG = (1 << 0),
@@ -444,7 +444,7 @@ typedef enum MTLPipelineStateDirtyFlag {
       (MTL_PIPELINE_STATE_VIEWPORT_FLAG | MTL_PIPELINE_STATE_SCISSOR_FLAG |
        MTL_PIPELINE_STATE_DEPTHSTENCIL_FLAG | MTL_PIPELINE_STATE_PSO_FLAG |
        MTL_PIPELINE_STATE_FRONT_FACING_FLAG | MTL_PIPELINE_STATE_CULLMODE_FLAG)
-} MTLPipelineStateDirtyFlag;
+};
 
 /* Ignore full flag bit-mask `MTL_PIPELINE_STATE_ALL_FLAG`. */
 ENUM_OPERATORS(MTLPipelineStateDirtyFlag, MTL_PIPELINE_STATE_CULLMODE_FLAG);
@@ -668,10 +668,12 @@ class MTLCommandBufferManager {
   void unfold_pending_debug_groups();
 };
 
-/** MTLContext -- Core render loop and state management. **/
-/* NOTE(Metal): Partial #MTLContext stub to provide wrapper functionality
- * for work-in-progress `MTL*` classes. */
-
+/**
+ * MTLContext -- Core render loop and state management.
+ *
+ * NOTE(Metal): Partial #MTLContext stub to provide wrapper functionality
+ * for work-in-progress `MTL*` classes.
+ */
 class MTLContext : public Context {
   friend class MTLBackend;
   friend class MTLRenderPassState;

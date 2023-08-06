@@ -18,7 +18,7 @@
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 
-#include "ED_particle.h"
+#include "ED_particle.hh"
 
 #include "transform.hh"
 #include "transform_snap.hh"
@@ -252,7 +252,7 @@ static void recalcData_particles(TransInfo *t)
 
 TransConvertTypeInfo TransConvertType_Particle = {
     /*flags*/ T_POINTS,
-    /*createTransData*/ createTransParticleVerts,
-    /*recalcData*/ recalcData_particles,
+    /*create_trans_data*/ createTransParticleVerts,
+    /*recalc_data*/ recalcData_particles,
     /*special_aftertrans_update*/ nullptr,
 };

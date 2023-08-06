@@ -25,13 +25,13 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
+#include "UI_interface.hh"
+#include "UI_resources.hh"
 
-#include "ED_mesh.h"
-#include "ED_screen.h"
+#include "ED_mesh.hh"
+#include "ED_screen.hh"
 
 #include "intern/bmesh_private.h"
 
@@ -265,7 +265,7 @@ static void edbm_intersect_ui(bContext * /*C*/, wmOperator *op)
   uiItemS(layout);
 
   if (!use_exact) {
-    uiItemR(layout, op->ptr, "threshold", 0, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "threshold", UI_ITEM_NONE, nullptr, ICON_NONE);
   }
 }
 
@@ -426,10 +426,10 @@ static void edbm_intersect_boolean_ui(bContext * /*C*/, wmOperator *op)
   uiItemR(row, op->ptr, "solver", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
   uiItemS(layout);
 
-  uiItemR(layout, op->ptr, "use_swap", 0, nullptr, ICON_NONE);
-  uiItemR(layout, op->ptr, "use_self", 0, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "use_swap", UI_ITEM_NONE, nullptr, ICON_NONE);
+  uiItemR(layout, op->ptr, "use_self", UI_ITEM_NONE, nullptr, ICON_NONE);
   if (!use_exact) {
-    uiItemR(layout, op->ptr, "threshold", 0, nullptr, ICON_NONE);
+    uiItemR(layout, op->ptr, "threshold", UI_ITEM_NONE, nullptr, ICON_NONE);
   }
 }
 

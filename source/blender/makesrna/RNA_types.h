@@ -6,7 +6,7 @@
  * \ingroup RNA
  */
 
-/* Use a define instead of `#pragma once` because of `BKE_addon.h`, `ED_object.h` & others. */
+/* Use a define instead of `#pragma once` because of `BKE_addon.h`, `ED_object.hh` & others. */
 #ifndef __RNA_TYPES_H__
 #define __RNA_TYPES_H__
 
@@ -123,7 +123,7 @@ typedef enum PropertyScaleType {
 #define RNA_STACK_ARRAY 32
 
 /**
- * \note Also update enums in bpy_props.c and rna_rna.cc when adding items here.
+ * \note Also update enums in `bpy_props.cc` and `rna_rna.cc` when adding items here.
  * Watch it: these values are written to files as part of node socket button sub-types!
  */
 typedef enum PropertySubType {
@@ -310,7 +310,7 @@ typedef enum PropertyFlag {
    **/
   PROP_PATH_OUTPUT = (1 << 2),
 } PropertyFlag;
-ENUM_OPERATORS(PropertyFlag, PROP_NO_DEG_UPDATE)
+ENUM_OPERATORS(PropertyFlag, PROP_TEXTEDIT_UPDATE)
 
 /**
  * Flags related to comparing and overriding RNA properties.
@@ -688,7 +688,7 @@ typedef enum FunctionFlag {
   /**
    * If not set, the Python function implementing this call
    * is not allowed to write into data-blocks.
-   * Except for WindowManager and Screen currently, see rna_id_write_error() in bpy_rna.c
+   * Except for WindowManager and Screen currently, see rna_id_write_error() in `bpy_rna.cc`.
    */
   FUNC_ALLOW_WRITE = (1 << 12),
 

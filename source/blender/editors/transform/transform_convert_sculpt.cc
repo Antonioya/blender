@@ -13,10 +13,10 @@
 #include "BKE_context.h"
 #include "BKE_layer.h"
 #include "BKE_lib_id.h"
-#include "BKE_paint.h"
+#include "BKE_paint.hh"
 #include "BKE_report.h"
 
-#include "ED_sculpt.h"
+#include "ED_sculpt.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -122,7 +122,7 @@ static void special_aftertrans_update__sculpt(bContext *C, TransInfo *t)
 
 TransConvertTypeInfo TransConvertType_Sculpt = {
     /*flags*/ 0,
-    /*createTransData*/ createTransSculpt,
-    /*recalcData*/ recalcData_sculpt,
+    /*create_trans_data*/ createTransSculpt,
+    /*recalc_data*/ recalcData_sculpt,
     /*special_aftertrans_update*/ special_aftertrans_update__sculpt,
 };

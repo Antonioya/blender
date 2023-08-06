@@ -15,7 +15,7 @@
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_editmesh.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -128,7 +128,7 @@ static void recalcData_mesh_edge(TransInfo *t)
 
 TransConvertTypeInfo TransConvertType_MeshEdge = {
     /*flags*/ T_EDIT,
-    /*createTransData*/ createTransEdge,
-    /*recalcData*/ recalcData_mesh_edge,
+    /*create_trans_data*/ createTransEdge,
+    /*recalc_data*/ recalcData_mesh_edge,
     /*special_aftertrans_update*/ nullptr,
 };

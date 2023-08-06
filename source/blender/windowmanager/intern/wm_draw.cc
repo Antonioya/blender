@@ -34,9 +34,9 @@
 
 #include "GHOST_C-api.h"
 
-#include "ED_node.h"
-#include "ED_screen.h"
-#include "ED_view3d.h"
+#include "ED_node.hh"
+#include "ED_screen.hh"
+#include "ED_view3d.hh"
 
 #include "GPU_batch_presets.h"
 #include "GPU_context.h"
@@ -50,19 +50,19 @@
 
 #include "RE_engine.h"
 
-#include "WM_api.h"
+#include "WM_api.hh"
 #include "WM_toolsystem.h"
-#include "WM_types.h"
-#include "wm.h"
-#include "wm_draw.h"
+#include "WM_types.hh"
+#include "wm.hh"
+#include "wm_draw.hh"
 #include "wm_event_system.h"
-#include "wm_surface.h"
-#include "wm_window.h"
+#include "wm_surface.hh"
+#include "wm_window.hh"
 
-#include "UI_resources.h"
+#include "UI_resources.hh"
 
 #ifdef WITH_OPENSUBDIV
-#  include "BKE_subsurf.h"
+#  include "BKE_subsurf.hh"
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -354,7 +354,7 @@ static void wm_software_cursor_draw(wmWindow *win, const GrabState *grab_state)
     }
   }
 
-  GHOST_CursorBitmapRef bitmap = {0};
+  GHOST_CursorBitmapRef bitmap = {nullptr};
   if (GHOST_GetCursorBitmap(static_cast<GHOST_WindowHandle>(win->ghostwin), &bitmap) ==
       GHOST_kSuccess)
   {
@@ -1340,7 +1340,7 @@ bool WM_window_pixels_read_sample_from_offscreen(bContext *C,
   zero_v3(r_col);
 
   /* While this shouldn't happen, return in the case it does. */
-  BLI_assert((uint)pos[0] < (uint)size[0] && (uint)pos[1] < (uint)size[1]);
+  BLI_assert(uint(pos[0]) < uint(size[0]) && uint(pos[1]) < uint(size[1]));
   if (!(uint(pos[0]) < uint(size[0]) && uint(pos[1]) < uint(size[1]))) {
     return false;
   }

@@ -92,7 +92,7 @@ static void blf_face_finalizer(void *object)
  */
 static FT_Error blf_cache_face_requester(FTC_FaceID faceID,
                                          FT_Library lib,
-                                         FT_Pointer /*reqData*/,
+                                         FT_Pointer /*req_data*/,
                                          FT_Face *face)
 {
   FontBLF *font = (FontBLF *)faceID;
@@ -1643,7 +1643,7 @@ void blf_ensure_size(FontBLF *font)
     return;
   }
 
-  FTC_ScalerRec scaler = {0};
+  FTC_ScalerRec scaler = {nullptr};
   scaler.face_id = font;
   scaler.width = 0;
   scaler.height = round_fl_to_uint(font->size * 64.0f);
@@ -1672,7 +1672,7 @@ bool blf_font_size(FontBLF *font, float size)
 
   if (font->size != size) {
     if (font->flags & BLF_CACHED) {
-      FTC_ScalerRec scaler = {0};
+      FTC_ScalerRec scaler = {nullptr};
       scaler.face_id = font;
       scaler.width = 0;
       scaler.height = ft_size;

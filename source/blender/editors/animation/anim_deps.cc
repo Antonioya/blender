@@ -13,6 +13,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_gpencil_legacy_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
@@ -38,7 +39,7 @@
 #include "SEQ_sequencer.h"
 #include "SEQ_utils.h"
 
-#include "ED_anim_api.h"
+#include "ED_anim_api.hh"
 
 /* **************************** depsgraph tagging ******************************** */
 
@@ -212,8 +213,8 @@ static void animchan_sync_fcurve(bAnimListElem *ale)
   FCurve *fcu = (FCurve *)ale->data;
   ID *owner_id = ale->id;
 
-  /* major priority is selection status, so refer to the checks done in anim_filter.c
-   * skip_fcurve_selected_data() for reference about what's going on here...
+  /* major priority is selection status, so refer to the checks done in `anim_filter.cc`
+   * #skip_fcurve_selected_data() for reference about what's going on here.
    */
   if (ELEM(nullptr, fcu, fcu->rna_path, owner_id)) {
     return;
@@ -256,7 +257,6 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
 {
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};
-  bAnimListElem *ale;
   int filter;
 
   bActionGroup *active_agrp = nullptr;
@@ -277,7 +277,7 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   /* flush settings as appropriate depending on the types of the channels */
-  for (ale = static_cast<bAnimListElem *>(anim_data.first); ale; ale = ale->next) {
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     switch (ale->type) {
       case ANIMTYPE_GROUP:
         animchan_sync_group(&ac, ale, &active_agrp);
@@ -290,6 +290,16 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
       case ANIMTYPE_GPLAYER:
         animchan_sync_gplayer(ale);
         break;
+      case ANIMTYPE_GREASE_PENCIL_LAYER:
+        GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(ale->id);
+        GreasePencilLayer *layer = static_cast<GreasePencilLayer *>(ale->data);
+        if (grease_pencil->active_layer == layer) {
+          layer->base.flag |= GP_LAYER_TREE_NODE_SELECT;
+        }
+        else {
+          layer->base.flag &= ~GP_LAYER_TREE_NODE_SELECT;
+        }
+        break;
     }
   }
 
@@ -298,9 +308,7 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
 
 void ANIM_animdata_update(bAnimContext *ac, ListBase *anim_data)
 {
-  bAnimListElem *ale;
-
-  for (ale = static_cast<bAnimListElem *>(anim_data->first); ale; ale = ale->next) {
+  LISTBASE_FOREACH (bAnimListElem *, ale, anim_data) {
     if (ale->type == ANIMTYPE_GPLAYER) {
       bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
 

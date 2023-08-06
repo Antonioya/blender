@@ -25,10 +25,10 @@
 
 #include "DEG_depsgraph.h"
 
-#include "ED_screen.h"
+#include "ED_screen.hh"
 
-#include "WM_api.h"
-#include "WM_types.h"
+#include "WM_api.hh"
+#include "WM_types.hh"
 
 #include "lattice_intern.h"
 
@@ -113,11 +113,11 @@ void LATTICE_OT_make_regular(wmOperatorType *ot)
  * \{ */
 
 /* flipping options */
-typedef enum eLattice_FlipAxes {
+enum eLattice_FlipAxes {
   LATTICE_FLIP_U = 0,
   LATTICE_FLIP_V = 1,
   LATTICE_FLIP_W = 2,
-} eLattice_FlipAxes;
+};
 
 /**
  * Flip midpoint value so that relative distances between midpoint and neighbor-pair is maintained.

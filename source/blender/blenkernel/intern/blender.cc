@@ -26,7 +26,7 @@
 #include "BKE_blender_user_menu.h"
 #include "BKE_blender_version.h" /* own include */
 #include "BKE_blendfile.h"
-#include "BKE_brush.h"
+#include "BKE_brush.hh"
 #include "BKE_cachefile.h"
 #include "BKE_callbacks.h"
 #include "BKE_global.h"
@@ -123,6 +123,26 @@ static void blender_version_init()
 const char *BKE_blender_version_string()
 {
   return blender_version_string;
+}
+
+void BKE_blender_version_blendfile_string_from_values(char *str_buff,
+                                                      const size_t str_buff_maxncpy,
+                                                      const short file_version,
+                                                      const short file_subversion)
+{
+  const short file_version_major = file_version / 100;
+  const short file_version_minor = file_version % 100;
+  if (file_subversion >= 0) {
+    BLI_snprintf(str_buff,
+                 str_buff_maxncpy,
+                 "%d.%d (sub %d)",
+                 file_version_major,
+                 file_version_minor,
+                 file_subversion);
+  }
+  else {
+    BLI_snprintf(str_buff, str_buff_maxncpy, "%d.%d", file_version_major, file_version_minor);
+  }
 }
 
 bool BKE_blender_version_is_alpha()

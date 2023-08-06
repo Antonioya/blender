@@ -23,7 +23,7 @@
 
 #include "rna_internal.h"
 
-#include "WM_types.h"
+#include "WM_types.hh"
 
 #ifndef RNA_RUNTIME
 static const EnumPropertyItem beztriple_handle_type_items[] = {
@@ -161,11 +161,11 @@ static const EnumPropertyItem curve2d_fill_mode_items[] = {
 #  include "DEG_depsgraph.h"
 #  include "DEG_depsgraph_build.h"
 
-#  include "WM_api.h"
+#  include "WM_api.hh"
 
 #  include "MEM_guardedalloc.h"
 
-#  include "ED_curve.h" /* for BKE_curve_nurbs_get */
+#  include "ED_curve.hh" /* for BKE_curve_nurbs_get */
 
 /* highly irritating but from RNA we can't know this */
 static Nurb *curve_nurb_from_point(Curve *cu, const void *point, int *nu_index, int *pt_index)
@@ -594,10 +594,10 @@ static void rna_Curve_body_set(PointerRNA *ptr, const char *value)
   }
 
   cu->str = static_cast<char *>(MEM_mallocN(len_bytes + sizeof(char32_t), "str"));
+  memcpy(cu->str, value, len_bytes + 1);
+
   cu->strinfo = static_cast<CharInfo *>(
       MEM_callocN((len_chars + 4) * sizeof(CharInfo), "strinfo"));
-
-  memcpy(cu->str, value, len_bytes + 1);
 }
 
 static void rna_Nurb_update_cyclic_u(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -840,13 +840,49 @@ static bool rna_Curve_is_editmode_get(PointerRNA *ptr)
   }
 }
 
+static bool rna_TextCurve_is_select_bold_get(PointerRNA *ptr)
+{
+  Curve *cu = reinterpret_cast<Curve *>(ptr->owner_id);
+  if (cu->editfont != nullptr) {
+    return (cu->editfont->select_char_info_flag & CU_CHINFO_BOLD);
+  }
+  return false;
+}
+
+static bool rna_TextCurve_is_select_italic_get(PointerRNA *ptr)
+{
+  Curve *cu = reinterpret_cast<Curve *>(ptr->owner_id);
+  if (cu->editfont != nullptr) {
+    return (cu->editfont->select_char_info_flag & CU_CHINFO_ITALIC);
+  }
+  return false;
+}
+
+static bool rna_TextCurve_is_select_underline_get(PointerRNA *ptr)
+{
+  Curve *cu = reinterpret_cast<Curve *>(ptr->owner_id);
+  if (cu->editfont != nullptr) {
+    return (cu->editfont->select_char_info_flag & CU_CHINFO_UNDERLINE);
+  }
+  return false;
+}
+
+static bool rna_TextCurve_is_select_smallcaps_get(PointerRNA *ptr)
+{
+  Curve *cu = reinterpret_cast<Curve *>(ptr->owner_id);
+  if (cu->editfont != nullptr) {
+    return (cu->editfont->select_char_info_flag & CU_CHINFO_SMALLCAPS);
+  }
+  return false;
+}
+
 static bool rna_TextCurve_has_selection_get(PointerRNA *ptr)
 {
   Curve *cu = reinterpret_cast<Curve *>(ptr->owner_id);
-  if (cu->editfont != nullptr)
+  if (cu->editfont != nullptr) {
     return (cu->editfont->selboxes != nullptr);
-  else
-    return false;
+  }
+  return false;
 }
 
 #else
@@ -1286,25 +1322,22 @@ static void rna_def_font(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
   prop = RNA_def_property(srna, "is_select_bold", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "editfont->select_char_info_flag", CU_CHINFO_BOLD);
+  RNA_def_property_boolean_funcs(prop, "rna_TextCurve_is_select_bold_get", nullptr);
   RNA_def_property_ui_text(prop, "Selected Bold", "Whether the selected text is bold");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "is_select_italic", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "editfont->select_char_info_flag", CU_CHINFO_ITALIC);
+  RNA_def_property_boolean_funcs(prop, "rna_TextCurve_is_select_italic_get", nullptr);
   RNA_def_property_ui_text(prop, "Selected Italic", "Whether the selected text is italics");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "is_select_underline", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "editfont->select_char_info_flag", CU_CHINFO_UNDERLINE);
+  RNA_def_property_boolean_funcs(prop, "rna_TextCurve_is_select_underline_get", nullptr);
   RNA_def_property_ui_text(prop, "Selected Underline", "Whether the selected text is underlined");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "is_select_smallcaps", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "editfont->select_char_info_flag", CU_CHINFO_SMALLCAPS);
+  RNA_def_property_boolean_funcs(prop, "rna_TextCurve_is_select_smallcaps_get", nullptr);
   RNA_def_property_ui_text(prop, "Selected Small Caps", "Whether the selected text is small caps");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 

@@ -344,7 +344,7 @@ static void checker_board_grid_fill(
   }
 }
 
-/* defined in image.c */
+/* Defined in `image.cc`. */
 
 static void checker_board_text(
     uchar *rect, float *rect_float, int width, int height, int step, int outline)
@@ -436,7 +436,7 @@ static void checker_board_color_prepare_thread_do(void *data_v, int scanline)
 {
   FillCheckerColorThreadData *data = (FillCheckerColorThreadData *)data_v;
   const int num_scanlines = 1;
-  size_t offset = (size_t(data->width)) * scanline * 4;
+  size_t offset = size_t(data->width) * scanline * 4;
   uchar *rect = (data->rect != nullptr) ? (data->rect + offset) : nullptr;
   float *rect_float = (data->rect_float != nullptr) ? (data->rect_float + offset) : nullptr;
   checker_board_color_prepare_slice(
